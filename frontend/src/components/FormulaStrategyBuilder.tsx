@@ -1,996 +1,924 @@
-import { MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import * as Blockly from 'blockly';
+import { javascriptGenerator, Order } from 'blockly/javascript';
 
-type NodeCategory = 'MATH' | 'LOGIC' | 'DATA' | 'CONTROL' | 'IO';
-type DeployScope = 'global' | 'local';
-type DeployStatus = 'draft' | 'qa' | 'production';
+type BuilderModule = 'formula' | 'strategy';
+type BuilderStatus = 'draft' | 'saved' | 'valid' | 'invalid' | 'active';
+type FormulaTab = 'types' | 'details' | 'workflow';
+type DeployScope = 'local' | 'global';
+type DeployStage = 'draft' | 'qa' | 'production';
 type StrategyTemplateKey = 'blank' | 'cost_plus' | 'competitive' | 'approval_gate';
 
-type NodeTemplate = {
-  type: string;
-  label: string;
-  icon: string;
-  inputs: number;
-  outputs: number;
-};
-
-type StrategyNode = {
+type BuilderDoc = {
   id: string;
-  type: string;
-  position: { x: number; y: number };
-  data: {
-    label: string;
-    icon: string;
-    config: Record<string, string>;
-  };
-  inputs: string[];
-  outputs: string[];
-};
-
-type Connection = {
-  id: string;
-  from: string;
-  to: string;
-  fromOutput: number;
-  toInput: number;
-};
-
-type StrategyDocument = {
-  id: string;
+  module: BuilderModule;
   name: string;
   description: string;
-  templateKey: StrategyTemplateKey;
-  deployment: {
-    scope: DeployScope;
-    target: string;
-    priority: number;
-    status: DeployStatus;
-  };
-  nodes: StrategyNode[];
-  connections: Connection[];
+  status: BuilderStatus;
+  workspace: Record<string, unknown> | null;
+  formulaTab: FormulaTab;
+  formulaTypeName: string;
+  activeTypes: string[];
+  strategyTemplate: StrategyTemplateKey;
+  deployScope: DeployScope;
+  deployTarget: string;
+  deployPriority: number;
+  deployStage: DeployStage;
   updatedAt: string;
 };
 
-const STORAGE_KEY = 'formula_builder_strategy_documents_v4';
-
-const NODE_TEMPLATES: Record<NodeCategory, NodeTemplate[]> = {
-  MATH: [
-    { type: 'add', label: 'Add (+)', icon: '+', inputs: 2, outputs: 1 },
-    { type: 'subtract', label: 'Subtract (-)', icon: '-', inputs: 2, outputs: 1 },
-    { type: 'multiply', label: 'Multiply (*)', icon: '*', inputs: 2, outputs: 1 },
-    { type: 'divide', label: 'Divide (/)', icon: '/', inputs: 2, outputs: 1 },
-    { type: 'power', label: 'Power (^)', icon: '^', inputs: 2, outputs: 1 },
-    { type: 'round', label: 'Round', icon: '~', inputs: 1, outputs: 1 },
-    { type: 'min', label: 'Minimum', icon: 'min', inputs: 2, outputs: 1 },
-    { type: 'max', label: 'Maximum', icon: 'max', inputs: 2, outputs: 1 }
-  ],
-  LOGIC: [
-    { type: 'if', label: 'IF Condition', icon: '?', inputs: 3, outputs: 1 },
-    { type: 'equals', label: 'Equals (==)', icon: '==', inputs: 2, outputs: 1 },
-    { type: 'greater', label: 'Greater (>)', icon: '>', inputs: 2, outputs: 1 },
-    { type: 'less', label: 'Less (<)', icon: '<', inputs: 2, outputs: 1 },
-    { type: 'and', label: 'AND', icon: 'AND', inputs: 2, outputs: 1 },
-    { type: 'or', label: 'OR', icon: 'OR', inputs: 2, outputs: 1 }
-  ],
-  DATA: [
-    { type: 'query', label: 'Query Table', icon: 'Q', inputs: 0, outputs: 1 },
-    { type: 'filter', label: 'Filter Data', icon: 'F', inputs: 2, outputs: 1 },
-    { type: 'lookup', label: 'Table Lookup', icon: 'L', inputs: 2, outputs: 1 },
-    { type: 'aggregate', label: 'Aggregate', icon: 'SUM', inputs: 1, outputs: 1 },
-    { type: 'getField', label: 'Get Field', icon: 'GET', inputs: 1, outputs: 1 }
-  ],
-  CONTROL: [
-    { type: 'forEach', label: 'For Each Loop', icon: 'FOR', inputs: 2, outputs: 1 },
-    { type: 'while', label: 'While Loop', icon: 'WH', inputs: 2, outputs: 1 },
-    { type: 'map', label: 'Map Array', icon: 'MAP', inputs: 2, outputs: 1 },
-    { type: 'reduce', label: 'Reduce', icon: 'RED', inputs: 3, outputs: 1 }
-  ],
-  IO: [
-    { type: 'input', label: 'Input Value', icon: 'IN', inputs: 0, outputs: 1 },
-    { type: 'constant', label: 'Constant', icon: 'C', inputs: 0, outputs: 1 },
-    { type: 'variable', label: 'Variable', icon: 'VAR', inputs: 1, outputs: 1 },
-    { type: 'setLineItem', label: 'Set Line Item Field', icon: 'LI', inputs: 2, outputs: 0 },
-    { type: 'setHeader', label: 'Set Quote Header', icon: 'QH', inputs: 2, outputs: 0 }
-  ]
+type TestLine = {
+  sku: string;
+  cost: number;
+  list_price: number;
+  quantity: number;
+  discount_percent: number;
+  product_family: string;
 };
 
-const TEMPLATE_OPTIONS: Array<{ key: StrategyTemplateKey; label: string }> = [
-  { key: 'blank', label: 'Blank Strategy' },
-  { key: 'cost_plus', label: 'Cost Plus Template' },
-  { key: 'competitive', label: 'Competitive Match Template' },
-  { key: 'approval_gate', label: 'Approval Gate Template' }
+const STORAGE_KEY = 'admin_formula_strategy_blockly_v1';
+const TOOLBOX_LABEL_COLOURS = {
+  product: 350,
+  parameters: 320,
+  lookup: 35,
+  constants: 85,
+  math: 195,
+  logic: 205,
+  functions: 255,
+  outputs: 15
+};
+
+const STRATEGY_TEMPLATES: Array<{ key: StrategyTemplateKey; label: string }> = [
+  { key: 'blank', label: 'Blank' },
+  { key: 'cost_plus', label: 'Cost Plus' },
+  { key: 'competitive', label: 'Competitive Match' },
+  { key: 'approval_gate', label: 'Approval Gate' }
 ];
+
+const FORMULA_TYPES = ['IntegerInputCostData', 'CostPlusNoInput', 'InputWithLabel', 'TramCostPlus'];
 
 function makeId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function cloneNode(node: StrategyNode): StrategyNode {
+function createDefaultDoc(module: BuilderModule, name: string): BuilderDoc {
   return {
-    ...node,
-    data: { ...node.data, config: { ...node.data.config } },
-    inputs: [...node.inputs],
-    outputs: [...node.outputs]
-  };
-}
-
-function createBlankStrategy(name = 'New Strategy'): StrategyDocument {
-  return {
-    id: makeId('strategy'),
+    id: makeId(module),
+    module,
     name,
     description: '',
-    templateKey: 'blank',
-    deployment: {
-      scope: 'local',
-      target: 'default',
-      priority: 100,
-      status: 'draft'
-    },
-    nodes: [],
-    connections: [],
+    status: 'draft',
+    workspace: null,
+    formulaTab: 'types',
+    formulaTypeName: module === 'formula' ? 'IntegerInputCostData' : 'StrategyType',
+    activeTypes: module === 'formula' ? ['IntegerInputCostData'] : [],
+    strategyTemplate: 'blank',
+    deployScope: 'local',
+    deployTarget: 'default',
+    deployPriority: 100,
+    deployStage: 'draft',
     updatedAt: new Date().toISOString()
   };
 }
 
-function createNodeFromTemplate(type: string, x: number, y: number, config: Record<string, string> = {}): StrategyNode {
-  const all = Object.values(NODE_TEMPLATES).flat();
-  const base = all.find((item) => item.type === type);
-  if (!base) {
-    return {
-      id: makeId('node'),
-      type,
-      position: { x, y },
-      data: { label: type, icon: '?', config },
-      inputs: [],
-      outputs: []
-    };
-  }
+let customBlocksRegistered = false;
 
-  return {
-    id: makeId('node'),
-    type: base.type,
-    position: { x, y },
-    data: { label: base.label, icon: base.icon, config },
-    inputs: Array(base.inputs).fill(''),
-    outputs: Array(base.outputs).fill('')
+function registerCustomBlocks() {
+  if (customBlocksRegistered) return;
+  customBlocksRegistered = true;
+
+  Blockly.defineBlocksWithJsonArray([
+    {
+      type: 'pricing_product_attribute',
+      message0: 'Product attribute %1',
+      args0: [
+        {
+          type: 'field_dropdown',
+          name: 'ATTR',
+          options: [
+            ['Cost', 'cost'],
+            ['List Price', 'list_price'],
+            ['Quantity', 'quantity'],
+            ['Discount %', 'discount_percent']
+          ]
+        }
+      ],
+      output: 'Number',
+      colour: TOOLBOX_LABEL_COLOURS.product
+    },
+    {
+      type: 'pricing_parameter_number',
+      message0: 'Parameter %1',
+      args0: [{ type: 'field_input', name: 'NAME', text: 'margin' }],
+      output: 'Number',
+      colour: TOOLBOX_LABEL_COLOURS.parameters
+    },
+    {
+      type: 'pricing_lookup_take',
+      message0: 'Take %1 %2 from %3',
+      args0: [
+        {
+          type: 'field_dropdown',
+          name: 'AGG',
+          options: [
+            ['first', 'first'],
+            ['average', 'avg'],
+            ['min', 'min'],
+            ['max', 'max']
+          ]
+        },
+        { type: 'field_input', name: 'FIELD', text: 'cost' },
+        { type: 'field_input', name: 'LOOKUP', text: 'ProductCosts' }
+      ],
+      output: 'Number',
+      colour: TOOLBOX_LABEL_COLOURS.lookup
+    },
+    {
+      type: 'pricing_constant_number',
+      message0: 'Number %1',
+      args0: [{ type: 'field_number', name: 'VALUE', value: 0 }],
+      output: 'Number',
+      colour: TOOLBOX_LABEL_COLOURS.constants
+    },
+    {
+      type: 'pricing_formula_result',
+      message0: 'set formula result to %1',
+      args0: [{ type: 'input_value', name: 'VALUE', check: ['Number', 'String', 'Boolean'] }],
+      previousStatement: null,
+      nextStatement: null,
+      colour: TOOLBOX_LABEL_COLOURS.outputs
+    },
+    {
+      type: 'pricing_set_line_item',
+      message0: 'set line item %1 to %2',
+      args0: [
+        { type: 'field_input', name: 'TARGET', text: 'target_price' },
+        { type: 'input_value', name: 'VALUE', check: ['Number', 'String', 'Boolean'] }
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: TOOLBOX_LABEL_COLOURS.outputs
+    },
+    {
+      type: 'pricing_set_quote_header',
+      message0: 'set quote header %1 to %2',
+      args0: [
+        { type: 'field_input', name: 'TARGET', text: 'approval_required' },
+        { type: 'input_value', name: 'VALUE', check: ['Number', 'String', 'Boolean'] }
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: TOOLBOX_LABEL_COLOURS.outputs
+    },
+    {
+      type: 'pricing_formula_detail',
+      message0: 'formula detail %1',
+      args0: [{ type: 'field_multilinetext', name: 'TEXT', text: 'Integer input with cost data' }],
+      previousStatement: null,
+      nextStatement: null,
+      colour: 95
+    }
+  ]);
+
+  javascriptGenerator.forBlock['pricing_product_attribute'] = (block) => {
+    const attr = block.getFieldValue('ATTR');
+    return [`line.${attr}`, Order.ATOMIC];
+  };
+
+  javascriptGenerator.forBlock['pricing_parameter_number'] = (block) => {
+    const key = block.getFieldValue('NAME').replace(/"/g, '');
+    return [`Number(params["${key}"] ?? 0)`, Order.ATOMIC];
+  };
+
+  javascriptGenerator.forBlock['pricing_lookup_take'] = (block) => {
+    const agg = block.getFieldValue('AGG');
+    const field = block.getFieldValue('FIELD').replace(/"/g, '');
+    const lookup = block.getFieldValue('LOOKUP').replace(/"/g, '');
+    return [`lookupFn("${lookup}", "${field}", "${agg}", line)`, Order.FUNCTION_CALL];
+  };
+
+  javascriptGenerator.forBlock['pricing_constant_number'] = (block) => {
+    return [String(block.getFieldValue('VALUE')), Order.ATOMIC];
+  };
+
+  javascriptGenerator.forBlock['pricing_formula_result'] = (block) => {
+    const value = javascriptGenerator.valueToCode(block, 'VALUE', Order.NONE) || 'null';
+    return `result.formula = ${value};\n`;
+  };
+
+  javascriptGenerator.forBlock['pricing_set_line_item'] = (block) => {
+    const target = block.getFieldValue('TARGET').replace(/"/g, '');
+    const value = javascriptGenerator.valueToCode(block, 'VALUE', Order.NONE) || 'null';
+    return `result.lineItem["${target}"] = ${value};\n`;
+  };
+
+  javascriptGenerator.forBlock['pricing_set_quote_header'] = (block) => {
+    const target = block.getFieldValue('TARGET').replace(/"/g, '');
+    const value = javascriptGenerator.valueToCode(block, 'VALUE', Order.NONE) || 'null';
+    return `result.quoteHeader["${target}"] = ${value};\n`;
+  };
+
+  javascriptGenerator.forBlock['pricing_formula_detail'] = (block) => {
+    const text = JSON.stringify(block.getFieldValue('TEXT'));
+    return `result.formulaDetail = ${text};\n`;
   };
 }
 
-function createTemplateStrategy(templateKey: StrategyTemplateKey, index: number): StrategyDocument {
-  const base = createBlankStrategy(`Strategy ${index + 1}`);
-  base.templateKey = templateKey;
+function getFormulaToolbox() {
+  return {
+    kind: 'categoryToolbox',
+    contents: [
+      {
+        kind: 'category',
+        name: 'Product Attributes',
+        colour: String(TOOLBOX_LABEL_COLOURS.product),
+        contents: [{ kind: 'block', type: 'pricing_product_attribute' }]
+      },
+      {
+        kind: 'category',
+        name: 'Parameters',
+        colour: String(TOOLBOX_LABEL_COLOURS.parameters),
+        contents: [{ kind: 'block', type: 'pricing_parameter_number' }]
+      },
+      {
+        kind: 'category',
+        name: 'Data Lookups',
+        colour: String(TOOLBOX_LABEL_COLOURS.lookup),
+        contents: [{ kind: 'block', type: 'pricing_lookup_take' }]
+      },
+      {
+        kind: 'category',
+        name: 'Constants',
+        colour: String(TOOLBOX_LABEL_COLOURS.constants),
+        contents: [
+          { kind: 'block', type: 'pricing_constant_number' },
+          { kind: 'block', type: 'math_number' },
+          { kind: 'block', type: 'text' },
+          { kind: 'block', type: 'logic_boolean' }
+        ]
+      },
+      {
+        kind: 'category',
+        name: 'Math',
+        colour: String(TOOLBOX_LABEL_COLOURS.math),
+        contents: [
+          { kind: 'block', type: 'math_arithmetic' },
+          { kind: 'block', type: 'math_round' },
+          { kind: 'block', type: 'math_single' },
+          { kind: 'block', type: 'math_minmax' }
+        ]
+      },
+      {
+        kind: 'category',
+        name: 'Logic',
+        colour: String(TOOLBOX_LABEL_COLOURS.logic),
+        contents: [
+          { kind: 'block', type: 'logic_compare' },
+          { kind: 'block', type: 'logic_operation' },
+          { kind: 'block', type: 'logic_ternary' }
+        ]
+      },
+      {
+        kind: 'category',
+        name: 'Functions',
+        colour: String(TOOLBOX_LABEL_COLOURS.functions),
+        custom: 'PROCEDURE'
+      },
+      {
+        kind: 'category',
+        name: 'Outputs',
+        colour: String(TOOLBOX_LABEL_COLOURS.outputs),
+        contents: [
+          { kind: 'block', type: 'pricing_formula_result' },
+          { kind: 'block', type: 'pricing_formula_detail' }
+        ]
+      }
+    ]
+  };
+}
 
-  if (templateKey === 'blank') return base;
+function getStrategyToolbox() {
+  return {
+    kind: 'categoryToolbox',
+    contents: [
+      {
+        kind: 'category',
+        name: 'Product Attributes',
+        colour: String(TOOLBOX_LABEL_COLOURS.product),
+        contents: [{ kind: 'block', type: 'pricing_product_attribute' }]
+      },
+      {
+        kind: 'category',
+        name: 'Parameters',
+        colour: String(TOOLBOX_LABEL_COLOURS.parameters),
+        contents: [{ kind: 'block', type: 'pricing_parameter_number' }]
+      },
+      {
+        kind: 'category',
+        name: 'Data Lookups',
+        colour: String(TOOLBOX_LABEL_COLOURS.lookup),
+        contents: [{ kind: 'block', type: 'pricing_lookup_take' }]
+      },
+      {
+        kind: 'category',
+        name: 'Constants',
+        colour: String(TOOLBOX_LABEL_COLOURS.constants),
+        contents: [
+          { kind: 'block', type: 'pricing_constant_number' },
+          { kind: 'block', type: 'math_number' },
+          { kind: 'block', type: 'logic_boolean' }
+        ]
+      },
+      {
+        kind: 'category',
+        name: 'Math',
+        colour: String(TOOLBOX_LABEL_COLOURS.math),
+        contents: [
+          { kind: 'block', type: 'math_arithmetic' },
+          { kind: 'block', type: 'math_round' },
+          { kind: 'block', type: 'math_single' },
+          { kind: 'block', type: 'math_minmax' }
+        ]
+      },
+      {
+        kind: 'category',
+        name: 'Logic',
+        colour: String(TOOLBOX_LABEL_COLOURS.logic),
+        contents: [
+          { kind: 'block', type: 'logic_compare' },
+          { kind: 'block', type: 'logic_operation' },
+          { kind: 'block', type: 'logic_ternary' },
+          { kind: 'block', type: 'controls_if' }
+        ]
+      },
+      {
+        kind: 'category',
+        name: 'Functions',
+        colour: String(TOOLBOX_LABEL_COLOURS.functions),
+        contents: [
+          { kind: 'block', type: 'controls_repeat_ext' },
+          { kind: 'block', type: 'controls_whileUntil' },
+          { kind: 'block', type: 'variables_set' },
+          { kind: 'block', type: 'variables_get' }
+        ]
+      },
+      {
+        kind: 'category',
+        name: 'Outputs',
+        colour: String(TOOLBOX_LABEL_COLOURS.outputs),
+        contents: [
+          { kind: 'block', type: 'pricing_set_line_item' },
+          { kind: 'block', type: 'pricing_set_quote_header' }
+        ]
+      }
+    ]
+  };
+}
 
-  if (templateKey === 'cost_plus') {
-    const cost = createNodeFromTemplate('input', 220, 120, { value: 'line.cost' });
-    const margin = createNodeFromTemplate('constant', 220, 250, { value: '0.2' });
-    const one = createNodeFromTemplate('constant', 220, 380, { value: '1' });
-    const add = createNodeFromTemplate('add', 500, 320);
-    const multiply = createNodeFromTemplate('multiply', 780, 230);
-    const output = createNodeFromTemplate('setLineItem', 1050, 230, { value: 'line.target_price' });
-    const nodes = [cost, margin, one, add, multiply, output];
-    const connections: Connection[] = [
-      { id: makeId('conn'), from: one.id, to: add.id, fromOutput: 0, toInput: 0 },
-      { id: makeId('conn'), from: margin.id, to: add.id, fromOutput: 0, toInput: 1 },
-      { id: makeId('conn'), from: cost.id, to: multiply.id, fromOutput: 0, toInput: 0 },
-      { id: makeId('conn'), from: add.id, to: multiply.id, fromOutput: 0, toInput: 1 },
-      { id: makeId('conn'), from: multiply.id, to: output.id, fromOutput: 0, toInput: 1 }
-    ];
-    return {
-      ...base,
-      name: 'Cost Plus Strategy',
-      description: 'Target price = cost * (1 + margin).',
-      nodes,
-      connections
-    };
-  }
-
-  if (templateKey === 'competitive') {
-    const query = createNodeFromTemplate('query', 220, 170, { value: 'competitor_prices' });
-    const lookup = createNodeFromTemplate('lookup', 490, 170, { value: 'sku' });
-    const constant = createNodeFromTemplate('constant', 490, 310, { value: '0.98' });
-    const multiply = createNodeFromTemplate('multiply', 760, 220);
-    const min = createNodeFromTemplate('min', 1020, 220);
-    const listPrice = createNodeFromTemplate('input', 760, 360, { value: 'line.list_price' });
-    const output = createNodeFromTemplate('setLineItem', 1280, 220, { value: 'line.target_price' });
-    const nodes = [query, lookup, constant, multiply, min, listPrice, output];
-    const connections: Connection[] = [
-      { id: makeId('conn'), from: query.id, to: lookup.id, fromOutput: 0, toInput: 0 },
-      { id: makeId('conn'), from: lookup.id, to: multiply.id, fromOutput: 0, toInput: 0 },
-      { id: makeId('conn'), from: constant.id, to: multiply.id, fromOutput: 0, toInput: 1 },
-      { id: makeId('conn'), from: multiply.id, to: min.id, fromOutput: 0, toInput: 0 },
-      { id: makeId('conn'), from: listPrice.id, to: min.id, fromOutput: 0, toInput: 1 },
-      { id: makeId('conn'), from: min.id, to: output.id, fromOutput: 0, toInput: 1 }
-    ];
-    return {
-      ...base,
-      name: 'Competitive Match Strategy',
-      description: 'Price to min(list price, competitor * 0.98).',
-      nodes,
-      connections
-    };
-  }
-
-  const discount = createNodeFromTemplate('input', 260, 180, { value: 'line.discount_percent' });
-  const threshold = createNodeFromTemplate('constant', 260, 320, { value: '0.15' });
-  const greater = createNodeFromTemplate('greater', 570, 245);
-  const output = createNodeFromTemplate('setHeader', 860, 245, { value: 'quote.requires_approval' });
-  const nodes = [discount, threshold, greater, output];
-  const connections: Connection[] = [
-    { id: makeId('conn'), from: discount.id, to: greater.id, fromOutput: 0, toInput: 0 },
-    { id: makeId('conn'), from: threshold.id, to: greater.id, fromOutput: 0, toInput: 1 },
-    { id: makeId('conn'), from: greater.id, to: output.id, fromOutput: 0, toInput: 1 }
+function createLineDataSamples(): TestLine[] {
+  return [
+    { sku: 'SKU-1001', cost: 780, list_price: 1200, quantity: 20, discount_percent: 0.11, product_family: 'Compute' },
+    { sku: 'SKU-2040', cost: 280, list_price: 440, quantity: 65, discount_percent: 0.08, product_family: 'Storage' },
+    { sku: 'SKU-7782', cost: 620, list_price: 980, quantity: 12, discount_percent: 0.17, product_family: 'Software' }
   ];
-  return {
-    ...base,
-    name: 'Approval Gate Strategy',
-    description: 'Set quote approval flag when discount is above threshold.',
-    nodes,
-    connections
+}
+
+function lookupFn(table: string, field: string, agg: string, line: TestLine): number {
+  const data: Record<string, Array<Record<string, number | string>>> = {
+    ProductCosts: [
+      { sku: 'SKU-1001', cost: 800, list_price: 1190 },
+      { sku: 'SKU-2040', cost: 275, list_price: 435 },
+      { sku: 'SKU-7782', cost: 635, list_price: 990 }
+    ],
+    competitor_prices: [
+      { sku: 'SKU-1001', price: 1130 },
+      { sku: 'SKU-2040', price: 418 },
+      { sku: 'SKU-7782', price: 1025 }
+    ]
   };
+
+  const rows = data[table] ?? [];
+  const candidates = rows
+    .filter((r) => String(r.sku ?? '') === String(line.sku))
+    .map((r) => Number(r[field] ?? r.price ?? 0))
+    .filter((v) => Number.isFinite(v));
+
+  if (!candidates.length) return 0;
+  if (agg === 'first') return candidates[0];
+  if (agg === 'avg') return candidates.reduce((a, b) => a + b, 0) / candidates.length;
+  if (agg === 'min') return Math.min(...candidates);
+  if (agg === 'max') return Math.max(...candidates);
+  return candidates[0];
 }
 
-function getNodeColorClass(type: string): string {
-  if (['add', 'subtract', 'multiply', 'divide', 'power', 'round', 'min', 'max'].includes(type)) return 'node-math';
-  if (['if', 'equals', 'greater', 'less', 'and', 'or'].includes(type)) return 'node-logic';
-  if (['query', 'filter', 'lookup', 'aggregate', 'getField'].includes(type)) return 'node-data';
-  if (['forEach', 'while', 'map', 'reduce'].includes(type)) return 'node-control';
-  return 'node-io';
+function collectWarnings(workspace: Blockly.WorkspaceSvg, module: BuilderModule): string[] {
+  const blocks = workspace.getAllBlocks(false);
+  const warnings: string[] = [];
+
+  if (blocks.length === 0) {
+    warnings.push('Workspace is empty.');
+    return warnings;
+  }
+
+  const hasOutput = blocks.some((block) =>
+    module === 'formula'
+      ? block.type === 'pricing_formula_result'
+      : block.type === 'pricing_set_line_item' || block.type === 'pricing_set_quote_header'
+  );
+  if (!hasOutput) {
+    warnings.push(module === 'formula' ? 'Formula result block is required.' : 'At least one strategy output block is required.');
+  }
+
+  const unconnectedValues = blocks.filter(
+    (block) => Boolean(block.outputConnection) && !block.outputConnection?.isConnected()
+  );
+  if (unconnectedValues.length) {
+    warnings.push(`${unconnectedValues.length} value block(s) are not connected.`);
+  }
+
+  const lookupBlocks = blocks.filter((block) => block.type === 'pricing_lookup_take');
+  if (lookupBlocks.some((block) => !(block.getFieldValue('LOOKUP') ?? '').trim())) {
+    warnings.push('Lookup block has empty lookup source.');
+  }
+
+  return warnings;
 }
 
-function wouldCreateCycle(from: string, to: string, connections: Connection[]): boolean {
-  const graph = new Map<string, string[]>();
-  for (const conn of connections) {
-    if (!graph.has(conn.from)) graph.set(conn.from, []);
-    graph.get(conn.from)?.push(conn.to);
-  }
-  if (!graph.has(from)) graph.set(from, []);
-  graph.get(from)?.push(to);
+function seedTemplate(workspace: Blockly.WorkspaceSvg, key: StrategyTemplateKey) {
+  if (key === 'blank') return;
+  workspace.clear();
 
-  const seen = new Set<string>();
-  const stack = [to];
-  while (stack.length) {
-    const current = stack.pop() as string;
-    if (current === from) return true;
-    if (seen.has(current)) continue;
-    seen.add(current);
-    const next = graph.get(current) ?? [];
-    for (const target of next) stack.push(target);
+  const create = (type: string, x: number, y: number, fields?: Record<string, string | number>) => {
+    const block = workspace.newBlock(type);
+    Object.entries(fields ?? {}).forEach(([name, value]) => block.setFieldValue(String(value), name));
+    block.initSvg();
+    block.render();
+    block.moveBy(x, y);
+    return block;
+  };
+
+  if (key === 'cost_plus') {
+    const cost = create('pricing_product_attribute', 70, 80, { ATTR: 'cost' });
+    const one = create('pricing_constant_number', 70, 200, { VALUE: 1 });
+    const margin = create('pricing_parameter_number', 70, 320, { NAME: 'margin' });
+    const add = create('math_arithmetic', 380, 220, { OP: 'ADD' });
+    const multiply = create('math_arithmetic', 680, 160, { OP: 'MULTIPLY' });
+    const output = create('pricing_set_line_item', 980, 180, { TARGET: 'target_price' });
+
+    add.getInput('A')?.connection?.connect(one.outputConnection);
+    add.getInput('B')?.connection?.connect(margin.outputConnection);
+    multiply.getInput('A')?.connection?.connect(cost.outputConnection);
+    multiply.getInput('B')?.connection?.connect(add.outputConnection);
+    output.getInput('VALUE')?.connection?.connect(multiply.outputConnection);
   }
-  return false;
+
+  if (key === 'competitive') {
+    const lookup = create('pricing_lookup_take', 80, 90, { LOOKUP: 'competitor_prices', FIELD: 'price', AGG: 'first' });
+    const factor = create('pricing_constant_number', 80, 240, { VALUE: 0.98 });
+    const multiply = create('math_arithmetic', 380, 160, { OP: 'MULTIPLY' });
+    const listPrice = create('pricing_product_attribute', 80, 370, { ATTR: 'list_price' });
+    const min = create('math_minmax', 700, 180, { OP: 'MIN' });
+    const output = create('pricing_set_line_item', 1020, 210, { TARGET: 'target_price' });
+
+    multiply.getInput('A')?.connection?.connect(lookup.outputConnection);
+    multiply.getInput('B')?.connection?.connect(factor.outputConnection);
+    min.getInput('A')?.connection?.connect(multiply.outputConnection);
+    min.getInput('B')?.connection?.connect(listPrice.outputConnection);
+    output.getInput('VALUE')?.connection?.connect(min.outputConnection);
+  }
+
+  if (key === 'approval_gate') {
+    const disc = create('pricing_product_attribute', 100, 120, { ATTR: 'discount_percent' });
+    const threshold = create('pricing_constant_number', 100, 260, { VALUE: 0.15 });
+    const compare = create('logic_compare', 380, 180, { OP: 'GT' });
+    const output = create('pricing_set_quote_header', 720, 200, { TARGET: 'approval_required' });
+
+    compare.getInput('A')?.connection?.connect(disc.outputConnection);
+    compare.getInput('B')?.connection?.connect(threshold.outputConnection);
+    output.getInput('VALUE')?.connection?.connect(compare.outputConnection);
+  }
 }
 
 export function FormulaStrategyBuilder() {
-  const [strategyDocs, setStrategyDocs] = useState<StrategyDocument[]>([]);
-  const [activeStrategyId, setActiveStrategyId] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState<StrategyTemplateKey>('blank');
-
-  const [nodes, setNodes] = useState<StrategyNode[]>([]);
-  const [connections, setConnections] = useState<Connection[]>([]);
-  const [strategyName, setStrategyName] = useState('New Strategy');
-  const [strategyDescription, setStrategyDescription] = useState('');
-  const [deployScope, setDeployScope] = useState<DeployScope>('local');
-  const [deployTarget, setDeployTarget] = useState('default');
-  const [deployPriority, setDeployPriority] = useState(100);
-  const [deployStatus, setDeployStatus] = useState<DeployStatus>('draft');
-
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
-  const [expandedCategories, setExpandedCategories] = useState<NodeCategory[]>(['MATH', 'LOGIC', 'DATA', 'CONTROL', 'IO']);
-  const [connecting, setConnecting] = useState<{ nodeId: string; outputIndex: number } | null>(null);
-  const [zoom, setZoom] = useState(1);
-  const [designerMessage, setDesignerMessage] = useState('');
+  const [moduleTab, setModuleTab] = useState<BuilderModule>('formula');
+  const [docs, setDocs] = useState<BuilderDoc[]>([]);
+  const [activeId, setActiveId] = useState('');
+  const [message, setMessage] = useState('');
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [testOutput, setTestOutput] = useState('');
 
-  const dragOffset = useRef({ x: 0, y: 0 });
+  const blocklyHostRef = useRef<HTMLDivElement | null>(null);
+  const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
+  const isLoadingWorkspaceRef = useRef(false);
+
+  const moduleDocs = useMemo(() => docs.filter((d) => d.module === moduleTab), [docs, moduleTab]);
+  const activeDoc = useMemo(() => moduleDocs.find((d) => d.id === activeId) ?? null, [moduleDocs, activeId]);
 
   useEffect(() => {
+    registerCustomBlocks();
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      const initial = createBlankStrategy();
-      setStrategyDocs([initial]);
-      setActiveStrategyId(initial.id);
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(raw) as StrategyDocument[];
-      if (Array.isArray(parsed) && parsed.length) {
-        setStrategyDocs(parsed);
-        setActiveStrategyId(parsed[0].id);
-      } else {
-        const initial = createBlankStrategy();
-        setStrategyDocs([initial]);
-        setActiveStrategyId(initial.id);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as BuilderDoc[];
+        if (Array.isArray(parsed) && parsed.length) {
+          setDocs(parsed);
+          const firstFormula = parsed.find((d) => d.module === 'formula');
+          setActiveId(firstFormula?.id ?? parsed[0].id);
+          return;
+        }
+      } catch {
+        // ignore corrupted cache
       }
-    } catch {
-      const initial = createBlankStrategy();
-      setStrategyDocs([initial]);
-      setActiveStrategyId(initial.id);
     }
+
+    const seeded = [createDefaultDoc('formula', 'Formula01'), createDefaultDoc('strategy', 'Strategy01')];
+    setDocs(seeded);
+    setActiveId(seeded[0].id);
   }, []);
 
-  const activeDoc = useMemo(
-    () => strategyDocs.find((doc) => doc.id === activeStrategyId) ?? null,
-    [strategyDocs, activeStrategyId]
-  );
+  useEffect(() => {
+    if (!docs.length) return;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(docs));
+  }, [docs]);
 
   useEffect(() => {
-    if (!activeDoc) return;
-    setStrategyName(activeDoc.name);
-    setStrategyDescription(activeDoc.description);
-    setSelectedTemplate(activeDoc.templateKey);
-    setDeployScope(activeDoc.deployment.scope);
-    setDeployTarget(activeDoc.deployment.target);
-    setDeployPriority(activeDoc.deployment.priority);
-    setDeployStatus(activeDoc.deployment.status);
-    setNodes(activeDoc.nodes.map(cloneNode));
-    setConnections(activeDoc.connections.map((conn) => ({ ...conn })));
-    setSelectedNodeId(null);
-    setConnecting(null);
-    setDesignerMessage('');
-    setTestOutput('');
-  }, [activeDoc]);
-
-  const selectedNode = useMemo(
-    () => nodes.find((node) => node.id === selectedNodeId) ?? null,
-    [nodes, selectedNodeId]
-  );
-
-  const incomingByNode = useMemo(() => {
-    const map = new Map<string, Set<number>>();
-    for (const conn of connections) {
-      if (!map.has(conn.to)) map.set(conn.to, new Set());
-      map.get(conn.to)?.add(conn.toInput);
-    }
-    return map;
-  }, [connections]);
-
-  const validationWarnings = useMemo(() => {
-    const warnings: string[] = [];
-    if (!nodes.some((node) => node.type === 'setLineItem' || node.type === 'setHeader')) {
-      warnings.push('No output assignment block found (Set Line Item Field / Set Quote Header).');
+    if (!moduleDocs.length) {
+      const fallback = createDefaultDoc(moduleTab, moduleTab === 'formula' ? 'Formula01' : 'Strategy01');
+      setDocs((prev) => [...prev, fallback]);
+      setActiveId(fallback.id);
+      return;
     }
 
-    const disconnected = nodes.filter((node) => !connections.some((c) => c.from === node.id || c.to === node.id));
-    if (disconnected.length) warnings.push(`${disconnected.length} node(s) are disconnected from flow.`);
+    if (!moduleDocs.some((d) => d.id === activeId)) {
+      setActiveId(moduleDocs[0].id);
+    }
+  }, [moduleDocs, moduleTab, activeId]);
 
-    const configRequiredTypes = new Set(['constant', 'input', 'query', 'filter', 'lookup', 'setLineItem', 'setHeader']);
-    const missingConfig = nodes.filter((node) => configRequiredTypes.has(node.type) && !(node.data.config.value ?? '').trim()).length;
-    if (missingConfig) warnings.push(`${missingConfig} node(s) have missing configuration value.`);
-
-    const missingInputs = nodes.filter((node) => {
-      if (!node.inputs.length) return false;
-      const mapped = incomingByNode.get(node.id);
-      return node.inputs.some((_, idx) => !mapped?.has(idx));
-    }).length;
-    if (missingInputs) warnings.push(`${missingInputs} node(s) have unconnected required input ports.`);
-
-    return warnings;
-  }, [connections, incomingByNode, nodes]);
-
-  function setAndPersist(nextDocs: StrategyDocument[]) {
-    setStrategyDocs(nextDocs);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextDocs));
+  function persistDocPatch(id: string, patch: Partial<BuilderDoc>) {
+    setDocs((prev) => prev.map((doc) => (doc.id === id ? { ...doc, ...patch, updatedAt: new Date().toISOString() } : doc)));
   }
 
-  function persistCurrentToList(partial?: Partial<StrategyDocument>) {
-    if (!activeStrategyId) return;
-    const next = strategyDocs.map((doc) =>
-      doc.id === activeStrategyId
-        ? {
-            ...doc,
-            name: strategyName,
-            description: strategyDescription,
-            templateKey: selectedTemplate,
-            deployment: {
-              scope: deployScope,
-              target: deployTarget,
-              priority: deployPriority,
-              status: deployStatus
-            },
-            nodes,
-            connections,
-            updatedAt: new Date().toISOString(),
-            ...partial
-          }
-        : doc
-    );
-    setAndPersist(next);
+  function saveWorkspaceToActiveDoc(statusOverride?: BuilderStatus) {
+    const workspace = workspaceRef.current;
+    if (!workspace || !activeDoc) return;
+    const nextWarnings = collectWarnings(workspace, moduleTab);
+    setWarnings(nextWarnings);
+    const status = statusOverride ?? (nextWarnings.length ? 'invalid' : 'valid');
+
+    persistDocPatch(activeDoc.id, {
+      workspace: Blockly.serialization.workspaces.save(workspace),
+      status
+    });
   }
 
-  const addNode = (nodeTemplate: NodeTemplate) => {
-    const node: StrategyNode = {
-      id: makeId('node'),
-      type: nodeTemplate.type,
-      position: { x: 280, y: 150 + nodes.length * 18 },
-      data: {
-        label: nodeTemplate.label,
-        icon: nodeTemplate.icon,
-        config: {}
+  useEffect(() => {
+    if (!blocklyHostRef.current || workspaceRef.current) return;
+
+    const workspace = Blockly.inject(blocklyHostRef.current, {
+      toolbox: moduleTab === 'formula' ? getFormulaToolbox() : getStrategyToolbox(),
+      trashcan: true,
+      scrollbars: true,
+      move: { wheel: true, drag: true, scrollbars: true },
+      zoom: {
+        controls: true,
+        wheel: true,
+        startScale: 0.9,
+        maxScale: 2,
+        minScale: 0.4,
+        scaleSpeed: 1.1,
+        pinch: true
       },
-      inputs: Array(nodeTemplate.inputs).fill(''),
-      outputs: Array(nodeTemplate.outputs).fill('')
-    };
-    setNodes((prev) => [...prev, node]);
-    setSelectedNodeId(node.id);
-  };
-
-  const duplicateNode = (nodeId: string) => {
-    const node = nodes.find((item) => item.id === nodeId);
-    if (!node) return;
-    const clone: StrategyNode = {
-      ...cloneNode(node),
-      id: makeId('node'),
-      position: { x: node.position.x + 30, y: node.position.y + 30 }
-    };
-    setNodes((prev) => [...prev, clone]);
-  };
-
-  const removeNode = (nodeId: string) => {
-    setNodes((prev) => prev.filter((node) => node.id !== nodeId));
-    setConnections((prev) => prev.filter((conn) => conn.from !== nodeId && conn.to !== nodeId));
-    if (selectedNodeId === nodeId) setSelectedNodeId(null);
-  };
-
-  const handleNodeMouseDown = (ev: ReactMouseEvent<HTMLElement>, nodeId: string) => {
-    ev.stopPropagation();
-    const node = nodes.find((item) => item.id === nodeId);
-    if (!node) return;
-    setSelectedNodeId(nodeId);
-    setDraggingNodeId(nodeId);
-    dragOffset.current = {
-      x: ev.clientX - node.position.x * zoom,
-      y: ev.clientY - node.position.y * zoom
-    };
-  };
-
-  const handleMouseMove = useCallback(
-    (ev: MouseEvent) => {
-      if (!draggingNodeId) return;
-      setNodes((prev) =>
-        prev.map((node) =>
-          node.id === draggingNodeId
-            ? {
-                ...node,
-                position: {
-                  x: (ev.clientX - dragOffset.current.x) / zoom,
-                  y: (ev.clientY - dragOffset.current.y) / zoom
-                }
-              }
-            : node
-        )
-      );
-    },
-    [draggingNodeId, zoom]
-  );
-
-  const stopDrag = useCallback(() => {
-    setDraggingNodeId(null);
-  }, []);
-
-  useEffect(() => {
-    if (!draggingNodeId) return;
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', stopDrag);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', stopDrag);
-    };
-  }, [draggingNodeId, handleMouseMove, stopDrag]);
-
-  const startConnection = (nodeId: string, outputIndex: number) => {
-    const source = nodes.find((node) => node.id === nodeId);
-    if (!source || outputIndex >= source.outputs.length) return;
-    setConnecting({ nodeId, outputIndex });
-  };
-
-  const completeConnection = (nodeId: string, inputIndex: number) => {
-    if (!connecting || connecting.nodeId === nodeId) {
-      setConnecting(null);
-      return;
-    }
-
-    const source = nodes.find((node) => node.id === connecting.nodeId);
-    const target = nodes.find((node) => node.id === nodeId);
-    if (!source || !target) {
-      setDesignerMessage('Source or target node does not exist.');
-      setConnecting(null);
-      return;
-    }
-
-    if (inputIndex >= target.inputs.length) {
-      setDesignerMessage('Target input index is invalid.');
-      setConnecting(null);
-      return;
-    }
-
-    if (connections.some((conn) => conn.to === nodeId && conn.toInput === inputIndex)) {
-      setDesignerMessage('That input port is already connected. Remove existing connection first.');
-      setConnecting(null);
-      return;
-    }
-
-    if (connections.some((conn) => conn.from === connecting.nodeId && conn.to === nodeId && conn.fromOutput === connecting.outputIndex && conn.toInput === inputIndex)) {
-      setDesignerMessage('Duplicate connection not allowed.');
-      setConnecting(null);
-      return;
-    }
-
-    if (wouldCreateCycle(connecting.nodeId, nodeId, connections)) {
-      setDesignerMessage('Connection rejected: cyclic graph is not allowed.');
-      setConnecting(null);
-      return;
-    }
-
-    const conn: Connection = {
-      id: makeId('conn'),
-      from: connecting.nodeId,
-      to: nodeId,
-      fromOutput: connecting.outputIndex,
-      toInput: inputIndex
-    };
-    setConnections((prev) => [...prev, conn]);
-    setDesignerMessage('Connection added.');
-    setConnecting(null);
-  };
-
-  const deleteConnection = (connectionId: string) => {
-    setConnections((prev) => prev.filter((conn) => conn.id !== connectionId));
-  };
-
-  const updateSelectedNodeConfigText = (text: string) => {
-    if (!selectedNodeId) return;
-    try {
-      const parsed = JSON.parse(text) as Record<string, string>;
-      setNodes((prev) =>
-        prev.map((node) => (node.id === selectedNodeId ? { ...node, data: { ...node.data, config: parsed } } : node))
-      );
-    } catch {
-      // Ignore invalid JSON edits.
-    }
-  };
-
-  const createNewStrategyFromTemplate = () => {
-    const next = createTemplateStrategy(selectedTemplate, strategyDocs.length);
-    const updated = [...strategyDocs, next];
-    setAndPersist(updated);
-    setActiveStrategyId(next.id);
-    setDesignerMessage(`Created strategy from template: ${TEMPLATE_OPTIONS.find((t) => t.key === selectedTemplate)?.label ?? 'Template'}.`);
-  };
-
-  const duplicateActiveStrategy = () => {
-    if (!activeDoc) return;
-    const clone: StrategyDocument = {
-      ...activeDoc,
-      id: makeId('strategy'),
-      name: `${activeDoc.name} Copy`,
-      nodes: activeDoc.nodes.map((node) => ({ ...cloneNode(node), id: makeId('node') })),
-      connections: [],
-      updatedAt: new Date().toISOString(),
-      deployment: { ...activeDoc.deployment, status: 'draft' }
-    };
-
-    const oldToNew = new Map<string, string>();
-    activeDoc.nodes.forEach((node, idx) => oldToNew.set(node.id, clone.nodes[idx].id));
-    clone.connections = activeDoc.connections
-      .map((conn) => {
-        const from = oldToNew.get(conn.from);
-        const to = oldToNew.get(conn.to);
-        if (!from || !to) return null;
-        return { ...conn, id: makeId('conn'), from, to };
-      })
-      .filter((value): value is Connection => Boolean(value));
-
-    const updated = [...strategyDocs, clone];
-    setAndPersist(updated);
-    setActiveStrategyId(clone.id);
-    setDesignerMessage('Strategy duplicated.');
-  };
-
-  const deleteActiveStrategy = () => {
-    if (!activeDoc) return;
-    const next = strategyDocs.filter((doc) => doc.id !== activeDoc.id);
-    if (!next.length) {
-      const fallback = createBlankStrategy();
-      setAndPersist([fallback]);
-      setActiveStrategyId(fallback.id);
-      setDesignerMessage('Deleted strategy. Created a new blank strategy.');
-      return;
-    }
-    setAndPersist(next);
-    setActiveStrategyId(next[0].id);
-    setDesignerMessage('Strategy deleted.');
-  };
-
-  const saveStrategy = () => {
-    if (deployStatus === 'production' && validationWarnings.length) {
-      setDesignerMessage('Cannot set to production while validation warnings exist.');
-      return;
-    }
-    persistCurrentToList();
-    setDesignerMessage('Strategy saved.');
-  };
-
-  const runTest = () => {
-    const constants = nodes
-      .filter((node) => node.type === 'constant')
-      .map((node) => Number(node.data.config.value ?? ''))
-      .filter((value) => Number.isFinite(value));
-
-    const margin = constants.find((value) => value > 0 && value < 1) ?? 0.12;
-    const hasLookup = nodes.some((node) => node.type === 'lookup');
-    const hasMin = nodes.some((node) => node.type === 'min');
-    const hasMultiply = nodes.some((node) => node.type === 'multiply');
-    const hasOutput = nodes.some((node) => node.type === 'setLineItem' || node.type === 'setHeader');
-
-    const sample = [
-      { sku: 'SKU-1001', listPrice: 1200, cost: 780, competitorPrice: 1130, quantity: 20, discountPercent: 0.11 },
-      { sku: 'SKU-2040', listPrice: 440, cost: 280, competitorPrice: 418, quantity: 65, discountPercent: 0.08 },
-      { sku: 'SKU-7782', listPrice: 980, cost: 620, competitorPrice: 1025, quantity: 12, discountPercent: 0.17 }
-    ];
-
-    const resultRows = sample.map((line) => {
-      let target = line.listPrice;
-      if (hasMultiply) target = line.cost * (1 + margin);
-      if (hasLookup) target = Math.min(target, line.competitorPrice * 0.98);
-      if (hasMin) target = Math.min(target, line.listPrice);
-      const rounded = Math.round(target * 100) / 100;
-      return {
-        sku: line.sku,
-        listPrice: line.listPrice,
-        cost: line.cost,
-        competitorPrice: line.competitorPrice,
-        targetPrice: rounded,
-        marginPercent: Math.round(((rounded - line.cost) / rounded) * 10000) / 100
-      };
+      grid: { spacing: 20, length: 3, colour: '#e2e8f0', snap: true }
     });
 
-    const header = {
-      approvalRequired: resultRows.some((row) => row.marginPercent < 20),
-      outputMapped: hasOutput,
-      warningCount: validationWarnings.length
+    workspace.addChangeListener(() => {
+      if (isLoadingWorkspaceRef.current || !activeDoc) return;
+      const snapshot = Blockly.serialization.workspaces.save(workspace);
+      setDocs((prev) =>
+        prev.map((doc) => (doc.id === activeDoc.id ? { ...doc, workspace: snapshot, status: 'saved', updatedAt: new Date().toISOString() } : doc))
+      );
+      setWarnings(collectWarnings(workspace, moduleTab));
+    });
+
+    workspaceRef.current = workspace;
+    return () => {
+      workspace.dispose();
+      workspaceRef.current = null;
     };
+  }, [activeDoc, moduleTab]);
 
-    setTestOutput(JSON.stringify({ sampleSize: sample.length, header, rows: resultRows }, null, 2));
-    setDesignerMessage('Test run completed on sample data.');
-  };
+  useEffect(() => {
+    const workspace = workspaceRef.current;
+    if (!workspace || !activeDoc) return;
 
-  const exportStrategy = () => {
-    const strategy: StrategyDocument = {
-      id: activeStrategyId || makeId('strategy'),
-      name: strategyName,
-      description: strategyDescription,
-      templateKey: selectedTemplate,
-      deployment: {
-        scope: deployScope,
-        target: deployTarget,
-        priority: deployPriority,
-        status: deployStatus
-      },
-      nodes,
-      connections,
+    workspace.updateToolbox(moduleTab === 'formula' ? getFormulaToolbox() : getStrategyToolbox());
+
+    isLoadingWorkspaceRef.current = true;
+    workspace.clear();
+    if (activeDoc.workspace) {
+      Blockly.serialization.workspaces.load(activeDoc.workspace, workspace);
+    }
+    setWarnings(collectWarnings(workspace, moduleTab));
+    isLoadingWorkspaceRef.current = false;
+  }, [activeDoc, moduleTab]);
+
+  function createNewFromTemplate() {
+    const template = activeDoc?.strategyTemplate ?? 'blank';
+    const doc = createDefaultDoc(moduleTab, moduleTab === 'formula' ? `Formula${moduleDocs.length + 1}` : `Strategy${moduleDocs.length + 1}`);
+    doc.strategyTemplate = template;
+    if (moduleTab === 'formula') {
+      doc.formulaTypeName = FORMULA_TYPES[0];
+      doc.activeTypes = [FORMULA_TYPES[0]];
+    }
+    setDocs((prev) => [...prev, doc]);
+    setActiveId(doc.id);
+    setMessage(`Created ${moduleTab} ${doc.name}.`);
+
+    setTimeout(() => {
+      const workspace = workspaceRef.current;
+      if (!workspace) return;
+      if (moduleTab === 'strategy' && template !== 'blank') {
+        isLoadingWorkspaceRef.current = true;
+        seedTemplate(workspace, template);
+        isLoadingWorkspaceRef.current = false;
+        saveWorkspaceToActiveDoc('draft');
+      }
+    }, 50);
+  }
+
+  function duplicateActive() {
+    if (!activeDoc) return;
+    const clone: BuilderDoc = {
+      ...activeDoc,
+      id: makeId(activeDoc.module),
+      name: `${activeDoc.name} Copy`,
+      status: 'draft',
       updatedAt: new Date().toISOString()
     };
+    setDocs((prev) => [...prev, clone]);
+    setActiveId(clone.id);
+    setMessage(`${activeDoc.module} duplicated.`);
+  }
 
-    const blob = new Blob([JSON.stringify(strategy, null, 2)], { type: 'application/json' });
+  function deleteActive() {
+    if (!activeDoc) return;
+    const remaining = docs.filter((d) => d.id !== activeDoc.id);
+    setDocs(remaining);
+    const next = remaining.find((d) => d.module === moduleTab) ?? remaining[0];
+    setActiveId(next?.id ?? '');
+    setMessage(`${activeDoc.name} deleted.`);
+  }
+
+  function saveActive() {
+    saveWorkspaceToActiveDoc();
+    setMessage('Saved successfully.');
+  }
+
+  function activateActive() {
+    const workspace = workspaceRef.current;
+    if (!workspace || !activeDoc) return;
+    const nextWarnings = collectWarnings(workspace, moduleTab);
+    if (nextWarnings.length) {
+      setWarnings(nextWarnings);
+      setMessage('Activation blocked: fix validation warnings first.');
+      return;
+    }
+    if (moduleTab === 'strategy' && activeDoc.deployStage === 'production' && nextWarnings.length) {
+      setMessage('Production activation blocked due to warnings.');
+      return;
+    }
+    saveWorkspaceToActiveDoc('active');
+    setMessage(`${activeDoc.name} activated.`);
+  }
+
+  function exportActive() {
+    if (!activeDoc) return;
+    saveWorkspaceToActiveDoc(activeDoc.status);
+    const current = docs.find((d) => d.id === activeDoc.id);
+    const blob = new Blob([JSON.stringify(current ?? activeDoc, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${strategyName.replace(/\s+/g, '_').toLowerCase() || 'strategy'}.json`;
+    a.download = `${activeDoc.name.replace(/\s+/g, '_').toLowerCase()}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  };
+  }
 
-  const importStrategy = (file: File | null) => {
+  function importDoc(file: File | null) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const parsed = JSON.parse(String(reader.result ?? '')) as StrategyDocument;
-        const imported: StrategyDocument = {
-          ...createBlankStrategy(parsed.name || `Imported ${strategyDocs.length + 1}`),
+        const parsed = JSON.parse(String(reader.result ?? '')) as BuilderDoc;
+        const imported: BuilderDoc = {
+          ...createDefaultDoc(moduleTab, parsed.name || `${moduleTab} imported`),
           ...parsed,
-          id: makeId('strategy'),
-          updatedAt: new Date().toISOString(),
-          deployment: {
-            scope: parsed.deployment?.scope ?? 'local',
-            target: parsed.deployment?.target ?? 'default',
-            priority: parsed.deployment?.priority ?? 100,
-            status: 'draft'
-          }
+          id: makeId(moduleTab),
+          module: moduleTab,
+          status: 'draft',
+          updatedAt: new Date().toISOString()
         };
-        const next = [...strategyDocs, imported];
-        setAndPersist(next);
-        setActiveStrategyId(imported.id);
-        setDesignerMessage('Strategy imported.');
+        setDocs((prev) => [...prev, imported]);
+        setActiveId(imported.id);
+        setMessage('Imported successfully.');
       } catch {
-        setDesignerMessage('Invalid strategy JSON. Import failed.');
+        setMessage('Import failed: invalid JSON format.');
       }
     };
     reader.readAsText(file);
-  };
+  }
+
+  function runTest() {
+    const workspace = workspaceRef.current;
+    if (!workspace || !activeDoc) return;
+
+    const code = javascriptGenerator.workspaceToCode(workspace);
+    const sampleLines = createLineDataSamples();
+    const params = { margin: 0.2, approvalThreshold: 0.15 };
+
+    try {
+      const runner = new Function(
+        'line',
+        'params',
+        'lookupFn',
+        'result',
+        `${code}\nreturn result;`
+      ) as (line: TestLine, params: Record<string, number>, lookup: typeof lookupFn, result: Record<string, unknown>) => Record<string, unknown>;
+
+      if (moduleTab === 'formula') {
+        const result = runner(sampleLines[0], params, lookupFn, { formula: null, formulaDetail: '', lineItem: {}, quoteHeader: {} });
+        setTestOutput(JSON.stringify({ sample: sampleLines[0], output: result, generatedCode: code }, null, 2));
+      } else {
+        const rows = sampleLines.map((line) =>
+          runner(line, params, lookupFn, { formula: null, formulaDetail: '', lineItem: {}, quoteHeader: {} })
+        );
+        setTestOutput(JSON.stringify({ lines: sampleLines.length, outputs: rows, generatedCode: code }, null, 2));
+      }
+      setMessage('Test run completed.');
+    } catch (err) {
+      setTestOutput(JSON.stringify({ generatedCode: code, error: String(err) }, null, 2));
+      setMessage('Test run failed. Check output panel.');
+    }
+  }
 
   return (
     <section className="formula-builder-shell panel-card">
       <header className="formula-builder-header">
+        <div className="builder-module-tabs">
+          <button className={`btn ${moduleTab === 'formula' ? 'btn-primary' : ''}`} onClick={() => setModuleTab('formula')}>Formula</button>
+          <button className={`btn ${moduleTab === 'strategy' ? 'btn-primary' : ''}`} onClick={() => setModuleTab('strategy')}>Strategy</button>
+        </div>
+
         <div className="formula-builder-title-row">
           <label>
-            Strategy
-            <select
-              value={activeStrategyId}
-              onChange={(e) => {
-                persistCurrentToList();
-                setActiveStrategyId(e.target.value);
-              }}
-            >
-              {strategyDocs.map((doc) => (
+            {moduleTab === 'formula' ? 'Formula' : 'Strategy'}
+            <select value={activeId} onChange={(e) => setActiveId(e.target.value)}>
+              {moduleDocs.map((doc) => (
                 <option key={doc.id} value={doc.id}>{doc.name}</option>
               ))}
             </select>
           </label>
 
-          <label>
-            Template
-            <select value={selectedTemplate} onChange={(e) => setSelectedTemplate(e.target.value as StrategyTemplateKey)}>
-              {TEMPLATE_OPTIONS.map((item) => (
-                <option key={item.key} value={item.key}>{item.label}</option>
-              ))}
-            </select>
-          </label>
+          {moduleTab === 'strategy' && (
+            <label>
+              Template
+              <select
+                value={activeDoc?.strategyTemplate ?? 'blank'}
+                onChange={(e) => activeDoc && persistDocPatch(activeDoc.id, { strategyTemplate: e.target.value as StrategyTemplateKey })}
+              >
+                {STRATEGY_TEMPLATES.map((template) => (
+                  <option key={template.key} value={template.key}>{template.label}</option>
+                ))}
+              </select>
+            </label>
+          )}
 
-          <button className="btn" type="button" onClick={createNewStrategyFromTemplate}>New Strategy</button>
-          <button className="btn" type="button" onClick={duplicateActiveStrategy}>Duplicate</button>
-          <button className="btn btn-danger" type="button" onClick={deleteActiveStrategy}>Delete</button>
-          <button className="btn" type="button" onClick={saveStrategy}>Save Strategy</button>
-          <button className="btn" type="button" onClick={runTest}>Test Run</button>
-          <button className="btn" type="button" onClick={exportStrategy}>Export</button>
+          <button className="btn" type="button" onClick={createNewFromTemplate}>New Strategy</button>
+          <button className="btn" type="button" onClick={duplicateActive} disabled={!activeDoc}>Duplicate</button>
+          <button className="btn btn-danger" type="button" onClick={deleteActive} disabled={!activeDoc}>Delete</button>
+          <button className="btn" type="button" onClick={saveActive} disabled={!activeDoc}>Save Strategy</button>
+          <button className="btn" type="button" onClick={runTest} disabled={!activeDoc}>Test Run</button>
+          <button className="btn" type="button" onClick={exportActive} disabled={!activeDoc}>Export</button>
           <label className="btn file-btn">
             Import
-            <input type="file" accept="application/json,.json" onChange={(e) => importStrategy(e.target.files?.[0] ?? null)} />
+            <input type="file" accept="application/json,.json" onChange={(e) => importDoc(e.target.files?.[0] ?? null)} />
           </label>
+          <button className="btn btn-primary" type="button" onClick={activateActive} disabled={!activeDoc}>Activate</button>
         </div>
 
-        <div className="formula-builder-title">
-          <input value={strategyName} onChange={(e) => setStrategyName(e.target.value)} onBlur={() => persistCurrentToList()} />
-          <input
-            value={strategyDescription}
-            onChange={(e) => setStrategyDescription(e.target.value)}
-            onBlur={() => persistCurrentToList()}
-            placeholder="Description"
-          />
+        {activeDoc && (
+          <>
+            <div className="formula-builder-title">
+              <input
+                value={activeDoc.name}
+                onChange={(e) => persistDocPatch(activeDoc.id, { name: e.target.value })}
+                placeholder={`${moduleTab} name`}
+              />
+              <input
+                value={activeDoc.description}
+                onChange={(e) => persistDocPatch(activeDoc.id, { description: e.target.value })}
+                placeholder="Description"
+              />
+            </div>
+
+            {moduleTab === 'formula' && (
+              <div className="formula-meta-row">
+                <label>
+                  Formula Tab
+                  <select
+                    value={activeDoc.formulaTab}
+                    onChange={(e) => persistDocPatch(activeDoc.id, { formulaTab: e.target.value as FormulaTab })}
+                  >
+                    <option value="types">Types</option>
+                    <option value="details">Details</option>
+                    <option value="workflow">Workflow</option>
+                  </select>
+                </label>
+
+                <label>
+                  Type
+                  <select
+                    value={activeDoc.formulaTypeName}
+                    onChange={(e) => persistDocPatch(activeDoc.id, { formulaTypeName: e.target.value })}
+                  >
+                    {FORMULA_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+                  </select>
+                </label>
+
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={() => {
+                    if (!activeDoc.activeTypes.includes(activeDoc.formulaTypeName)) {
+                      persistDocPatch(activeDoc.id, { activeTypes: [...activeDoc.activeTypes, activeDoc.formulaTypeName] });
+                    }
+                  }}
+                >
+                  Add Type
+                </button>
+
+                <div className="active-types-pill-wrap">
+                  {activeDoc.activeTypes.map((type) => <span key={type} className="active-type-pill">{type}</span>)}
+                </div>
+              </div>
+            )}
+
+            {moduleTab === 'strategy' && (
+              <div className="deployment-row">
+                <label>
+                  Scope
+                  <select value={activeDoc.deployScope} onChange={(e) => persistDocPatch(activeDoc.id, { deployScope: e.target.value as DeployScope })}>
+                    <option value="local">Local</option>
+                    <option value="global">Global</option>
+                  </select>
+                </label>
+                <label>
+                  Target
+                  <input value={activeDoc.deployTarget} onChange={(e) => persistDocPatch(activeDoc.id, { deployTarget: e.target.value })} />
+                </label>
+                <label>
+                  Priority
+                  <input
+                    type="number"
+                    value={activeDoc.deployPriority}
+                    onChange={(e) => persistDocPatch(activeDoc.id, { deployPriority: Number(e.target.value || 0) })}
+                  />
+                </label>
+                <label>
+                  Stage
+                  <select value={activeDoc.deployStage} onChange={(e) => persistDocPatch(activeDoc.id, { deployStage: e.target.value as DeployStage })}>
+                    <option value="draft">Draft</option>
+                    <option value="qa">QA</option>
+                    <option value="production">Production</option>
+                  </select>
+                </label>
+              </div>
+            )}
+          </>
+        )}
+
+        <div className="builder-status-row">
+          {activeDoc && <span className="active-type-pill">Status: {activeDoc.status.toUpperCase()}</span>}
+          {message && <span className="muted">{message}</span>}
         </div>
 
-        <div className="deployment-row">
-          <label>
-            Scope
-            <select value={deployScope} onChange={(e) => setDeployScope(e.target.value as DeployScope)}>
-              <option value="local">Local</option>
-              <option value="global">Global</option>
-            </select>
-          </label>
-          <label>
-            Target
-            <input value={deployTarget} onChange={(e) => setDeployTarget(e.target.value)} placeholder="tenant / region / BU" />
-          </label>
-          <label>
-            Priority
-            <input
-              type="number"
-              value={deployPriority}
-              onChange={(e) => setDeployPriority(Number(e.target.value || 0))}
-              min={1}
-              step={1}
-            />
-          </label>
-          <label>
-            Status
-            <select value={deployStatus} onChange={(e) => setDeployStatus(e.target.value as DeployStatus)}>
-              <option value="draft">Draft</option>
-              <option value="qa">QA</option>
-              <option value="production">Production</option>
-            </select>
-          </label>
-        </div>
-
-        {designerMessage && <div className="designer-banner">{designerMessage}</div>}
-        {validationWarnings.length > 0 && (
+        {warnings.length > 0 && (
           <div className="designer-warning-list">
-            {validationWarnings.map((warning) => (
-              <p key={warning}>{warning}</p>
-            ))}
+            {warnings.map((warning) => <p key={warning}>{warning}</p>)}
           </div>
         )}
       </header>
 
-      <div className="formula-builder-layout">
-        <aside className="formula-builder-left">
-          <h3>Function Library</h3>
-          {Object.entries(NODE_TEMPLATES).map(([categoryKey, templates]) => {
-            const category = categoryKey as NodeCategory;
-            const expanded = expandedCategories.includes(category);
-            return (
-              <div key={category} className="node-group">
-                <button
-                  className="node-group-header"
-                  type="button"
-                  onClick={() =>
-                    setExpandedCategories((prev) => (expanded ? prev.filter((item) => item !== category) : [...prev, category]))
-                  }
-                >
-                  <span>{category}</span>
-                  <span>{expanded ? '-' : '+'}</span>
-                </button>
-                {expanded && (
-                  <div className="node-group-body">
-                    {templates.map((template) => (
-                      <button key={template.type} className="node-template" type="button" onClick={() => addNode(template)}>
-                        <span>{template.icon}</span>
-                        <span>{template.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </aside>
-
-        <main className="formula-builder-canvas" onMouseDown={() => setSelectedNodeId(null)}>
-          <div className="canvas-grid" />
-          <svg className="connection-layer" viewBox="0 0 1600 900" preserveAspectRatio="none">
-            {connections.map((conn) => {
-              const fromNode = nodes.find((item) => item.id === conn.from);
-              const toNode = nodes.find((item) => item.id === conn.to);
-              if (!fromNode || !toNode) return null;
-
-              const startX = (fromNode.position.x + 190) * zoom;
-              const startY = (fromNode.position.y + 60 + conn.fromOutput * 18) * zoom;
-              const endX = toNode.position.x * zoom;
-              const endY = (toNode.position.y + 45 + conn.toInput * 18) * zoom;
-              const midX = (startX + endX) / 2;
-
-              return (
-                <g key={conn.id}>
-                  <path
-                    d={`M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`}
-                    className="connection-path"
-                    onClick={() => deleteConnection(conn.id)}
-                  />
-                  <circle cx={startX} cy={startY} r="4" className="connection-dot source" />
-                  <circle cx={endX} cy={endY} r="4" className="connection-dot target" />
-                </g>
-              );
-            })}
-          </svg>
-
-          {nodes.map((node) => (
-            <article
-              key={node.id}
-              className={`strategy-node ${getNodeColorClass(node.type)} ${selectedNodeId === node.id ? 'selected' : ''}`}
-              style={{
-                left: `${node.position.x * zoom}px`,
-                top: `${node.position.y * zoom}px`,
-                transform: `scale(${zoom})`,
-                transformOrigin: 'top left'
-              }}
-              onMouseDown={(ev) => handleNodeMouseDown(ev, node.id)}
-            >
-              <div className="strategy-node-head">
-                <strong>{node.data.icon} {node.data.label}</strong>
-                <div>
-                  <button className="btn btn-xs" type="button" onClick={(ev) => { ev.stopPropagation(); duplicateNode(node.id); }}>Clone</button>
-                  <button className="btn btn-danger btn-xs" type="button" onClick={(ev) => { ev.stopPropagation(); removeNode(node.id); }}>Delete</button>
-                </div>
-              </div>
-
-              {node.inputs.length > 0 && (
-                <div className="port-list">
-                  {node.inputs.map((_, idx) => (
-                    <button
-                      key={`in-${node.id}-${idx}`}
-                      type="button"
-                      className="node-port input"
-                      onClick={(ev) => {
-                        ev.stopPropagation();
-                        completeConnection(node.id, idx);
-                      }}
-                    >
-                      IN {idx + 1}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {node.outputs.length > 0 && (
-                <div className="port-list align-right">
-                  {node.outputs.map((_, idx) => (
-                    <button
-                      key={`out-${node.id}-${idx}`}
-                      type="button"
-                      className={`node-port output ${connecting?.nodeId === node.id && connecting.outputIndex === idx ? 'active' : ''}`}
-                      onClick={(ev) => {
-                        ev.stopPropagation();
-                        startConnection(node.id, idx);
-                      }}
-                    >
-                      OUT {idx + 1}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {['constant', 'input', 'variable', 'query', 'filter', 'lookup', 'setLineItem', 'setHeader'].includes(node.type) && (
-                <input
-                  value={node.data.config.value ?? ''}
-                  placeholder="value / expression"
-                  onClick={(ev) => ev.stopPropagation()}
-                  onChange={(ev) =>
-                    setNodes((prev) =>
-                      prev.map((item) =>
-                        item.id === node.id
-                          ? { ...item, data: { ...item.data, config: { ...item.data.config, value: ev.target.value } } }
-                          : item
-                      )
-                    )
-                  }
-                />
-              )}
-            </article>
-          ))}
-
-          {!nodes.length && (
-            <div className="canvas-empty">
-              <p>Formula Designer</p>
-              <p className="muted">Create logic graph by adding functions from the left panel.</p>
-            </div>
-          )}
-
-          <div className="canvas-zoom-controls">
-            <button className="btn btn-xs" type="button" onClick={() => setZoom((z) => Math.max(0.6, Number((z - 0.1).toFixed(2))))}>-</button>
-            <span>{Math.round(zoom * 100)}%</span>
-            <button className="btn btn-xs" type="button" onClick={() => setZoom((z) => Math.min(1.8, Number((z + 0.1).toFixed(2))))}>+</button>
-          </div>
-        </main>
+      <div className="formula-builder-layout blockly-layout">
+        <div className="blockly-workspace-host" ref={blocklyHostRef} />
 
         <aside className="formula-builder-right">
-          <h3>Properties</h3>
-          {selectedNode ? (
-            <div className="property-stack">
-              <label>
-                Node Type
-                <input value={selectedNode.data.label} readOnly />
-              </label>
-              <label>
-                Node ID
-                <input value={selectedNode.id} readOnly />
-              </label>
-              <label>
-                Configuration JSON
-                <textarea
-                  rows={8}
-                  value={JSON.stringify(selectedNode.data.config, null, 2)}
-                  onChange={(e) => updateSelectedNodeConfigText(e.target.value)}
-                />
-              </label>
-            </div>
-          ) : (
-            <div className="empty">Select a node to configure.</div>
-          )}
-
-          <div className="property-summary">
-            <h4>Strategy Info</h4>
-            <p>Nodes: <strong>{nodes.length}</strong></p>
-            <p>Connections: <strong>{connections.length}</strong></p>
-            <p>Status: <strong>{connecting ? 'Connecting...' : 'Ready'}</strong></p>
-            <p>Deploy: <strong>{deployStatus.toUpperCase()}</strong></p>
-          </div>
-
+          <h3>Execution Output</h3>
+          {!testOutput && <div className="empty">Run Test to preview formula/strategy output.</div>}
           {testOutput && (
             <div className="property-output">
-              <h4>Test Output</h4>
               <pre>{testOutput}</pre>
             </div>
           )}
