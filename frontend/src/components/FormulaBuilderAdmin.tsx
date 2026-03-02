@@ -61,6 +61,7 @@ function registerCustomBlocks() {
   customBlocksRegistered = true;
 
   Blockly.defineBlocksWithJsonArray([
+    // ─── Legacy blocks (kept for backward compat with saved workspaces) ──
     {
       type: 'formula_result_set',
       message0: 'set %1 to %2',
@@ -73,11 +74,7 @@ function registerCustomBlocks() {
             ['Formula Detail', 'formula_detail']
           ]
         },
-        {
-          type: 'input_value',
-          name: 'VALUE',
-          check: ['Number', 'String', 'Boolean']
-        }
+        { type: 'input_value', name: 'VALUE', check: ['Number', 'String', 'Boolean'] }
       ],
       previousStatement: null,
       nextStatement: null,
@@ -90,12 +87,7 @@ function registerCustomBlocks() {
         {
           type: 'field_dropdown',
           name: 'AGG',
-          options: [
-            ['first', 'first'],
-            ['average', 'avg'],
-            ['min', 'min'],
-            ['max', 'max']
-          ]
+          options: [['first', 'first'], ['average', 'avg'], ['min', 'min'], ['max', 'max']]
         },
         { type: 'field_dropdown', name: 'FIELD', options: [['Cost (Number)', 'cost'], ['List Price (Number)', 'list_price']] },
         { type: 'field_input', name: 'LOOKUP', text: 'ProductCosts' }
@@ -127,9 +119,203 @@ function registerCustomBlocks() {
       ],
       output: 'Number',
       colour: 200
+    },
+
+    // ─── Formula Mother Block ─────────────────────────────────────────────
+    {
+      type: 'formula_root',
+      message0: '📐 Formula  result = %1',
+      args0: [{ type: 'input_value', name: 'RESULT' }],
+      colour: 330,
+      tooltip: 'Top-level container — plug your formula expression into the result slot.',
+      helpUrl: '',
+      deletable: false,
+      movable: true,
+      editable: false
+    },
+
+    // ─── Math Blocks ──────────────────────────────────────────────────────
+    {
+      type: 'formula_number',
+      message0: '%1',
+      args0: [{ type: 'field_number', name: 'NUM', value: 0 }],
+      output: 'Number',
+      colour: 230,
+      tooltip: 'A numeric constant.',
+      helpUrl: ''
+    },
+    {
+      type: 'formula_arithmetic',
+      message0: '%1 %2 %3',
+      args0: [
+        { type: 'input_value', name: 'A', check: 'Number' },
+        {
+          type: 'field_dropdown',
+          name: 'OP',
+          options: [['+', 'ADD'], ['−', 'MINUS'], ['×', 'MULTIPLY'], ['÷', 'DIVIDE']]
+        },
+        { type: 'input_value', name: 'B', check: 'Number' }
+      ],
+      inputsInline: true,
+      output: 'Number',
+      colour: 230,
+      tooltip: 'Arithmetic: add, subtract, multiply or divide two numbers.',
+      helpUrl: ''
+    },
+    {
+      type: 'formula_round',
+      message0: '%1 %2',
+      args0: [
+        {
+          type: 'field_dropdown',
+          name: 'MODE',
+          options: [['round (half-up)', 'ROUND'], ['round up', 'CEIL'], ['round down', 'FLOOR']]
+        },
+        { type: 'input_value', name: 'NUM', check: 'Number' }
+      ],
+      inputsInline: true,
+      output: 'Number',
+      colour: 230,
+      tooltip: 'Round a number using the chosen rounding mode.',
+      helpUrl: ''
+    },
+    {
+      type: 'formula_constrain',
+      message0: 'constrain %1 low %2 high %3',
+      args0: [
+        { type: 'input_value', name: 'VALUE', check: 'Number' },
+        { type: 'input_value', name: 'LOW', check: 'Number' },
+        { type: 'input_value', name: 'HIGH', check: 'Number' }
+      ],
+      inputsInline: true,
+      output: 'Number',
+      colour: 230,
+      tooltip: 'Limit a value between an optional minimum (low) and maximum (high).',
+      helpUrl: ''
+    },
+    {
+      type: 'formula_no_price',
+      message0: '🚫 No Price',
+      previousStatement: null,
+      nextStatement: null,
+      colour: 0,
+      tooltip: 'Use as the final block when this formula should return no value.',
+      helpUrl: ''
+    },
+
+    // ─── Logic Blocks ─────────────────────────────────────────────────────
+    {
+      type: 'formula_if_then_else',
+      message0: 'if %1 then %2 else %3',
+      args0: [
+        { type: 'input_value', name: 'IF', check: 'Boolean' },
+        { type: 'input_value', name: 'THEN' },
+        { type: 'input_value', name: 'ELSE' }
+      ],
+      inputsInline: true,
+      output: null,
+      colour: 210,
+      tooltip: 'Returns THEN if condition is true, otherwise ELSE.',
+      helpUrl: ''
+    },
+    {
+      type: 'formula_evaluate',
+      message0: 'evaluate %1',
+      args0: [{ type: 'input_value', name: 'SUBJECT' }],
+      message1: 'when %1 return %2',
+      args1: [
+        { type: 'input_value', name: 'WHEN0' },
+        { type: 'input_value', name: 'RETURN0' }
+      ],
+      message2: 'when %1 return %2',
+      args2: [
+        { type: 'input_value', name: 'WHEN1' },
+        { type: 'input_value', name: 'RETURN1' }
+      ],
+      message3: 'when %1 return %2',
+      args3: [
+        { type: 'input_value', name: 'WHEN2' },
+        { type: 'input_value', name: 'RETURN2' }
+      ],
+      message4: 'else return %1',
+      args4: [{ type: 'input_value', name: 'DEFAULT' }],
+      output: null,
+      colour: 210,
+      tooltip: 'Switch-case: evaluates subject against multiple conditions and returns the first match.',
+      helpUrl: ''
+    },
+    {
+      type: 'formula_logical_op',
+      message0: '%1 %2 %3',
+      args0: [
+        { type: 'input_value', name: 'A', check: 'Boolean' },
+        {
+          type: 'field_dropdown',
+          name: 'OP',
+          options: [['and', 'AND'], ['or', 'OR']]
+        },
+        { type: 'input_value', name: 'B', check: 'Boolean' }
+      ],
+      inputsInline: true,
+      output: 'Boolean',
+      colour: 210,
+      tooltip: 'Combine two conditions with AND or OR.',
+      helpUrl: ''
+    },
+    {
+      type: 'formula_comparison',
+      message0: '%1 %2 %3',
+      args0: [
+        { type: 'input_value', name: 'A' },
+        {
+          type: 'field_dropdown',
+          name: 'OP',
+          options: [['=', 'EQ'], ['≠', 'NEQ'], ['<', 'LT'], ['≤', 'LTE'], ['>', 'GT'], ['≥', 'GTE']]
+        },
+        { type: 'input_value', name: 'B' }
+      ],
+      inputsInline: true,
+      output: 'Boolean',
+      colour: 210,
+      tooltip: 'Compare two values.',
+      helpUrl: ''
+    },
+    {
+      type: 'formula_is_empty',
+      message0: '%1 %2',
+      args0: [
+        {
+          type: 'field_dropdown',
+          name: 'MODE',
+          options: [['is empty', 'EMPTY'], ['is not empty', 'NOT_EMPTY']]
+        },
+        { type: 'input_value', name: 'VALUE' }
+      ],
+      inputsInline: true,
+      output: 'Boolean',
+      colour: 210,
+      tooltip: 'Returns true if the value is (or is not) empty / null.',
+      helpUrl: ''
+    },
+    {
+      type: 'formula_boolean',
+      message0: '%1',
+      args0: [
+        {
+          type: 'field_dropdown',
+          name: 'BOOL',
+          options: [['true', 'TRUE'], ['false', 'FALSE']]
+        }
+      ],
+      output: 'Boolean',
+      colour: 210,
+      tooltip: 'A boolean constant: true or false.',
+      helpUrl: ''
     }
   ]);
 
+  // ─── Generators ────────────────────────────────────────────────────────
+  // Legacy
   javascriptGenerator.forBlock['formula_result_set'] = (block) => {
     const target = block.getFieldValue('TARGET');
     const value = javascriptGenerator.valueToCode(block, 'VALUE', Order.NONE) || 'null';
@@ -152,72 +338,138 @@ function registerCustomBlocks() {
     const attr = block.getFieldValue('ATTR');
     return [`input.${attr}`, Order.ATOMIC];
   };
+
+  // Formula mother block — emit result expression as an assignment
+  javascriptGenerator.forBlock['formula_root'] = (block) => {
+    const result = javascriptGenerator.valueToCode(block, 'RESULT', Order.NONE) || 'null';
+    return `result["formula_result"] = ${result};\n`;
+  };
+
+  // Math
+  javascriptGenerator.forBlock['formula_number'] = (block) => {
+    return [String(block.getFieldValue('NUM') ?? '0'), Order.ATOMIC];
+  };
+
+  javascriptGenerator.forBlock['formula_arithmetic'] = (block) => {
+    const a = javascriptGenerator.valueToCode(block, 'A', Order.NONE) || '0';
+    const b = javascriptGenerator.valueToCode(block, 'B', Order.NONE) || '0';
+    const opMap: Record<string, string> = { ADD: '+', MINUS: '-', MULTIPLY: '*', DIVIDE: '/' };
+    const op = opMap[block.getFieldValue('OP')] ?? '+';
+    return [`(${a} ${op} ${b})`, Order.ADDITION];
+  };
+
+  javascriptGenerator.forBlock['formula_round'] = (block) => {
+    const num = javascriptGenerator.valueToCode(block, 'NUM', Order.NONE) || '0';
+    const fnMap: Record<string, string> = { ROUND: 'Math.round', CEIL: 'Math.ceil', FLOOR: 'Math.floor' };
+    const fn = fnMap[block.getFieldValue('MODE')] ?? 'Math.round';
+    return [`${fn}(${num})`, Order.FUNCTION_CALL];
+  };
+
+  javascriptGenerator.forBlock['formula_constrain'] = (block) => {
+    const val = javascriptGenerator.valueToCode(block, 'VALUE', Order.NONE) || '0';
+    const low = javascriptGenerator.valueToCode(block, 'LOW', Order.NONE);
+    const high = javascriptGenerator.valueToCode(block, 'HIGH', Order.NONE);
+    let expr = val;
+    if (low) expr = `Math.max(${low}, ${expr})`;
+    if (high) expr = `Math.min(${high}, ${expr})`;
+    return [expr, Order.FUNCTION_CALL];
+  };
+
+  javascriptGenerator.forBlock['formula_no_price'] = () => {
+    return 'result["formula_result"] = null;\n';
+  };
+
+  // Logic
+  javascriptGenerator.forBlock['formula_if_then_else'] = (block) => {
+    const cond = javascriptGenerator.valueToCode(block, 'IF', Order.NONE) || 'false';
+    const then = javascriptGenerator.valueToCode(block, 'THEN', Order.NONE) || 'null';
+    const els = javascriptGenerator.valueToCode(block, 'ELSE', Order.NONE) || 'null';
+    return [`((${cond}) ? (${then}) : (${els}))`, Order.CONDITIONAL];
+  };
+
+  javascriptGenerator.forBlock['formula_evaluate'] = (block) => {
+    const subject = javascriptGenerator.valueToCode(block, 'SUBJECT', Order.NONE) || 'null';
+    const cases: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const when = javascriptGenerator.valueToCode(block, `WHEN${i}`, Order.NONE);
+      const ret = javascriptGenerator.valueToCode(block, `RETURN${i}`, Order.NONE) || 'null';
+      if (when) cases.push(`(${subject}) === (${when}) ? (${ret})`);
+    }
+    const def = javascriptGenerator.valueToCode(block, 'DEFAULT', Order.NONE) || 'null';
+    const expr = cases.length ? `(${cases.join(' : ')} : ${def})` : def;
+    return [expr, Order.CONDITIONAL];
+  };
+
+  javascriptGenerator.forBlock['formula_logical_op'] = (block) => {
+    const a = javascriptGenerator.valueToCode(block, 'A', Order.NONE) || 'false';
+    const b = javascriptGenerator.valueToCode(block, 'B', Order.NONE) || 'false';
+    const op = block.getFieldValue('OP') === 'AND' ? '&&' : '||';
+    return [`(${a} ${op} ${b})`, Order.LOGICAL_AND];
+  };
+
+  javascriptGenerator.forBlock['formula_comparison'] = (block) => {
+    const a = javascriptGenerator.valueToCode(block, 'A', Order.NONE) || '0';
+    const b = javascriptGenerator.valueToCode(block, 'B', Order.NONE) || '0';
+    const opMap: Record<string, string> = { EQ: '===', NEQ: '!==', LT: '<', LTE: '<=', GT: '>', GTE: '>=' };
+    const op = opMap[block.getFieldValue('OP')] ?? '===';
+    return [`(${a} ${op} ${b})`, Order.EQUALITY];
+  };
+
+  javascriptGenerator.forBlock['formula_is_empty'] = (block) => {
+    const val = javascriptGenerator.valueToCode(block, 'VALUE', Order.NONE) || 'null';
+    const check = `(${val} === null || ${val} === undefined || ${val} === '')`;
+    return [block.getFieldValue('MODE') === 'EMPTY' ? check : `!(${check})`, Order.LOGICAL_NOT];
+  };
+
+  javascriptGenerator.forBlock['formula_boolean'] = (block) => {
+    return [block.getFieldValue('BOOL') === 'TRUE' ? 'true' : 'false', Order.ATOMIC];
+  };
 }
 
 function getToolbox() {
+  const comingSoon = [{ kind: 'label', text: '— Coming Soon —' }];
   return {
     kind: 'categoryToolbox',
     contents: [
+      // Formula mother block — always first
       {
         kind: 'category',
-        name: 'Parameters',
-        colour: '315',
-        contents: [{ kind: 'block', type: 'formula_parameter' }]
+        name: '📐 Formula',
+        colour: '330',
+        contents: [{ kind: 'block', type: 'formula_root' }]
       },
-      {
-        kind: 'category',
-        name: 'Data Lookups',
-        colour: '35',
-        contents: [{ kind: 'block', type: 'formula_lookup_take' }]
-      },
-      {
-        kind: 'category',
-        name: 'Constants',
-        colour: '95',
-        contents: [
-          { kind: 'block', type: 'math_number' },
-          { kind: 'block', type: 'text' },
-          { kind: 'block', type: 'logic_boolean' }
-        ]
-      },
+      // Dummy / coming-soon categories
+      { kind: 'category', name: 'Parameters', colour: '315', contents: comingSoon },
+      { kind: 'category', name: 'Data Lookups', colour: '35', contents: comingSoon },
+      { kind: 'category', name: 'Constants', colour: '95', contents: comingSoon },
+      { kind: 'category', name: 'Inputs', colour: '280', contents: comingSoon },
+      { kind: 'category', name: 'Functions', colour: '260', contents: comingSoon },
+      // Math blocks
       {
         kind: 'category',
         name: 'Math',
-        colour: '200',
+        colour: '230',
         contents: [
-          { kind: 'block', type: 'math_arithmetic' },
-          { kind: 'block', type: 'math_round' },
-          { kind: 'block', type: 'math_single' },
-          { kind: 'block', type: 'math_minmax' }
+          { kind: 'block', type: 'formula_number' },
+          { kind: 'block', type: 'formula_arithmetic' },
+          { kind: 'block', type: 'formula_round' },
+          { kind: 'block', type: 'formula_constrain' },
+          { kind: 'block', type: 'formula_no_price' }
         ]
       },
+      // Logic blocks
       {
         kind: 'category',
         name: 'Logic',
-        colour: '205',
+        colour: '210',
         contents: [
-          { kind: 'block', type: 'logic_compare' },
-          { kind: 'block', type: 'logic_operation' },
-          { kind: 'block', type: 'logic_ternary' }
+          { kind: 'block', type: 'formula_if_then_else' },
+          { kind: 'block', type: 'formula_evaluate' },
+          { kind: 'block', type: 'formula_logical_op' },
+          { kind: 'block', type: 'formula_comparison' },
+          { kind: 'block', type: 'formula_is_empty' },
+          { kind: 'block', type: 'formula_boolean' }
         ]
-      },
-      {
-        kind: 'category',
-        name: 'Inputs',
-        colour: '280',
-        contents: [{ kind: 'block', type: 'formula_input_attr' }]
-      },
-      {
-        kind: 'category',
-        name: 'Functions',
-        colour: '260',
-        custom: 'PROCEDURE'
-      },
-      {
-        kind: 'category',
-        name: 'Formula',
-        colour: '330',
-        contents: [{ kind: 'block', type: 'formula_result_set' }]
       }
     ]
   };
@@ -227,13 +479,8 @@ function collectWarnings(workspace: Blockly.WorkspaceSvg): string[] {
   const warnings: string[] = [];
   const blocks = workspace.getAllBlocks(false);
 
-  if (!blocks.length) {
-    warnings.push('Workspace is empty.');
-    return warnings;
-  }
-
-  const hasResult = blocks.some((b) => b.type === 'formula_result_set');
-  if (!hasResult) warnings.push('At least one result assignment block is required.');
+  const hasRoot = blocks.some((b) => b.type === 'formula_root');
+  if (!hasRoot) warnings.push('A Formula (mother) block is required on the canvas.');
 
   const dangling = blocks.filter((b) => Boolean(b.outputConnection) && !b.outputConnection?.isConnected()).length;
   if (dangling) warnings.push(`${dangling} value block(s) are not connected.`);
@@ -300,8 +547,16 @@ export function FormulaBuilderAdmin() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(formulas));
   }, [formulas]);
 
+  // ── Effect 1: inject Blockly ONCE (no activeFormula dependency) ─────────
+  // IMPORTANT: keep activeFormula out of this effect's dependency array.
+  // Having it here caused Blockly to be disposed + re-injected on every
+  // formula switch, which corrupted the SVG and broke pointer events
+  // (blocks became unclickable / undraggable).
+  const activeFormulaRef = useRef(activeFormula);
+  activeFormulaRef.current = activeFormula;
+
   useEffect(() => {
-    if (!blocklyHostRef.current || workspaceRef.current) return;
+    if (!blocklyHostRef.current) return;
 
     const ws = Blockly.inject(blocklyHostRef.current, {
       toolbox: getToolbox(),
@@ -322,14 +577,24 @@ export function FormulaBuilderAdmin() {
       grid: { spacing: 20, length: 3, colour: '#d5dbe5', snap: true }
     });
 
+    // Force Blockly to read the container's actual pixel dimensions immediately
+    // after injection. Without this, the SVG canvas has 0 size and blocks float.
+    Blockly.svgResize(ws);
+
+    // Keep the canvas in sync whenever the host element is resized
+    const ro = new ResizeObserver(() => Blockly.svgResize(ws));
+    ro.observe(blocklyHostRef.current!);
+
+    // Use a ref to always read the latest activeFormula without re-running inject
     ws.addChangeListener(() => {
-      if (isLoadingRef.current || !activeFormula) return;
+      const current = activeFormulaRef.current;
+      if (isLoadingRef.current || !current) return;
       const snapshot = Blockly.serialization.workspaces.save(ws);
       const wsWarnings = collectWarnings(ws);
       setWarnings(wsWarnings);
       setFormulas((prev) =>
         prev.map((f) =>
-          f.id === activeFormula.id
+          f.id === current.id
             ? { ...f, workspace: snapshot, status: wsWarnings.length ? 'invalid' : 'saved' }
             : f
         )
@@ -338,18 +603,36 @@ export function FormulaBuilderAdmin() {
 
     workspaceRef.current = ws;
     return () => {
+      ro.disconnect();
       ws.dispose();
       workspaceRef.current = null;
     };
-  }, [activeFormula]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty — inject runs once only
 
+  // ── Effect 2: load workspace content whenever activeFormula changes ──────
   useEffect(() => {
     const ws = workspaceRef.current;
     if (!ws || !activeFormula) return;
 
     isLoadingRef.current = true;
     ws.clear();
-    if (activeFormula.workspace) Blockly.serialization.workspaces.load(activeFormula.workspace, ws);
+    if (activeFormula.workspace) {
+      Blockly.serialization.workspaces.load(activeFormula.workspace, ws);
+    }
+
+    // Ensure the Formula mother block is always present
+    const hasRoot = ws.getAllBlocks(false).some((b) => b.type === 'formula_root');
+    if (!hasRoot) {
+      const rootBlock = ws.newBlock('formula_root');
+      rootBlock.initSvg();
+      rootBlock.render();
+      rootBlock.moveBy(60, 60);
+      // Explicitly enable dragging on the mother block instance
+      rootBlock.setMovable(true);
+      rootBlock.setDeletable(false);
+    }
+
     setWarnings(collectWarnings(ws));
     isLoadingRef.current = false;
   }, [activeFormula]);
