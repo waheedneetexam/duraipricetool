@@ -4,7 +4,6 @@ import type { TenantLineItemConfig } from '../api/types';
 import { DEFAULT_LINE_ITEM_COLUMNS, DEFAULT_LINE_ITEM_KEYS } from '../constants/lineItemColumns';
 import type { LineItemColumnConfig as ColumnConfig } from '../constants/lineItemColumns';
 import { MasterDataManager } from './MasterDataManager';
-import { FormulaStrategyBuilder } from './FormulaStrategyBuilder';
 
 type ImportResult = { status: 'ok' | 'error'; message: string };
 
@@ -27,7 +26,6 @@ const DEFAULT_MAPPING = {
 };
 
 export function AdminScreen() {
-  const [adminTab, setAdminTab] = useState<'data' | 'builder'>('data');
   const [file, setFile] = useState<File | null>(null);
   const [mappingJson, setMappingJson] = useState(JSON.stringify(DEFAULT_MAPPING, null, 2));
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -217,34 +215,12 @@ export function AdminScreen() {
     <section className="screen">
       <div className="screen-head">
         <div>
-          <h2>{adminTab === 'data' ? 'Data Management Admin' : 'Formula & Strategy Builder'}</h2>
-          <p>
-            {adminTab === 'data'
-              ? 'Import historical transactions and seed reference data'
-              : 'Design robust pricing logic with drag-and-drop query, loops, math and assignment blocks'}
-          </p>
-        </div>
-        <div className="head-actions">
-          <button
-            className={`btn ${adminTab === 'builder' ? 'btn-primary' : ''}`}
-            type="button"
-            onClick={() => setAdminTab('builder')}
-          >
-            Formula & Strategy Builder
-          </button>
-          <button
-            className={`btn ${adminTab === 'data' ? 'btn-primary' : ''}`}
-            type="button"
-            onClick={() => setAdminTab('data')}
-          >
-            Data Management
-          </button>
+          <h2>Data Management Admin</h2>
+          <p>Import historical transactions and seed reference data</p>
         </div>
       </div>
 
-      {adminTab === 'builder' && <FormulaStrategyBuilder />}
-
-      {adminTab === 'data' && <div className="admin-layout">
+      <div className="admin-layout">
         <form className="panel-card" onSubmit={handleUpload}>
           <h3>CSV Upload</h3>
           <p className="muted">Chunked ingestion for large files. Map your columns to the historical transaction schema.</p>
@@ -422,9 +398,9 @@ export function AdminScreen() {
           </div>
           <p className="muted">Changes are loaded at runtime in the Line Items screen based on tenant/client ID.</p>
         </div>
-      </div>}
+      </div>
 
-      {adminTab === 'data' && <MasterDataManager />}
+      <MasterDataManager />
 
       {result && <div className={result.status === 'ok' ? 'ok-box' : 'error-box'}>{result.message}</div>}
     </section>
