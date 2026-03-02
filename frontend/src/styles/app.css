@@ -445,6 +445,298 @@ input, textarea, select {
   text-align: left;
 }
 
+.formula-admin {
+  padding: 0;
+  overflow: hidden;
+}
+
+.formula-admin-head {
+  border-bottom: 1px solid #dbe3ec;
+  background: #f8fafc;
+  padding: 12px 14px 0;
+}
+
+.formula-admin-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.formula-link-btn {
+  border: none;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.formula-admin-tabs {
+  display: flex;
+  gap: 16px;
+}
+
+.formula-admin-tabs button {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-weight: 600;
+  padding: 8px 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.formula-admin-tabs button.active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+}
+
+.formula-admin-body {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  min-height: 620px;
+}
+
+.formula-left-pane {
+  border-right: 1px solid #dbe3ec;
+  background: #f8fafc;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.formula-pane-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.formula-pane-head h4 {
+  font-size: 22px;
+}
+
+.formula-add-wrap {
+  position: relative;
+}
+
+.formula-add-btn {
+  min-width: 86px;
+  padding: 7px 10px;
+}
+
+.formula-add-btn .caret {
+  margin-left: 6px;
+  font-size: 11px;
+}
+
+.formula-add-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 120px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+  z-index: 5;
+  overflow: hidden;
+}
+
+.formula-add-menu button,
+.formula-add-menu label {
+  display: block;
+  width: 100%;
+  border: none;
+  background: #fff;
+  color: #1e293b;
+  text-align: left;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.formula-add-menu button:hover,
+.formula-add-menu label:hover {
+  background: #f1f5f9;
+}
+
+.formula-add-menu label input {
+  display: none;
+}
+
+.formula-list {
+  overflow: auto;
+  padding: 8px;
+  display: grid;
+  gap: 2px;
+}
+
+.formula-list-item {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: #475569;
+  cursor: pointer;
+}
+
+.formula-list-item:hover {
+  background: #f1f5f9;
+}
+
+.formula-list-item.active {
+  background: #e0ecff;
+  color: #1e40af;
+  font-weight: 600;
+}
+
+.formula-drafts {
+  border-top: 1px solid #e2e8f0;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.formula-drafts h5 {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.formula-main-pane {
+  background: #fff;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.formula-main-head {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.formula-head-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.formula-banner {
+  margin: 10px 14px 0;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.formula-warning-list {
+  margin: 10px 14px 0;
+  border: 1px solid #fcd34d;
+  background: #fffbeb;
+  color: #92400e;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.formula-warning-list p {
+  margin: 0;
+}
+
+.formula-status-row {
+  display: flex;
+  gap: 6px;
+  color: #64748b;
+  font-size: 14px;
+  align-items: center;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #94a3b8;
+}
+
+.status-invalid {
+  color: #dc2626;
+}
+
+.formula-workbench {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  min-height: 0;
+  height: 100%;
+}
+
+.formula-canvas-area {
+  background: #f3f4f6;
+  padding: 10px;
+  min-height: 520px;
+}
+
+.formula-blockly-host {
+  width: 100%;
+  height: 100%;
+  min-height: 500px;
+  border: 1px solid #d1d9e7;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f3f4f6;
+}
+
+.blockly-theme-wrap .blocklySvg {
+  background: #f3f4f6;
+}
+
+.blockly-theme-wrap .blocklyToolboxDiv {
+  border-right: 1px solid #dbe3ec;
+}
+
+.blockly-theme-wrap .blocklyTreeRow {
+  margin: 3px 6px;
+  padding: 5px 8px;
+  border-radius: 6px;
+}
+
+.blockly-theme-wrap .blocklyTreeRow:hover {
+  background: #e2e8f0;
+}
+
+.blockly-theme-wrap .blocklySelected > .blocklyTreeRow {
+  background: #dbeafe;
+}
+
+.formula-output-pane {
+  border-left: 1px solid #e2e8f0;
+  background: #fff;
+  padding: 12px;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.formula-output-pane h4 {
+  margin: 0;
+}
+
+.formula-output-pane pre {
+  margin: 0;
+  border: 1px solid #dbe3ec;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 11px;
+  overflow: auto;
+  min-height: 440px;
+}
+
 .info-box {
   border: 1px solid #bfdbfe;
   background: #eff6ff;
@@ -494,5 +786,18 @@ input, textarea, select {
   .screen-head {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .formula-admin-body {
+    grid-template-columns: 1fr;
+  }
+
+  .formula-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .formula-output-pane {
+    border-left: none;
+    border-top: 1px solid #e2e8f0;
   }
 }

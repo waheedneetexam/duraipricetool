@@ -4,6 +4,7 @@ import type { TenantLineItemConfig } from '../api/types';
 import { DEFAULT_LINE_ITEM_COLUMNS, DEFAULT_LINE_ITEM_KEYS } from '../constants/lineItemColumns';
 import type { LineItemColumnConfig as ColumnConfig } from '../constants/lineItemColumns';
 import { MasterDataManager } from './MasterDataManager';
+import { FormulaBuilderAdmin } from './FormulaBuilderAdmin';
 
 type ImportResult = { status: 'ok' | 'error'; message: string };
 
@@ -26,6 +27,7 @@ const DEFAULT_MAPPING = {
 };
 
 export function AdminScreen() {
+  const [adminTab, setAdminTab] = useState<'data' | 'formula'>('data');
   const [file, setFile] = useState<File | null>(null);
   const [mappingJson, setMappingJson] = useState(JSON.stringify(DEFAULT_MAPPING, null, 2));
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -215,12 +217,22 @@ export function AdminScreen() {
     <section className="screen">
       <div className="screen-head">
         <div>
-          <h2>Data Management Admin</h2>
-          <p>Import historical transactions and seed reference data</p>
+          <h2>{adminTab === 'data' ? 'Data Management Admin' : 'Formula & Strategy'}</h2>
+          <p>{adminTab === 'data' ? 'Import historical transactions and seed reference data' : 'Formula builder'}</p>
+        </div>
+        <div className="head-actions">
+          <button className={`btn ${adminTab === 'formula' ? 'btn-primary' : ''}`} onClick={() => setAdminTab('formula')} type="button">
+            Formula & Strategy
+          </button>
+          <button className={`btn ${adminTab === 'data' ? 'btn-primary' : ''}`} onClick={() => setAdminTab('data')} type="button">
+            Data Management
+          </button>
         </div>
       </div>
 
-      <div className="admin-layout">
+      {adminTab === 'formula' && <FormulaBuilderAdmin />}
+
+      {adminTab === 'data' && <div className="admin-layout">
         <form className="panel-card" onSubmit={handleUpload}>
           <h3>CSV Upload</h3>
           <p className="muted">Chunked ingestion for large files. Map your columns to the historical transaction schema.</p>
@@ -398,11 +410,11 @@ export function AdminScreen() {
           </div>
           <p className="muted">Changes are loaded at runtime in the Line Items screen based on tenant/client ID.</p>
         </div>
-      </div>
+      </div>}
 
-      <MasterDataManager />
+      {adminTab === 'data' && <MasterDataManager />}
 
-      {result && <div className={result.status === 'ok' ? 'ok-box' : 'error-box'}>{result.message}</div>}
+      {adminTab === 'data' && result && <div className={result.status === 'ok' ? 'ok-box' : 'error-box'}>{result.message}</div>}
     </section>
   );
 }
