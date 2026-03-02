@@ -481,6 +481,41 @@ input, textarea, select {
   min-width: min(500px, 100%);
 }
 
+.deployment-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.deployment-row label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: #334155;
+}
+
+.designer-banner {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.designer-warning-list {
+  border: 1px solid #fcd34d;
+  background: #fffbeb;
+  color: #92400e;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.designer-warning-list p {
+  margin: 2px 0;
+}
+
 .formula-builder-title input:first-child {
   font-weight: 700;
   font-size: 16px;
@@ -818,5 +853,9 @@ input, textarea, select {
   .formula-builder-title,
   .formula-builder-actions {
     min-width: 100%;
+  }
+
+  .deployment-row {
+    grid-template-columns: 1fr;
   }
 }
