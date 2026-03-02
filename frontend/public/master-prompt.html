@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DuraiPricingTool Master Prompt</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        background: #f8fafc;
+        color: #0f172a;
+      }
+      .wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 20px;
+      }
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        line-height: 1.45;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <pre>Role: You are a Senior Principal Engineer and Product Architect specializing in Enterprise Pricing Software (CPQ/PRO).
+
+Objective: Design and generate the technical blueprint and initial code structure for a modular Pricing Application. The system must be built with "Antigravity" principles: high performance, scalability, modularity, and maintainability.
+
+1) Module Requirements
+
+A. Admin &amp; Data Integration
+- Create a secure Admin dashboard with role-based access.
+- Implement CSV upload and intelligent column mapping into a Historical Transactions schema.
+- Support schema validation, preview, and error reporting before import.
+- Include a Sample Data Generator that creates 10,000+ rows of synthetic B2B pricing data with:
+  - SKU
+  - Customer Segment
+  - List Price
+  - Discount Percent
+  - Net Price
+  - Cost
+  - Quantity
+  - Region
+  - Date
+
+B. Analytics Module
+- Build a dashboard engine supporting:
+  - Waterfall (Price Bridge)
+  - Scatter (Price vs Volume)
+  - Bar
+  - Time Series
+- Include drill-down tables linked to chart selections.
+- Support filter context (date, region, customer segment, SKU family).
+- Integrate an OOTB chatbot (Natural Language to SQL/Query) for prompts like:
+  - "What was the margin leak in Q3?"
+  - "Show top 10 discount-heavy customers in EMEA last month."
+
+C. Quoting Module (Flexible Schema)
+- Quote Header and Line Items must support dynamic custom fields (add/remove/update at runtime).
+- Build a Calculation Engine with formula parser where admins define business logic, e.g.:
+  - Net_Price = List_Price * (1 - Discount_Percent)
+  - Margin = (Net_Price - Cost) * Quantity
+- Include validation, dependency ordering, and cycle detection for formulas.
+- Embed analytics within quote UI:
+  - Header-level mini waterfall / trend
+  - Line-level historical trend or benchmark chart
+
+D. Workflow Engine
+- Implement configurable state machine:
+  - Draft -&gt; Pending Approval -&gt; Approved / Rejected
+- Rules must be customer-specific and policy-driven, e.g.:
+  - Customer A: VP approval required if discount &gt; 20%
+  - Customer B: VP approval required if discount &gt; 10%
+- Support audit history, comments, timestamps, and approver identity.
+
+2) Technical Architecture
+
+A. Frontend
+- Use React (preferred) with modular, reusable components and high data-density layout.
+- Prioritize performance for large tables/charts (virtualization, memoization, pagination/aggregation).
+- Provide responsive behavior for desktop and tablet.
+
+B. Backend
+- Build a high-performance API layer (FastAPI/Node equivalent) with clear module boundaries.
+- Separate ingestion, analytics, quoting, formula, and workflow services.
+- Ensure the calculation engine handles nested formulas and safe expression evaluation.
+
+C. Database / Storage
+- Use an OLAP-friendly analytics layer for large historical datasets.
+- Keep transactional quote/workflow data normalized and auditable.
+- Define indexing/partitioning strategy for scalable filtering and time-series queries.
+
+3) Output Expected
+
+A. Data Schema
+- Define JSON and SQL structures for:
+  - Historical Transactions
+  - Quotes (Header + Line Items + Dynamic Fields)
+  - Workflow Rules and Workflow Events
+
+B. API Specifications
+- Define REST endpoints for:
+  - CSV ingestion (upload, map, validate, import status)
+  - Sample data generation
+  - Analytics query endpoints
+  - Quote calculation and save
+  - Workflow transition and rule evaluation
+
+C. UI Mockup Logic
+- Describe quote screen layout with:
+  - Header section
+  - Line item grid
+  - Embedded analytics panels
+  - Approval/workflow sidebar
+  - Validation and error state handling
+
+D. Sample Code
+- Provide core implementation snippets for:
+  - Dynamic Calculation Engine (formula parsing + dependency resolution)
+  - Workflow Evaluator (rule matching + state transition checks)
+
+4) Non-Functional Requirements
+- Performance: handle 10k+ transaction records with responsive analytics interactions.
+- Scalability: modular services with clear boundaries and independent evolution.
+- Security: RBAC, input validation, audit logging, secure file ingestion.
+- Reliability: idempotent ingestion jobs, retry strategy, and clear error propagation.
+- Observability: structured logs, metrics, and health checks for each service.
+
+5) Delivery Constraints
+- Favor production-oriented patterns over demo-only shortcuts.
+- Avoid inefficient client-side-only heavy aggregation for large datasets.
+- Keep modules decoupled so formulas, workflows, and analytics can evolve independently.
+
+6) Response Format (Strict)
+Return in this order:
+1. Architecture Overview
+2. Data Model (JSON + SQL)
+3. API Contract
+4. UI Composition Blueprint
+5. Core Algorithms (Calculation + Workflow)
+6. Scalability and Performance Strategy
+7. Security and Governance Controls
+8. Initial Repository/Folder Structure
+9. First Sprint Implementation Plan
+
+Why this prompt works
+- It defines behavior, not just screens.
+- It demands embedded intelligence (analytics in quoting context).
+- It enforces large-data scalability constraints and avoids naive client-only processing.
+- It requires concrete technical artifacts (schema, APIs, algorithms, and structure).</pre>
+    </div>
+  </body>
+</html>

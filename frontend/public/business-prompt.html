@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DuraiPricingTool Business + UI Prompt</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        background: #f8fafc;
+        color: #0f172a;
+      }
+      .wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 20px;
+      }
+      pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        margin: 0;
+        line-height: 1.45;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <pre># Master Prompt: Business + UI Blueprint for DuraiPricingTool
+
+Use this prompt to generate full business requirements and UI/UX requirements for an enterprise CPQ and pricing platform.
+
+---
+
+You are a senior product strategist, CPQ domain consultant, and UI/UX architect.
+Create a complete Business + UI blueprint for **DuraiPricingTool**.
+
+## Product Context
+- Domain: Enterprise pricing / CPQ / quote optimization
+- Users: Sales reps, pricing managers, finance approvers, deal desk, operations admins, executives
+- Tech stack context:
+  - Backend: FastAPI
+  - Frontend: React + Vite + AG Grid + ECharts
+  - Data: DuckDB, optional PostgreSQL hybrid mode
+
+## Business Prompt Requirements
+Produce clear, implementation-ready business documentation with these sections:
+
+1. Vision and Problem Statement
+- Define business pain points solved by the product
+- Define target users and outcomes
+- Define current-state vs future-state workflow
+
+2. Business Objectives and KPIs
+- Revenue uplift
+- Margin protection/improvement
+- Approval cycle-time reduction
+- Quote turnaround time
+- Win-rate impact
+- Forecast accuracy
+- Include KPI formulas, data source, frequency, and owner
+
+3. Scope Definition
+- In-scope capabilities for v1 and v2
+- Out-of-scope items explicitly listed
+- Assumptions and constraints
+
+4. Core Business Capabilities
+- Quote creation and editing
+- Pricing rule execution
+- Dynamic formulas (net price, margin, rebate impact)
+- Approval workflows and thresholds
+- Audit trails and versioning
+- Analytics dashboards
+- Chat/assistant insights for pricing queries
+
+5. Personas and Role Permissions
+- Persona matrix with responsibilities
+- Role-based access control (RBAC) and permission boundaries
+- Separation of duties for pricing approvals
+
+6. Business Process Flows
+- Lead/opportunity to quote
+- Quote calculation and validation
+- Approval routing and escalation
+- Revision/requote flow
+- Accepted/rejected/lost deal outcomes
+
+7. Rule and Policy Framework
+- Discount guardrails
+- Floor price and minimum margin rules
+- Rebate and promotion rules
+- Exception handling and approval overrides
+
+8. Data and Governance
+- Required master/transactional fields
+- Data quality checks
+- Retention, traceability, and compliance considerations
+- Security and privacy controls
+
+9. Reporting and Decision Support
+- Executive dashboards
+- Sales performance insights
+- Margin leak analysis
+- Deal velocity and conversion tracking
+
+10. Rollout and Change Management
+- Pilot plan
+- Training plan
+- Adoption strategy
+- Success review cadence
+
+## UI/UX Prompt Requirements
+Produce complete UI requirements for desktop and mobile:
+
+1. Information Architecture
+- Navigation structure
+- Screen hierarchy
+- Primary user journeys
+
+2. Screen Inventory and Purpose
+- Login/access
+- Quote list and filters
+- Quote detail/configuration
+- Line-item pricing table
+- Approval queue
+- Analytics dashboards
+- Admin panel
+- Chat assistant panel
+
+3. Detailed UX Flows
+- Create quote from scratch
+- Import/edit quote lines
+- Apply pricing and see recalculation
+- Submit for approval and track status
+- Save, duplicate, and version quote
+
+4. Component-Level Requirements
+- AG Grid behavior (sorting, filtering, inline edit, pinned columns)
+- Charts (waterfall, trend, sensitivity)
+- Forms and validation patterns
+- Status badges, alerts, and notifications
+- Loading and error states
+
+5. UI States and Edge Cases
+- Empty states
+- No data/partial data states
+- API failure states
+- Permission-denied states
+- Concurrency/conflict states
+
+6. Design System Guidance
+- Spacing scale
+- Typography scale
+- Color tokens and semantic usage
+- Icon usage
+- Accessibility standards (WCAG 2.1 AA)
+
+7. Responsive Behavior
+- Desktop, tablet, and mobile breakpoints
+- Table-to-card transformations for small screens
+- Touch-friendly interactions
+
+8. Performance and Usability Targets
+- Initial page load target
+- Recalculation latency target
+- Grid interaction responsiveness
+- Accessibility and keyboard navigation support
+
+9. QA Acceptance Criteria (UI)
+- Per-screen functional acceptance criteria
+- Visual regression checklist
+- Accessibility checklist
+- Cross-browser checklist
+
+10. Handoff Artifacts
+- Wireframe-level descriptions
+- Annotated interaction requirements
+- API dependency map by screen
+- Frontend-backend contract checklist
+
+## Output Format (strict)
+Return the answer in this exact structure:
+1. Executive Summary
+2. Business Requirements Document (BRD)
+3. Functional Requirements (FRD)
+4. UI/UX Requirements Specification
+5. Acceptance Criteria (Business + UI)
+6. Risks and Mitigations
+7. 30-60-90 Day Delivery Plan
+8. Open Questions and Decisions Needed
+
+## Execution Rules
+- Be concrete and implementation-ready.
+- Use tables where helpful.
+- Clearly separate must-have vs nice-to-have.
+- Include measurable criteria for every critical requirement.
+- Call out dependencies and assumptions explicitly.
+- Keep terminology consistent with CPQ and pricing operations.</pre>
+    </div>
+  </body>
+</html>
