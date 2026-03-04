@@ -80,7 +80,54 @@ CREATE TABLE IF NOT EXISTS line_item_column_configs (
     editable BOOLEAN DEFAULT TRUE,
     is_calculated BOOLEAN DEFAULT FALSE,
     formula VARCHAR,
+    field_type VARCHAR DEFAULT 'text',
+    default_value VARCHAR,
+    width INTEGER,
+    options_json JSON,
+    validation_json JSON,
+    description VARCHAR,
+    category VARCHAR,
     sort_order INTEGER DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS field_logic_rules (
+    logic_id VARCHAR PRIMARY KEY,
+    tenant_id VARCHAR,
+    scope VARCHAR,
+    field_key VARCHAR,
+    natural_language_logic VARCHAR,
+    generated_code VARCHAR,
+    explanation VARCHAR,
+    dependencies_json JSON,
+    version INTEGER DEFAULT 1,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS field_logic_validation_runs (
+    validation_id VARCHAR PRIMARY KEY,
+    tenant_id VARCHAR,
+    scope VARCHAR,
+    field_key VARCHAR,
+    status VARCHAR,
+    severity VARCHAR,
+    errors_json JSON,
+    warnings_json JSON,
+    generated_code VARCHAR,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ai_pricing_configurations (
+    config_id VARCHAR PRIMARY KEY,
+    tenant_id VARCHAR,
+    template_text VARCHAR,
+    status VARCHAR DEFAULT 'draft',
+    summary VARCHAR,
+    confidence DOUBLE,
+    processed_result_json JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

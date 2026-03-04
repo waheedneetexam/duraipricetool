@@ -400,8 +400,21 @@ select {
   gap: 10px;
 }
 
+.admin-tab-row {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .admin-column-config {
   grid-column: 1 / -1;
+}
+
+.table-manager-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .tenant-controls {
@@ -480,6 +493,30 @@ select {
   border-bottom: 1px solid #e2e8f0;
   padding: 8px;
   text-align: left;
+  vertical-align: top;
+}
+
+.config-row-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.logic-rule-card {
+  border: 1px solid #dbe3ec;
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 8px;
+  background: #f8fafc;
+}
+
+.logic-rule-card p {
+  margin: 0;
+}
+
+.logic-rule-card p + p {
+  margin-top: 6px;
 }
 
 .formula-admin {

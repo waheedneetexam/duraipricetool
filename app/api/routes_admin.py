@@ -4,10 +4,23 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, Form, UploadFile
 
-from app.models.schemas import CSVColumnMapping, LineItemColumnConfigSaveRequest
+from app.models.schemas import (
+    AIPricingTemplateProcessRequest,
+    CSVColumnMapping,
+    FieldLogicSaveRequest,
+    FieldLogicValidateRequest,
+    LineItemColumnConfigSaveRequest,
+)
+from app.services.admin_config_service import (
+    list_field_logic_rules,
+    process_ai_pricing_template,
+    save_field_logic_rule,
+    validate_field_logic,
+)
 from app.services.line_item_config_service import (
     get_line_item_column_config,
     save_line_item_column_config,
+    validate_line_item_column_config,
 )
 from app.services.csv_ingestion import ingest_csv_chunked
 from app.services.quote_service import seed_default_workflow_rules
@@ -66,5 +79,51 @@ def get_line_item_config(tenant_id: str = "default"):
 
 @router.put("/line-item-config")
 def put_line_item_config(payload: LineItemColumnConfigSaveRequest, tenant_id: str = "default"):
-    data = save_line_item_column_config(tenant_id, [col.model_dump() for col in payload.columns])
+    try:
+        data = save_line_item_column_config(tenant_id, [col.model_dump() for col in payload.columns])
+        return {"success": True, "data": data}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@router.post("/line-item-config/validate")
+def post_line_item_config_validate(payload: LineItemColumnConfigSaveRequest):
+    return {"success": True, "data": validate_line_item_column_config([col.model_dump() for col in payload.columns])}
+
+
+@router.post("/field-logic/validate")
+def post_field_logic_validate(payload: FieldLogicValidateRequest):
+    data = validate_field_logic(payload.tenant_id, payload.scope, payload.field_key, payload.logic_text)
     return {"success": True, "data": data}
+
+
+@router.post("/field-logic/save")
+def post_field_logic_save(payload: FieldLogicSaveRequest):
+    try:
+        data = save_field_logic_rule(
+            tenant_id=payload.tenant_id,
+            scope=payload.scope,
+            field_key=payload.field_key,
+            logic_text=payload.logic_text,
+            generated_code=payload.generated_code,
+            explanation=payload.explanation,
+            dependencies=payload.dependencies,
+        )
+        return {"success": True, "data": data}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@router.get("/field-logic/list")
+def get_field_logic_list(tenant_id: str = "default", scope: str = ""):
+    data = list_field_logic_rules(tenant_id=tenant_id, scope=scope or None)
+    return {"success": True, "data": data}
+
+
+@router.post("/ai-pricing/process-template")
+def post_ai_pricing_process_template(payload: AIPricingTemplateProcessRequest):
+    try:
+        data = process_ai_pricing_template(payload.tenant_id, payload.template_text)
+        return {"success": True, "data": data}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}

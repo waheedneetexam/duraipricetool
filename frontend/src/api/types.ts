@@ -83,11 +83,52 @@ export type TenantLineItemColumnConfig = {
   sortOrder: number;
   isCalculated: boolean;
   formula: string;
+  fieldType?: string;
+  defaultValue?: string | number | boolean | null;
+  width?: number | null;
+  options?: string[];
+  validation?: Record<string, unknown>;
+  description?: string;
+  category?: string;
 };
 
 export type TenantLineItemConfig = {
   tenantId: string;
   columns: TenantLineItemColumnConfig[];
+};
+
+export type FieldLogicValidationResult = {
+  validationId: string;
+  status: 'valid' | 'invalid';
+  severity: 'info' | 'warning' | 'error';
+  errors: Array<{ type?: string; message: string; suggestion?: string }>;
+  warnings: Array<{ type?: string; message: string; suggestion?: string }>;
+  dependencies: { tables: string[]; columns: string[] };
+  generatedCode: string;
+};
+
+export type FieldLogicRule = {
+  logicId: string;
+  tenantId: string;
+  scope: string;
+  fieldKey: string;
+  logicText: string;
+  generatedCode: string;
+  explanation: string;
+  dependencies: Record<string, unknown>;
+  version: number;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type AIPricingProcessResult = {
+  configId: string;
+  tenantId: string;
+  status: string;
+  summary: string;
+  confidence: number;
+  processedResult: Record<string, unknown>;
 };
 
 export type MasterProduct = {

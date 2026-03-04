@@ -9,6 +9,13 @@ export type LineItemColumnConfig = {
   isCalculated: boolean;
   formula: string;
   sortOrder: number;
+  fieldType?: string;
+  defaultValue?: string | number | boolean | null;
+  width?: number | null;
+  options?: string[];
+  validation?: Record<string, unknown>;
+  description?: string;
+  category?: string;
 };
 
 export const DEFAULT_LINE_ITEM_COLUMNS: LineItemColumnConfig[] = [
@@ -20,7 +27,10 @@ export const DEFAULT_LINE_ITEM_COLUMNS: LineItemColumnConfig[] = [
     editable: true,
     isCalculated: false,
     formula: '',
-    sortOrder: 0
+    sortOrder: 0,
+    fieldType: 'text',
+    width: 220,
+    defaultValue: ''
   },
   {
     key: 'sku',
@@ -30,7 +40,10 @@ export const DEFAULT_LINE_ITEM_COLUMNS: LineItemColumnConfig[] = [
     editable: true,
     isCalculated: false,
     formula: '',
-    sortOrder: 1
+    sortOrder: 1,
+    fieldType: 'text',
+    width: 140,
+    defaultValue: ''
   },
   {
     key: 'quantity',
@@ -40,7 +53,10 @@ export const DEFAULT_LINE_ITEM_COLUMNS: LineItemColumnConfig[] = [
     editable: true,
     isCalculated: false,
     formula: '',
-    sortOrder: 2
+    sortOrder: 2,
+    fieldType: 'number',
+    width: 100,
+    defaultValue: 1
   },
   {
     key: 'listPrice',
@@ -50,7 +66,10 @@ export const DEFAULT_LINE_ITEM_COLUMNS: LineItemColumnConfig[] = [
     editable: true,
     isCalculated: false,
     formula: '',
-    sortOrder: 3
+    sortOrder: 3,
+    fieldType: 'currency',
+    width: 130,
+    defaultValue: 0
   },
   {
     key: 'cost',
@@ -60,7 +79,10 @@ export const DEFAULT_LINE_ITEM_COLUMNS: LineItemColumnConfig[] = [
     editable: true,
     isCalculated: false,
     formula: '',
-    sortOrder: 4
+    sortOrder: 4,
+    fieldType: 'currency',
+    width: 120,
+    defaultValue: 0
   },
   {
     key: 'volumeDiscount',
@@ -70,7 +92,10 @@ export const DEFAULT_LINE_ITEM_COLUMNS: LineItemColumnConfig[] = [
     editable: true,
     isCalculated: false,
     formula: '',
-    sortOrder: 5
+    sortOrder: 5,
+    fieldType: 'percent',
+    width: 120,
+    defaultValue: 0
   },
   {
     key: 'rebate',
@@ -80,7 +105,10 @@ export const DEFAULT_LINE_ITEM_COLUMNS: LineItemColumnConfig[] = [
     editable: true,
     isCalculated: false,
     formula: '',
-    sortOrder: 6
+    sortOrder: 6,
+    fieldType: 'currency',
+    width: 120,
+    defaultValue: 0
   },
   {
     key: 'netPrice',
@@ -90,7 +118,9 @@ export const DEFAULT_LINE_ITEM_COLUMNS: LineItemColumnConfig[] = [
     editable: false,
     isCalculated: true,
     formula: '',
-    sortOrder: 7
+    sortOrder: 7,
+    fieldType: 'currency',
+    width: 130
   },
   {
     key: 'margin',
@@ -100,7 +130,9 @@ export const DEFAULT_LINE_ITEM_COLUMNS: LineItemColumnConfig[] = [
     editable: false,
     isCalculated: true,
     formula: '',
-    sortOrder: 8
+    sortOrder: 8,
+    fieldType: 'percent',
+    width: 120
   },
     {
       key: 'totalValue',
@@ -110,7 +142,9 @@ export const DEFAULT_LINE_ITEM_COLUMNS: LineItemColumnConfig[] = [
     editable: false,
     isCalculated: true,
     formula: '',
-      sortOrder: 9
+      sortOrder: 9,
+      fieldType: 'currency',
+      width: 140
     }
   ];
 

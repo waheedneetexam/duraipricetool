@@ -123,7 +123,36 @@ class LineItemColumnConfig(BaseModel):
     editable: bool = True
     is_calculated: bool = False
     formula: str = ""
+    field_type: str = "text"
+    default_value: str | None = None
+    width: int | None = None
+    options: list[str] = Field(default_factory=list)
+    validation: dict[str, Any] = Field(default_factory=dict)
+    description: str = ""
+    category: str = ""
 
 
 class LineItemColumnConfigSaveRequest(BaseModel):
     columns: list[LineItemColumnConfig] = Field(default_factory=list)
+
+
+class FieldLogicValidateRequest(BaseModel):
+    tenant_id: str = "default"
+    scope: str = "line_item"
+    field_key: str
+    logic_text: str
+
+
+class FieldLogicSaveRequest(BaseModel):
+    tenant_id: str = "default"
+    scope: str = "line_item"
+    field_key: str
+    logic_text: str
+    generated_code: str = ""
+    explanation: str = ""
+    dependencies: dict[str, Any] = Field(default_factory=dict)
+
+
+class AIPricingTemplateProcessRequest(BaseModel):
+    tenant_id: str = "default"
+    template_text: str

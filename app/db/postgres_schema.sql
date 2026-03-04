@@ -91,8 +91,55 @@ CREATE TABLE IF NOT EXISTS line_item_column_configs (
     sort_order INTEGER DEFAULT 0,
     is_calculated BOOLEAN DEFAULT FALSE,
     formula TEXT,
+    field_type TEXT DEFAULT 'text',
+    default_value TEXT,
+    width INTEGER,
+    options_json JSONB,
+    validation_json JSONB,
+    description TEXT,
+    category TEXT,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (tenant_id, column_key)
+);
+
+CREATE TABLE IF NOT EXISTS field_logic_rules (
+    logic_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    field_key TEXT NOT NULL,
+    natural_language_logic TEXT,
+    generated_code TEXT,
+    explanation TEXT,
+    dependencies_json JSONB,
+    version INTEGER DEFAULT 1,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS field_logic_validation_runs (
+    validation_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    field_key TEXT NOT NULL,
+    status TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    errors_json JSONB,
+    warnings_json JSONB,
+    generated_code TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ai_pricing_configurations (
+    config_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    template_text TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft',
+    summary TEXT,
+    confidence DOUBLE PRECISION,
+    processed_result_json JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS products (
@@ -169,3 +216,6 @@ CREATE INDEX IF NOT EXISTS idx_hist_tx_customer_segment ON historical_transactio
 CREATE INDEX IF NOT EXISTS idx_quotes_updated_at ON quotes (updated_at);
 CREATE INDEX IF NOT EXISTS idx_quote_lines_updated_at ON quote_line_items (updated_at);
 CREATE INDEX IF NOT EXISTS idx_line_item_cfg_tenant ON line_item_column_configs (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_field_logic_tenant_field ON field_logic_rules (tenant_id, scope, field_key);
+CREATE INDEX IF NOT EXISTS idx_field_logic_validation_tenant_field ON field_logic_validation_runs (tenant_id, scope, field_key);
+CREATE INDEX IF NOT EXISTS idx_ai_pricing_tenant_status ON ai_pricing_configurations (tenant_id, status);
