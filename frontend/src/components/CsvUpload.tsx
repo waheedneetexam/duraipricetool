@@ -96,7 +96,8 @@ export function CsvUpload({ selectedTableId, onUploadComplete, embedded }: CsvUp
                 setMapping(newMapping);
             }
         } catch (err) {
-            setErrorMsg('Failed to parse CSV headers.');
+            console.error('CSV Parse Error:', err);
+            setErrorMsg(`Failed to parse CSV headers: ${String(err)}`);
         }
     };
 
@@ -210,10 +211,29 @@ export function CsvUpload({ selectedTableId, onUploadComplete, embedded }: CsvUp
             </div>
 
             <button
-                className="btn btn-primary"
-                style={{ background: '#065f46', border: 'none', padding: '12px', fontWeight: 700 }}
-                onClick={handleUpload}
-                disabled={uploading || !csvFile || mappedCount === 0}
+                className={`btn btn-primary ${(!csvFile || mappedCount === 0) ? 'disabled' : ''}`}
+                style={{
+                    background: (uploading || !csvFile || mappedCount === 0) ? '#94a3b8' : '#065f46',
+                    border: 'none',
+                    padding: '12px',
+                    fontWeight: 700,
+                    cursor: (uploading || !csvFile || mappedCount === 0) ? 'not-allowed' : 'pointer',
+                    opacity: (uploading || !csvFile || mappedCount === 0) ? 0.7 : 1,
+                    transition: 'all 0.2s'
+                }}
+                onClick={() => {
+                    if (!csvFile) {
+                        setErrorMsg('Please select a CSV file first.');
+                        return;
+                    }
+                    if (mappedCount === 0) {
+                        setErrorMsg('Please configure column mapping.');
+                        setShowMappingModal(true);
+                        return;
+                    }
+                    handleUpload();
+                }}
+                disabled={uploading}
             >
                 {uploading ? 'Processing...' : 'Validate and Import'}
             </button>
