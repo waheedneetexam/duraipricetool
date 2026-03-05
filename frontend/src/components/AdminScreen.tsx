@@ -470,11 +470,19 @@ PricingRules: []`);
           <button className={adminTab === 'formula' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('formula')} type="button">Formula</button>
           <div style={{ flex: 1 }} />
           <button
-            className="btn btn-primary"
+            className="btn"
             onClick={runSyncOnce}
             disabled={loading || !canAdminManage}
             type="button"
-            style={{ background: 'var(--primary)', fontWeight: 'bold' }}
+            style={{
+              background: 'var(--primary)',
+              color: '#fff',
+              fontWeight: '700',
+              padding: '8px 16px',
+              fontSize: '13px',
+              border: 'none',
+              boxShadow: 'var(--shadow-sm)'
+            }}
           >
             {loading ? 'Syncing...' : 'Run Sync (Postgres to DuckDB)'}
           </button>
