@@ -31,6 +31,11 @@ export function PlatformManagementAdmin() {
     const [selTenant, setSelTenant] = useState('');
     const [selRole, setSelRole] = useState('TenantAdmin');
 
+    // State for existing user assignment
+    const [assigningUserId, setAssigningUserId] = useState<string | null>(null);
+    const [assignTenantId, setAssignTenantId] = useState('');
+    const [assignRoleId, setAssignRoleId] = useState('TenantAdmin');
+
     useEffect(() => {
         void loadData();
     }, [activeTab]);
@@ -52,6 +57,7 @@ export function PlatformManagementAdmin() {
                 setTenants(tRes.data);
                 setRoles(rRes.data);
                 if (tRes.data.length > 0 && !selTenant) setSelTenant(tRes.data[0].tenant_id);
+                if (tRes.data.length > 0 && !assignTenantId) setAssignTenantId(tRes.data[0].tenant_id);
             }
         } catch (err) {
             setError(String(err));
@@ -118,6 +124,29 @@ export function PlatformManagementAdmin() {
             setNewEmail('');
             setNewName('');
             setNewPass('');
+            await loadData();
+        } catch (err) {
+            setError(String(err));
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function handleAssignTenant(userId: string) {
+        setLoading(true);
+        try {
+            const res = await apiFetch<{ success: boolean; error?: string }>(`/platform/users/${userId}/assign-tenant`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    tenant_id: assignTenantId,
+                    role: assignRoleId
+                })
+            });
+            if (!res.success) {
+                setError(res.error || 'Failed to assign tenant');
+                return;
+            }
+            setAssigningUserId(null);
             await loadData();
         } catch (err) {
             setError(String(err));
@@ -201,6 +230,7 @@ export function PlatformManagementAdmin() {
                                     <th>Email</th>
                                     <th>Full Name</th>
                                     <th>Assignments (tenant:role)</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -220,6 +250,22 @@ export function PlatformManagementAdmin() {
                                                     }}>{tr}</span>
                                                 ))}
                                             </div>
+                                        </td>
+                                        <td>
+                                            {assigningUserId === u.user_id ? (
+                                                <div style={{ display: 'flex', gap: '4px' }}>
+                                                    <select value={assignTenantId} onChange={e => setAssignTenantId(e.target.value)} style={{ padding: '2px', fontSize: '11px' }}>
+                                                        {tenants.map(t => <option key={t.tenant_id} value={t.tenant_id}>{t.tenant_name}</option>)}
+                                                    </select>
+                                                    <select value={assignRoleId} onChange={e => setAssignRoleId(e.target.value)} style={{ padding: '2px', fontSize: '11px' }}>
+                                                        {roles.map(r => <option key={r} value={r}>{r}</option>)}
+                                                    </select>
+                                                    <button className="btn btn-xs btn-primary" onClick={() => handleAssignTenant(u.user_id)}>Add</button>
+                                                    <button className="btn btn-xs" onClick={() => setAssigningUserId(null)}>X</button>
+                                                </div>
+                                            ) : (
+                                                <button className="btn btn-xs" onClick={() => setAssigningUserId(u.user_id)}>+ Assign Tenant</button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
