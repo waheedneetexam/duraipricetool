@@ -51,6 +51,29 @@ def set_tenant_active(tenant_id: str, active: bool) -> dict[str, Any]:
     return {"tenant_id": row[0], "tenant_name": row[1], "active": bool(row[2])}
 
 
+def delete_tenant(tenant_id: str) -> None:
+    """Permanently delete a tenant and all its associated data. 'default' cannot be deleted."""
+    if tenant_id == "default":
+        raise ValueError("The 'default' tenant cannot be deleted.")
+
+    tables = [
+        "quotes", "quote_line_items", "workflow_rules", "historical_transactions",
+        "line_item_column_configs", "field_logic_rules", "field_logic_validation_runs",
+        "ai_pricing_configurations", "products", "customers", "sellers",
+        "product_extensions", "customer_extensions", "seller_extensions",
+        "product_references", "product_hierarchies", "sales_orgs", "regions",
+        "currencies", "product_costs", "discount_tiers", "pricing_rules",
+        "user_tenant_roles", "refresh_tokens", "tenants"
+    ]
+
+    if _pg():
+        for table in tables:
+            pg_client.execute(f"DELETE FROM {table} WHERE tenant_id = %s", (tenant_id,))
+    else:
+        for table in tables:
+            db_client.execute(f"DELETE FROM {table} WHERE tenant_id = ?", (tenant_id,))
+
+
 # ── User management (platform-wide) ─────────────────────────────────────────
 
 def list_all_users() -> list[dict[str, Any]]:

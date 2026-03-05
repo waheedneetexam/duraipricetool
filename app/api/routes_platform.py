@@ -18,6 +18,7 @@ from app.services.platform_service import (
     list_tenants,
     list_available_roles,
     set_tenant_active,
+    delete_tenant,
 )
 from app.services.audit_service import log_action
 
@@ -69,6 +70,24 @@ def patch_tenant(tenant_id: str, payload: SetTenantActiveRequest, context: AuthC
             detail={"active": payload.active}
         )
         return {"success": True, "data": data}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@router.delete("/tenants/{tenant_id}")
+def delete_tenant_route(tenant_id: str, context: AuthContext = Depends(require_auth)):
+    _require_permission(context, "platform.tenants.manage")
+    try:
+        delete_tenant(tenant_id)
+        log_action(
+            actor_user_id=context.user_id,
+            actor_tenant_id=context.tenant_id,
+            target_type="tenant",
+            target_id=tenant_id,
+            action="delete",
+            detail={"tenant_id": tenant_id}
+        )
+        return {"success": True}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}
 

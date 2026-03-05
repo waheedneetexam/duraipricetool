@@ -103,6 +103,30 @@ export function PlatformManagementAdmin() {
         }
     }
 
+    async function handleDeleteTenant(tenantId: string) {
+        if (tenantId === 'default') {
+            alert("The 'default' tenant cannot be deleted.");
+            return;
+        }
+        if (!confirm(`Are you SURE you want to PERMANENTLY delete this tenant and ALL associated data? This action cannot be undone.`)) return;
+
+        setLoading(true);
+        try {
+            const res = await apiFetch<{ success: boolean; error?: string }>(`/platform/tenants/${tenantId}`, {
+                method: 'DELETE'
+            });
+            if (!res.success) {
+                setError(res.error || 'Failed to delete tenant');
+                return;
+            }
+            await loadData();
+        } catch (err) {
+            setError(String(err));
+        } finally {
+            setLoading(false);
+        }
+    }
+
     async function handleCreateUser(e: React.FormEvent) {
         e.preventDefault();
         setLoading(true);
@@ -197,6 +221,15 @@ export function PlatformManagementAdmin() {
                                             <button className="btn btn-xs" onClick={() => toggleTenant(t.tenant_id, t.active)}>
                                                 {t.active ? 'Suspend' : 'Activate'}
                                             </button>
+                                            {t.tenant_id !== 'default' && (
+                                                <button
+                                                    className="btn btn-xs"
+                                                    style={{ marginLeft: '4px', background: '#fee2e2', color: '#991b1b', borderColor: '#fecaca' }}
+                                                    onClick={() => handleDeleteTenant(t.tenant_id)}
+                                                >
+                                                    Delete
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
