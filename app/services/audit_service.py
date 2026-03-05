@@ -55,7 +55,12 @@ def list_audit_logs(
     if _pg():
         query = """
             SELECT l.log_id, l.actor_user_id, l.actor_tenant_id, l.target_type, l.target_id, l.action, l.detail, l.created_at_epoch,
-                   u.full_name AS actor_name, t.tenant_name AS actor_tenant_name
+                   u.full_name AS actor_name, t.tenant_name AS actor_tenant_name,
+                   CASE 
+                     WHEN l.target_type = 'user' THEN (SELECT full_name FROM app_users WHERE user_id = l.target_id)
+                     WHEN l.target_type = 'tenant' THEN (SELECT tenant_name FROM tenants WHERE tenant_id = l.target_id)
+                     ELSE l.target_id
+                   END AS target_name
             FROM audit_log l
             LEFT JOIN app_users u ON u.user_id = l.actor_user_id
             LEFT JOIN tenants t ON t.tenant_id = l.actor_tenant_id
@@ -83,7 +88,12 @@ def list_audit_logs(
     # DuckDB path
     query = """
         SELECT l.log_id, l.actor_user_id, l.actor_tenant_id, l.target_type, l.target_id, l.action, l.detail, l.created_at_epoch,
-               u.full_name AS actor_name, t.tenant_name AS actor_tenant_name
+               u.full_name AS actor_name, t.tenant_name AS actor_tenant_name,
+               CASE 
+                 WHEN l.target_type = 'user' THEN (SELECT full_name FROM app_users WHERE user_id = l.target_id)
+                 WHEN l.target_type = 'tenant' THEN (SELECT tenant_name FROM tenants WHERE tenant_id = l.target_id)
+                 ELSE l.target_id
+               END AS target_name
         FROM audit_log l
         LEFT JOIN app_users u ON u.user_id = l.actor_user_id
         LEFT JOIN tenants t ON t.tenant_id = l.actor_tenant_id

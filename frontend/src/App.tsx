@@ -177,7 +177,12 @@ export function App() {
       <main className="main-area">
         {view === 'quotes' && <QuoteList onCreateNew={onCreateNew} onEditQuote={onEditQuote} />}
         {view === 'pricing' && <PricingTableWithTabs quoteId={editingQuoteId} onBack={() => setView('quotes')} />}
-        {view === 'admin' && canAdmin && <AdminScreen tenantId={session.tenantId} />}
+        {view === 'admin' && canAdmin && (
+          <AdminScreen
+            tenantId={session.tenantId}
+            tenantName={tenants.find(t => t.tenant_id === session.tenantId)?.tenant_name || session.tenantId}
+          />
+        )}
       </main>
     </div>
   );

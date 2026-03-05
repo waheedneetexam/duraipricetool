@@ -16,7 +16,7 @@ import { AuditLogAdmin } from './AuditLogAdmin';
 
 type ImportResult = { status: 'ok' | 'error'; message: string };
 type AdminTab = 'data' | 'table' | 'logic' | 'ai' | 'formula' | 'users' | 'platform' | 'audit';
-type Props = { tenantId: string };
+type Props = { tenantId: string; tenantName?: string };
 
 const DEFAULT_MAPPING = {
   transaction_date: 'transaction_date',
@@ -38,7 +38,7 @@ const DEFAULT_MAPPING = {
 
 const FIELD_TYPES = ['text', 'number', 'currency', 'percent', 'date', 'select', 'textarea', 'checkbox', 'calculated'];
 
-export function AdminScreen({ tenantId }: Props) {
+export function AdminScreen({ tenantId, tenantName }: Props) {
   const [adminTab, setAdminTab] = useState<AdminTab>('table');
   const [file, setFile] = useState<File | null>(null);
   const [mappingJson, setMappingJson] = useState(JSON.stringify(DEFAULT_MAPPING, null, 2));
@@ -471,16 +471,6 @@ PricingRules: []`);
         </div>
       </div>
 
-      <div className="panel-card tenant-controls">
-        <label>
-          Tenant / Client ID
-          <input value={tenantId} readOnly />
-        </label>
-        <div className="tenant-actions">
-          <button className="btn" type="button" onClick={loadLineItemConfig} disabled={loading || !canAdminManage}>Load Table Config</button>
-          <button className="btn" type="button" onClick={loadFieldLogicRules} disabled={loading || !canAdminManage}>Load Logic Rules</button>
-        </div>
-      </div>
 
       {adminTab === 'table' && (
         <div className="panel-card admin-column-config">
@@ -654,6 +644,10 @@ PricingRules: []`);
             <h3>Field Logic Manager</h3>
             <div className="form-grid">
               <label>
+                Tenant / Client
+                <input value={tenantName || tenantId} readOnly />
+              </label>
+              <label>
                 Scope
                 <select value={logicScope} onChange={(e) => setLogicScope(e.target.value)}>
                   <option value="line_item">line_item</option>
@@ -674,6 +668,7 @@ PricingRules: []`);
               <textarea rows={3} value={logicExplanation} onChange={(e) => setLogicExplanation(e.target.value)} />
             </label>
             <div className="form-actions">
+              <button className="btn" type="button" onClick={loadFieldLogicRules} disabled={loading || !canAdminManage}>Load Logic Rules</button>
               <button className="btn" type="button" onClick={validateFieldLogic} disabled={loading || !canAdminManage}>Validate & Generate</button>
               <button className="btn btn-primary" type="button" onClick={saveFieldLogic} disabled={loading || !logicValidation || logicValidation.status !== 'valid' || !canAdminManage}>
                 Save Logic
