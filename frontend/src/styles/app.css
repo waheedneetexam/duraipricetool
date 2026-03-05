@@ -1115,6 +1115,30 @@ select {
   background: #22c55e;
 }
 
+/* Sidebar hover tooltip */
+.sidebar-item-hover {
+  position: relative;
+}
+
+.sidebar-tooltip {
+  display: none;
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 0;
+  z-index: 200;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  min-width: 240px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  pointer-events: none;
+}
+
+.sidebar-item-hover:hover .sidebar-tooltip {
+  display: block;
+}
+
 .metadata-panel {
   display: flex;
   flex-direction: column;
@@ -1234,5 +1258,10 @@ select {
   border-radius: 50%;
 }
 
-.dot.green { background: #22c55e; }
-.dot.gray { background: #94a3b8; }
+.dot.green {
+  background: #22c55e;
+}
+
+.dot.gray {
+  background: #94a3b8;
+}

@@ -98,8 +98,8 @@ export function DataManagementAdmin() {
         </div>
       </div>
 
-      {/* Main 4-Column Grid */}
-      <div className="admin-data-grid">
+      {/* Main 3-Column Grid */}
+      <div className="admin-data-grid" style={{ gridTemplateColumns: '260px 1fr 340px' }}>
         {/* Column 1: Sidebar Navigation */}
         <aside className="admin-data-sidebar">
           <div className="admin-sidebar-head">
@@ -115,46 +115,39 @@ export function DataManagementAdmin() {
             </div>
           </div>
           <div className="admin-sidebar-list">
-            {filteredTableList.map((table) => (
-              <div
-                key={table.id}
-                className={`sidebar-item ${selectedTableId === table.id ? 'active' : ''}`}
-                onClick={() => setSelectedTableId(table.id)}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>🗄️</span>
-                  {table.displayName}
+            {filteredTableList.map((table) => {
+              const stats = statsByTable[table.id];
+              return (
+                <div
+                  key={table.id}
+                  className={`sidebar-item sidebar-item-hover ${selectedTableId === table.id ? 'active' : ''}`}
+                  onClick={() => setSelectedTableId(table.id)}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>🗄️</span>
+                    {table.displayName}
+                  </div>
+                  <span className="status-dot online"></span>
+                  {/* Hover Tooltip */}
+                  <div className="sidebar-tooltip">
+                    <div style={{ fontWeight: 700, marginBottom: '8px', borderBottom: '1px solid var(--line)', paddingBottom: '6px' }}>
+                      🗄️ {table.displayName}
+                    </div>
+                    <div className="metadata-item"><label>Total Records:</label><strong>{stats?.totalRecords ?? 0}</strong></div>
+                    <div className="metadata-item"><label>Primary Key:</label><strong>🔑 {table.primaryKey}</strong></div>
+                    <div className="metadata-item"><label>Last Updated:</label><strong style={{ fontSize: '11px' }}>{stats?.lastUpdated ? new Date(stats.lastUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</strong></div>
+                    <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--line)', fontSize: '12px', display: 'flex', gap: '12px' }}>
+                      <span style={{ color: '#22c55e', fontWeight: 600 }}>Nulls: 0</span>
+                      <span style={{ color: '#64748b', fontWeight: 600 }}>Duplicates: 0</span>
+                    </div>
+                  </div>
                 </div>
-                <span className="status-dot online"></span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </aside>
 
-        {/* Column 2: Metadata & Summary */}
-        <div className="metadata-panel">
-          <div className="metadata-card" style={{ borderLeft: '4px solid var(--primary)' }}>
-            <h4><span>🗄️</span> {selectedTable?.displayName} Table Manager</h4>
-            <div className="metadata-item">
-              <label>Total Records:</label>
-              <strong>{selectedStats?.totalRecords ?? 0}</strong>
-            </div>
-            <div className="metadata-item">
-              <label>Primary Key:</label>
-              <strong>🔑 {selectedTable?.primaryKey}</strong>
-            </div>
-            <div className="metadata-item">
-              <label>Last Updated:</label>
-              <strong>{selectedStats?.lastUpdated ? new Date(selectedStats.lastUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}</strong>
-            </div>
-            <div style={{ marginTop: '8px', paddingTop: '12px', borderTop: '1px solid var(--line)', fontSize: '13px', display: 'flex', gap: '12px' }}>
-              <span style={{ color: '#22c55e', fontWeight: 600 }}>Nulls: 0</span>
-              <span style={{ color: '#64748b', fontWeight: 600 }}>Duplicates: 0</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Column 3: Main Data Workspace (Data Grid) */}
+        {/* Column 2: Main Data Workspace (Data Grid) */}
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           {selectedTable && (
             <TableManager
