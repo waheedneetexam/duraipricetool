@@ -152,6 +152,26 @@ export function PlatformManagementAdmin() {
         }
     }
 
+    async function handleRemoveRole(userId: string, tenantId: string, roleName: string) {
+        if (!confirm(`Remove access for ${roleName} from this tenant?`)) return;
+        setLoading(true);
+        try {
+            const res = await apiFetch<{ success: boolean; error?: string }>(
+                `/platform/users/${userId}/tenants/${tenantId}/roles/${roleName}`,
+                { method: 'DELETE' }
+            );
+            if (!res.success) {
+                setError(res.error || 'Failed to remove role');
+                return;
+            }
+            await loadData();
+        } catch (err) {
+            setError(String(err));
+        } finally {
+            setLoading(false);
+        }
+    }
+
     async function handleCreateUser(e: React.FormEvent) {
         e.preventDefault();
         setLoading(true);
@@ -329,15 +349,37 @@ export function PlatformManagementAdmin() {
                                         <td>{u.full_name}</td>
                                         <td>
                                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                                                {u.tenant_roles.split(',').filter(Boolean).map(tr => (
-                                                    <span key={tr} className="badge" style={{
-                                                        background: '#f3f4f6',
-                                                        color: '#374151',
-                                                        padding: '2px 8px',
-                                                        borderRadius: '4px',
-                                                        fontSize: '0.85em'
-                                                    }}>{tr}</span>
-                                                ))}
+                                                {u.tenant_roles.split(',').filter(Boolean).map(raw => {
+                                                    const [tid, tname, rname] = raw.split(':');
+                                                    return (
+                                                        <span key={raw} className="badge" style={{
+                                                            background: '#f3f4f6',
+                                                            color: '#374151',
+                                                            padding: '2px 8px',
+                                                            borderRadius: '4px',
+                                                            fontSize: '0.85em',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '4px'
+                                                        }}>
+                                                            {tname}:{rname}
+                                                            <button
+                                                                onClick={() => handleRemoveRole(u.user_id, tid, rname)}
+                                                                style={{
+                                                                    border: 'none',
+                                                                    background: 'none',
+                                                                    cursor: 'pointer',
+                                                                    color: '#991b1b',
+                                                                    padding: '0 2px',
+                                                                    fontSize: '14px',
+                                                                    lineHeight: 1,
+                                                                    fontWeight: 'bold'
+                                                                }}
+                                                                title="Remove assignment"
+                                                            >×</button>
+                                                        </span>
+                                                    );
+                                                })}
                                             </div>
                                         </td>
                                         <td>

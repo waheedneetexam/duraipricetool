@@ -21,6 +21,7 @@ from app.services.platform_service import (
     set_tenant_active,
     delete_tenant,
     update_tenant_name,
+    remove_tenant_user_role,
 )
 from app.services.audit_service import log_action
 
@@ -158,6 +159,24 @@ def post_assign_tenant(user_id: str, payload: AssignTenantRequest, context: Auth
             detail={"tenant_id": payload.tenant_id, "role": payload.role}
         )
         return {"success": True, "data": data}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@router.delete("/users/{user_id}/tenants/{tenant_id}/roles/{role_name}")
+def delete_user_tenant_role(user_id: str, tenant_id: str, role_name: str, context: AuthContext = Depends(require_auth)):
+    _require_permission(context, "platform.users.manage")
+    try:
+        remove_tenant_user_role(tenant_id, user_id, role_name)
+        log_action(
+            actor_user_id=context.user_id,
+            actor_tenant_id=context.tenant_id,
+            target_type="user",
+            target_id=user_id,
+            action="remove_role",
+            detail={"tenant_id": tenant_id, "role": role_name}
+        )
+        return {"success": True}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}
 

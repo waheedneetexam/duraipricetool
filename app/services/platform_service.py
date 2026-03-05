@@ -97,7 +97,7 @@ def list_all_users() -> list[dict[str, Any]]:
         rows = pg_client.execute(
             """
             SELECT u.user_id, u.email, u.full_name, u.active,
-                   STRING_AGG(t.tenant_name || ':' || r.role_name, ',') AS tenant_roles
+                   STRING_AGG(t.tenant_id || ':' || t.tenant_name || ':' || r.role_name, ',') AS tenant_roles
             FROM app_users u
             LEFT JOIN user_tenant_roles utr ON utr.user_id = u.user_id
             LEFT JOIN tenants t ON t.tenant_id = utr.tenant_id
@@ -110,7 +110,7 @@ def list_all_users() -> list[dict[str, Any]]:
     rows = db_client.execute(
         """
         SELECT u.user_id, u.email, u.full_name, u.active,
-               GROUP_CONCAT(t.tenant_name || ':' || r.role_name) AS tenant_roles
+               GROUP_CONCAT(t.tenant_id || ':' || t.tenant_name || ':' || r.role_name) AS tenant_roles
         FROM app_users u
         LEFT JOIN user_tenant_roles utr ON utr.user_id = u.user_id
         LEFT JOIN tenants t ON t.tenant_id = utr.tenant_id
