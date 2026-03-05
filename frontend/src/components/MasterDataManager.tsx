@@ -139,7 +139,7 @@ export function MasterDataManager() {
 
   return (
     <section className="panel-card master-data-panel">
-      <h3>Master Data (Pricefx-style)</h3>
+      <h3>Master Data (DuraiPricingTool-style)</h3>
       <div className="entity-tabs">
         {ENTITIES.map((entityConfig) => (
           <button
