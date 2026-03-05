@@ -2,3 +2,23 @@
 <p>/etc/systemd/system/duraiprice-frontend.service</p>
 <p>/etc/systemd/system/duraiprice-sync.service</p>
 <p>systemctl status postgresql</p>
+
+sudo systemctl stop duraiprice-backend duraiprice-frontend duraiprice-sync
+
+sudo systemctl stop duraiprice-backend
+sudo systemctl stop duraiprice-frontend
+sudo systemctl stop duraiprice-sync
+
+
+sudo systemctl restart duraiprice-backend
+sudo systemctl restart duraiprice-frontend
+sudo systemctl restart duraiprice-sync
+
+
+sudo systemctl start duraiprice-backend
+sudo systemctl start duraiprice-frontend
+sudo systemctl start duraiprice-sync
+
+sudo systemctl status duraiprice-backend
+sudo systemctl status duraiprice-frontend
+sudo systemctl status duraiprice-sync
