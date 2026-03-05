@@ -144,8 +144,8 @@ export function App() {
     <div className="app-shell">
       <header className="top-nav">
         <div className="brand-block">
-          <h1>Enterprise Pricing System</h1>
-          <p>CPQ / Pricing Optimization</p>
+          <h1>Enterprise Pricing <span style={{ color: 'var(--accent)' }}>System</span></h1>
+          <p>Next-Gen CPQ & Pricing Intelligence</p>
         </div>
 
         {view !== 'pricing' && (
@@ -156,17 +156,21 @@ export function App() {
         )}
 
         <div className="auth-controls">
-          <select
-            value={session.tenantId}
-            onChange={(e) => handleTenantSwitch(e.target.value)}
-            title="Active Tenant"
-          >
-            {(tenants.length > 0 ? tenants : [{ tenant_id: session.tenantId, tenant_name: session.tenantId }]).map((t) => (
-              <option key={t.tenant_id} value={t.tenant_id}>{t.tenant_name}</option>
-            ))}
-          </select>
-          <span className="auth-user">{session.user?.email || 'user'}</span>
-          <button className="btn" onClick={handleLogout}>Logout</button>
+          <div className="tenant-selector-wrapper">
+            <select
+              value={session.tenantId}
+              onChange={(e) => handleTenantSwitch(e.target.value)}
+              title="Active Tenant"
+            >
+              {(tenants.length > 0 ? tenants : [{ tenant_id: session.tenantId, tenant_name: session.tenantId }]).map((t) => (
+                <option key={t.tenant_id} value={t.tenant_id}>{t.tenant_name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="user-profile-sm">
+            <span className="auth-user">{session.user?.email || 'user'}</span>
+          </div>
+          <button className="btn btn-logout" onClick={handleLogout}>Logout</button>
         </div>
       </header>
 

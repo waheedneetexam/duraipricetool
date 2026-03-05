@@ -454,20 +454,20 @@ PricingRules: []`);
 
   return (
     <section className="screen">
-      <div className="screen-head">
-        <div>
-          <h2>Admin Configuration</h2>
-          <p>Configure tables, validation logic, AI template processing, and data management.</p>
+      <div className="screen-head admin-screen-header">
+        <div className="title-block">
+          <h2>Admin <span style={{ color: 'var(--primary)' }}>Configuration</span></h2>
+          <p>Orchestrate global settings, logic rules, and data intelligence.</p>
         </div>
-        <div className="head-actions admin-tab-row">
-          <button className={`btn ${adminTab === 'table' ? 'btn-primary' : ''}`} onClick={() => setAdminTab('table')} type="button">Table Manager</button>
-          <button className={`btn ${adminTab === 'logic' ? 'btn-primary' : ''}`} onClick={() => setAdminTab('logic')} type="button">Field Logic</button>
-          <button className={`btn ${adminTab === 'ai' ? 'btn-primary' : ''}`} onClick={() => setAdminTab('ai')} type="button">AI Pricing</button>
-          {canManageUsers && <button className={`btn ${adminTab === 'users' ? 'btn-primary' : ''}`} onClick={() => setAdminTab('users')} type="button">Users</button>}
-          {canManagePlatform && <button className={`btn ${adminTab === 'platform' ? 'btn-primary' : ''}`} onClick={() => setAdminTab('platform')} type="button">Platform</button>}
-          {canReadAudit && <button className={`btn ${adminTab === 'audit' ? 'btn-primary' : ''}`} onClick={() => setAdminTab('audit')} type="button">Audit Log</button>}
-          <button className={`btn ${adminTab === 'data' ? 'btn-primary' : ''}`} onClick={() => setAdminTab('data')} type="button">Data</button>
-          <button className={`btn ${adminTab === 'formula' ? 'btn-primary' : ''}`} onClick={() => setAdminTab('formula')} type="button">Formula</button>
+        <div className="admin-tab-row">
+          <button className={adminTab === 'table' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('table')} type="button">Table Manager</button>
+          <button className={adminTab === 'logic' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('logic')} type="button">Field Logic</button>
+          <button className={adminTab === 'ai' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('ai')} type="button">AI Pricing</button>
+          {canManageUsers && <button className={adminTab === 'users' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('users')} type="button">Users</button>}
+          {canManagePlatform && <button className={adminTab === 'platform' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('platform')} type="button">Platform</button>}
+          {canReadAudit && <button className={adminTab === 'audit' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('audit')} type="button">Audit Log</button>}
+          <button className={adminTab === 'data' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('data')} type="button">Data</button>
+          <button className={adminTab === 'formula' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('formula')} type="button">Formula</button>
         </div>
       </div>
 
