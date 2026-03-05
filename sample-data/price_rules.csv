@@ -1,0 +1,26 @@
+id,rule_name,description,customer_type,product_category,discount_percent,price_multiplier,priority,active
+pr-001,Enterprise Software Volume,Enterprise volume discount for software,enterprise,software,12,0.88,1,true
+pr-002,SMB Software Starter,SMB entry pricing for software,smb,software,6,0.94,5,true
+pr-003,Partner Software Deal,Partner resale pricing for software,partner,software,15,0.85,2,true
+pr-004,Government Software Contract,Government framework pricing for software,government,software,10,0.90,3,true
+pr-005,Education Software Program,Education discount for software institutions,education,software,18,0.82,2,true
+pr-006,Enterprise Hardware Bundle,Enterprise hardware bundle discount,enterprise,hardware,9,0.91,4,true
+pr-007,SMB Hardware Promo,SMB hardware promotional pricing,smb,hardware,5,0.95,8,true
+pr-008,Partner Hardware Margin,Partner margin support for hardware,partner,hardware,11,0.89,4,true
+pr-009,Government Hardware Tender,Government tender pricing for hardware,government,hardware,13,0.87,3,true
+pr-010,Education Hardware Lab,Education lab package pricing for hardware,education,hardware,16,0.84,3,true
+pr-011,Enterprise Services Retainer,Enterprise retainer discount for services,enterprise,services,8,0.92,5,true
+pr-012,SMB Services Kickoff,SMB onboarding pricing for services,smb,services,4,0.96,9,true
+pr-013,Partner Services Delivery,Partner assisted delivery pricing for services,partner,services,7,0.93,6,true
+pr-014,Government Services SLA,Government SLA pricing for services,government,services,9,0.91,5,true
+pr-015,Education Services Enablement,Education enablement pricing for services,education,services,12,0.88,4,true
+pr-016,Enterprise Subscription Commitment,Enterprise commitment discount for subscriptions,enterprise,subscriptions,14,0.86,2,true
+pr-017,SMB Subscription Annual,SMB annual commitment for subscriptions,smb,subscriptions,7,0.93,7,true
+pr-018,Partner Subscription Channel,Channel partner pricing for subscriptions,partner,subscriptions,10,0.90,5,true
+pr-019,Government Subscription Multi-Year,Government multi year subscription pricing,government,subscriptions,13,0.87,3,true
+pr-020,Education Subscription Campus,Campus wide subscription pricing for education,education,subscriptions,20,0.80,1,true
+pr-021,Enterprise Training Academy,Enterprise training package pricing,enterprise,training,10,0.90,6,true
+pr-022,SMB Training Faststart,SMB training faststart pricing,smb,training,6,0.94,10,true
+pr-023,Partner Training Certification,Partner certification training pricing,partner,training,9,0.91,7,true
+pr-024,Government Training Compliance,Government compliance training pricing,government,training,11,0.89,6,true
+pr-025,Education Training Semester,Semester based training pricing for education,education,training,17,0.83,2,true

@@ -1,7 +1,7 @@
-// CSV Upload Component
 import { useEffect, useState } from 'react';
 import { apiFetch, getAuthSession } from '../api/client';
 import { parseCsv } from '../constants/dataManagementTables';
+import { MappingModal } from './MappingModal';
 
 type CsvUploadProps = {
     selectedTableId: string;
@@ -39,6 +39,7 @@ export function CsvUpload({ selectedTableId, onUploadComplete, embedded }: CsvUp
     const [updateDuplicates, setUpdateDuplicates] = useState(true);
     const [isDragging, setIsDragging] = useState(false);
     const [showValidationRules, setShowValidationRules] = useState(true);
+    const [showMappingModal, setShowMappingModal] = useState(false);
 
     useEffect(() => {
         async function fetchColumns() {
@@ -141,6 +142,8 @@ export function CsvUpload({ selectedTableId, onUploadComplete, embedded }: CsvUp
     };
 
     const containerClass = embedded ? "" : "panel-card";
+    const mappedCount = Object.values(mapping).filter(v => !!v).length;
+    const totalFields = columns.length;
 
     return (
         <div className={containerClass} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -187,37 +190,22 @@ export function CsvUpload({ selectedTableId, onUploadComplete, embedded }: CsvUp
             </div>
 
             <div className="validation-panel">
-                <div className="validation-head">
+                <div className="validation-head" style={{ cursor: 'pointer' }} onClick={() => csvHeaders.length > 0 && setShowMappingModal(true)}>
                     <span>∨ Column Mapping</span>
-                    <span className="muted" style={{ fontSize: '11px' }}>Auto-detect mapping</span>
+                    <button className="btn btn-xs" disabled={csvHeaders.length === 0} style={{ padding: '2px 8px' }}>
+                        Configure ⚙️
+                    </button>
                 </div>
-                <div className="validation-content" style={{ padding: '4px' }}>
-                    <table className="mapping-table">
-                        <thead>
-                            <tr>
-                                <th>CSV Column Header</th>
-                                <th>Expected Field</th>
-                                <th>Map To</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {columns.map((col) => (
-                                <tr key={col.name}>
-                                    <td className="muted">{mapping[col.name] || '—'}</td>
-                                    <td>→ <strong>{col.displayName}</strong></td>
-                                    <td>
-                                        <select
-                                            value={mapping[col.name] || ''}
-                                            onChange={(e) => setMapping(prev => ({ ...prev, [col.name]: e.target.value }))}
-                                        >
-                                            <option value="">Skip Column</option>
-                                            {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-                                        </select>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <div className="validation-content" style={{ padding: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
+                        <span className="muted">Mapped Fields:</span>
+                        <strong>{mappedCount} / {totalFields}</strong>
+                    </div>
+                    {csvHeaders.length === 0 && (
+                        <p className="muted" style={{ fontSize: '11px', marginTop: '8px', fontStyle: 'italic' }}>
+                            Upload a CSV file to configure mapping.
+                        </p>
+                    )}
                 </div>
             </div>
 
@@ -225,7 +213,7 @@ export function CsvUpload({ selectedTableId, onUploadComplete, embedded }: CsvUp
                 className="btn btn-primary"
                 style={{ background: '#065f46', border: 'none', padding: '12px', fontWeight: 700 }}
                 onClick={handleUpload}
-                disabled={uploading || !csvFile}
+                disabled={uploading || !csvFile || mappedCount === 0}
             >
                 {uploading ? 'Processing...' : 'Validate and Import'}
             </button>
@@ -236,6 +224,16 @@ export function CsvUpload({ selectedTableId, onUploadComplete, embedded }: CsvUp
                     <strong>Import Result:</strong> {result.recordsImported} imported, {result.recordsUpdated} updated.
                     {result.errors.length > 0 && <div style={{ color: 'var(--danger)', marginTop: '4px' }}>Errors identified in {result.errors.length} rows.</div>}
                 </div>
+            )}
+
+            {showMappingModal && (
+                <MappingModal
+                    columns={columns}
+                    csvHeaders={csvHeaders}
+                    initialMapping={mapping}
+                    onSave={(newMapping) => setMapping(newMapping)}
+                    onClose={() => setShowMappingModal(false)}
+                />
             )}
         </div>
     );
