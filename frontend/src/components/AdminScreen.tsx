@@ -459,7 +459,7 @@ PricingRules: []`);
           <h2>Admin <span style={{ color: 'var(--primary)' }}>Configuration</span></h2>
           <p>Orchestrate global settings, logic rules, and data intelligence.</p>
         </div>
-        <div className="admin-tab-row">
+        <div className="admin-tab-row" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <button className={adminTab === 'table' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('table')} type="button">Table Manager</button>
           <button className={adminTab === 'logic' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('logic')} type="button">Field Logic</button>
           <button className={adminTab === 'ai' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('ai')} type="button">AI Pricing</button>
@@ -468,6 +468,16 @@ PricingRules: []`);
           {canReadAudit && <button className={adminTab === 'audit' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('audit')} type="button">Audit Log</button>}
           <button className={adminTab === 'data' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('data')} type="button">Data</button>
           <button className={adminTab === 'formula' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('formula')} type="button">Formula</button>
+          <div style={{ flex: 1 }} />
+          <button
+            className="btn btn-primary"
+            onClick={runSyncOnce}
+            disabled={loading || !canAdminManage}
+            type="button"
+            style={{ background: 'var(--primary)', fontWeight: 'bold' }}
+          >
+            {loading ? 'Syncing...' : 'Run Sync (Postgres to DuckDB)'}
+          </button>
         </div>
       </div>
 
@@ -722,28 +732,7 @@ PricingRules: []`);
 
       {adminTab === 'formula' && <FormulaBuilderAdmin />}
 
-      {
-        adminTab === 'data' && (
-          <div className="admin-layout">
-            <form className="panel-card" onSubmit={handleUpload}>
-              <h3>CSV Upload</h3>
-              <p className="muted">Chunked ingestion for large files. Map your columns to the historical transaction schema.</p>
-              <input type="file" accept=".csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-              <label>Column Mapping JSON</label>
-              <textarea value={mappingJson} onChange={(e) => setMappingJson(e.target.value)} rows={14} />
-              <button className="btn btn-primary" type="submit" disabled={loading || !canAdminManage}>{loading ? 'Importing...' : 'Upload & Import'}</button>
-            </form>
 
-            <div className="panel-card">
-              <h3>Utilities</h3>
-              <button className="btn" onClick={downloadSampleCsv} type="button">Download Sample CSV Template</button>
-              <button className="btn" onClick={generateFakeData} disabled={loading || !canAdminManage} type="button">Generate 10,000 Sample Rows</button>
-              <button className="btn" onClick={seedWorkflow} disabled={loading || !canAdminManage} type="button">Seed Workflow Rules</button>
-              <button className="btn btn-primary" onClick={runSyncOnce} disabled={loading || !canAdminManage} type="button">Run Sync (Postgres to DuckDB)</button>
-            </div>
-          </div>
-        )
-      }
 
       {adminTab === 'data' && <DataManagementAdmin />}
 
