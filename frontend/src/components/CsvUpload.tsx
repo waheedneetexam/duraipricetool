@@ -1,6 +1,6 @@
 // CSV Upload Component
 import { useEffect, useState } from 'react';
-import { apiFetch } from '../api/client';
+import { apiFetch, getAuthSession } from '../api/client';
 import { parseCsv } from '../constants/dataManagementTables';
 
 type CsvUploadProps = {
@@ -119,10 +119,12 @@ export function CsvUpload({ selectedTableId, onUploadComplete }: CsvUploadProps)
             formData.append('mapping_json', JSON.stringify(mapping));
             formData.append('update_duplicates', updateDuplicates ? 'true' : 'false');
 
-            const response = await fetch(`/api/v1/admin/tables/${selectedTableId}/upload-csv`, {
+            const session = getAuthSession();
+            const response = await fetch(`/api/admin/tables/${selectedTableId}/upload-csv`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    ...(session?.accessToken ? { 'Authorization': `Bearer ${session.accessToken}` } : {}),
+                    ...(session?.tenantId ? { 'X-Tenant-ID': session.tenantId } : {}),
                 },
                 body: formData,
             });
