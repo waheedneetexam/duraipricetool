@@ -9,6 +9,7 @@ type AuditLog = {
     actor_tenant_name?: string;
     target_type: string;
     target_id: string;
+    target_name?: string;
     action: string;
     detail: any;
     created_at_epoch: number;
@@ -107,7 +108,7 @@ export function AuditLogAdmin() {
                                 <td>
                                     <div style={{ fontSize: '0.85em' }}>
                                         <span className="muted">{l.target_type}:</span><br />
-                                        <span style={{ color: '#475569' }}>{l.target_id.substring(0, 8)}...</span>
+                                        <span style={{ color: '#475569' }}>{l.target_name || l.target_id}</span>
                                     </div>
                                 </td>
                                 <td>
