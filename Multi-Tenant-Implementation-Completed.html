@@ -24,7 +24,7 @@
 
       <h2>Pending from Multi-Tenant Implementation</h2>
       <ol>
-        <li><strong>Tenant isolation completion:</strong> Apply strict tenant filtering across all remaining master-data and analytics paths.</li>
+        <li><strong>Tenant isolation completion:</strong> Completed in current update for master-data and analytics paths (service + route enforcement, tenant-tagged ingestion, and schema support).</li>
         <li><strong>Key model hardening:</strong> Move from global identifiers to tenant-scoped key/index patterns where needed.</li>
         <li><strong>Finer backend authorization:</strong> Enforce action-level permissions at endpoint/service level, not only route-level groups.</li>
         <li><strong>Tenant/User/Role administration:</strong> Build APIs and UI for tenant creation, user lifecycle, role assignment, and permission governance.</li>
@@ -37,7 +37,7 @@
 
       <h2>Phase-3 Implementation Checklist</h2>
       <ol>
-        <li>Implement tenant filters in all remaining backend services and SQL queries.</li>
+        <li>Audit and close any residual tenant-filter gaps outside master-data and analytics (if new modules were added).</li>
         <li>Add backend permission guards per action (create/update/delete/approve/export).</li>
         <li>Introduce tenant admin APIs: create/update tenant, assign user to tenant, assign/revoke roles.</li>
         <li>Add frontend Admin pages for tenant/user/role management.</li>

@@ -285,10 +285,33 @@ CREATE TABLE IF NOT EXISTS pricing_rules (
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
 ALTER TABLE quote_line_items ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
 ALTER TABLE workflow_rules ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
+ALTER TABLE historical_transactions ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
+ALTER TABLE sellers ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
+ALTER TABLE product_extensions ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
+ALTER TABLE customer_extensions ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
+ALTER TABLE seller_extensions ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
+ALTER TABLE product_references ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
+ALTER TABLE product_hierarchies ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
+ALTER TABLE sales_orgs ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
+ALTER TABLE regions ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
+ALTER TABLE currencies ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
+ALTER TABLE product_costs ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
+ALTER TABLE discount_tiers ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
+ALTER TABLE pricing_rules ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
 
 CREATE INDEX IF NOT EXISTS idx_quotes_tenant_id ON quotes (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_quote_lines_tenant_id ON quote_line_items (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_workflow_rules_tenant_id ON workflow_rules (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_hist_tx_tenant_id ON historical_transactions (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_products_tenant_id ON products (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_customers_tenant_id ON customers (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_sellers_tenant_id ON sellers (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_product_ext_tenant_id ON product_extensions (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_customer_ext_tenant_id ON customer_extensions (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_seller_ext_tenant_id ON seller_extensions (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_product_refs_tenant_id ON product_references (tenant_id);
 
 CREATE TABLE IF NOT EXISTS tenants (
     tenant_id VARCHAR PRIMARY KEY,

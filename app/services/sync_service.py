@@ -42,6 +42,7 @@ SYNC_TABLES = [
             "quote_id",
             "sales_rep",
             "currency",
+            "tenant_id",
         ],
         cursor_pk_default="0",
         where_pk_cast="::bigint",
@@ -51,6 +52,7 @@ SYNC_TABLES = [
         pk="quote_id",
         insert_columns=[
             "quote_id",
+            "tenant_id",
             "customer_id",
             "customer_name",
             "customer_segment",
@@ -71,6 +73,7 @@ SYNC_TABLES = [
         insert_columns=[
             "quote_line_id",
             "quote_id",
+            "tenant_id",
             "sku",
             "quantity",
             "list_price",

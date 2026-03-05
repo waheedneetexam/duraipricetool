@@ -27,7 +27,7 @@ TARGET_COLUMNS = [
 ]
 
 
-def ingest_csv_chunked(file_path: Path, mapping: CSVColumnMapping) -> dict[str, int]:
+def ingest_csv_chunked(file_path: Path, mapping: CSVColumnMapping, tenant_id: str = "default") -> dict[str, int]:
     source_to_target = {getattr(mapping, field): field for field in TARGET_COLUMNS}
     rows_inserted = 0
     chunks = 0
@@ -70,6 +70,7 @@ def ingest_csv_chunked(file_path: Path, mapping: CSVColumnMapping) -> dict[str, 
                         row["quote_id"],
                         row["sales_rep"],
                         row["currency"],
+                        tenant_id,
                     )
                 )
             pg_client.executemany(
@@ -77,9 +78,9 @@ def ingest_csv_chunked(file_path: Path, mapping: CSVColumnMapping) -> dict[str, 
                 INSERT INTO historical_transactions (
                     id, transaction_date, sku, product_family, customer_id, customer_name, customer_segment,
                     region, list_price, discount_percent, net_price, cost, quantity, revenue, margin,
-                    quote_id, sales_rep, currency, updated_at
+                    quote_id, sales_rep, currency, tenant_id, updated_at
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
                 ON CONFLICT (id) DO UPDATE SET
                     transaction_date = EXCLUDED.transaction_date,
                     sku = EXCLUDED.sku,
@@ -98,6 +99,7 @@ def ingest_csv_chunked(file_path: Path, mapping: CSVColumnMapping) -> dict[str, 
                     quote_id = EXCLUDED.quote_id,
                     sales_rep = EXCLUDED.sales_rep,
                     currency = EXCLUDED.currency,
+                    tenant_id = EXCLUDED.tenant_id,
                     updated_at = CURRENT_TIMESTAMP
                 """,
                 params,
@@ -125,9 +127,11 @@ def ingest_csv_chunked(file_path: Path, mapping: CSVColumnMapping) -> dict[str, 
                     (net_price - cost) * quantity AS margin,
                     quote_id,
                     sales_rep,
-                    currency
+                    currency,
+                    ? AS tenant_id
                 FROM chunk_df
-                """
+                """,
+                (tenant_id,),
             )
             db_client.conn.unregister("chunk_df")
         rows_inserted += len(mapped)

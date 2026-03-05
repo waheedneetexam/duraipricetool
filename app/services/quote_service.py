@@ -60,7 +60,7 @@ def calculate_quote(payload: QuoteCalculationRequest, tenant_id: str = "default"
         "status": status,
         "totals": totals,
         "line_items": computed_lines,
-        "embedded_analytics": _embedded_analytics(payload.header.customer_id, total_qty),
+        "embedded_analytics": _embedded_analytics(payload.header.customer_id, total_qty, tenant_id=tenant_id),
     }
 
 
@@ -259,7 +259,7 @@ def _persist_quote(payload: QuoteCalculationRequest, line_items: list[dict], tot
             )
 
 
-def _embedded_analytics(customer_id: str, quote_quantity: int) -> dict:
+def _embedded_analytics(customer_id: str, quote_quantity: int, tenant_id: str = "default") -> dict:
     trend = db_client.fetch_df(
         """
         SELECT
@@ -267,30 +267,32 @@ def _embedded_analytics(customer_id: str, quote_quantity: int) -> dict:
             AVG(net_price) AS avg_net_price
         FROM historical_transactions
         WHERE customer_id = ?
+          AND tenant_id = ?
         GROUP BY 1
         ORDER BY 1 DESC
         LIMIT 6
         """,
-        (customer_id,),
+        (customer_id, tenant_id),
     ).to_dict(orient="records")
 
     quote_bridge = {
         "steps": [
             {"step": "Requested Quantity", "value": quote_quantity},
-            {"step": "Historical Avg Qty", "value": _historical_avg_quantity(customer_id)},
+            {"step": "Historical Avg Qty", "value": _historical_avg_quantity(customer_id, tenant_id=tenant_id)},
         ]
     }
     return {"historical_trend": list(reversed(trend)), "mini_waterfall": quote_bridge}
 
 
-def _historical_avg_quantity(customer_id: str) -> float:
+def _historical_avg_quantity(customer_id: str, tenant_id: str = "default") -> float:
     row = db_client.execute(
         """
         SELECT COALESCE(AVG(quantity), 0)
         FROM historical_transactions
         WHERE customer_id = ?
+          AND tenant_id = ?
         """,
-        (customer_id,),
+        (customer_id, tenant_id),
     ).fetchone()
     return float(row[0] or 0.0)
 

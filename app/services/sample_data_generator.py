@@ -14,7 +14,7 @@ PRODUCT_FAMILIES = ["Compute", "Storage", "Security", "Network", "Analytics"]
 CURRENCIES = ["USD", "EUR", "GBP"]
 
 
-def generate_synthetic_transactions(row_count: int = 10000) -> dict[str, int]:
+def generate_synthetic_transactions(row_count: int = 10000, tenant_id: str = "default") -> dict[str, int]:
     start_date = date.today() - timedelta(days=730)
     rows = []
     if DB_ENGINE in {"postgres", "hybrid"}:
@@ -77,6 +77,7 @@ def generate_synthetic_transactions(row_count: int = 10000) -> dict[str, int]:
                 r["quote_id"],
                 r["sales_rep"],
                 r["currency"],
+                tenant_id,
             )
             for r in rows
         ]
@@ -85,8 +86,8 @@ def generate_synthetic_transactions(row_count: int = 10000) -> dict[str, int]:
             INSERT INTO historical_transactions (
                 id, transaction_date, sku, product_family, customer_id, customer_name, customer_segment,
                 region, list_price, discount_percent, net_price, cost, quantity, revenue, margin,
-                quote_id, sales_rep, currency, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                quote_id, sales_rep, currency, tenant_id, updated_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
             ON CONFLICT (id) DO UPDATE SET
                 transaction_date = EXCLUDED.transaction_date,
                 sku = EXCLUDED.sku,
@@ -105,13 +106,28 @@ def generate_synthetic_transactions(row_count: int = 10000) -> dict[str, int]:
                 quote_id = EXCLUDED.quote_id,
                 sales_rep = EXCLUDED.sales_rep,
                 currency = EXCLUDED.currency,
+                tenant_id = EXCLUDED.tenant_id,
                 updated_at = CURRENT_TIMESTAMP
             """,
             params,
         )
     else:
         df = pd.DataFrame(rows)
+        df["tenant_id"] = tenant_id
         db_client.conn.register("synthetic_df", df)
-        db_client.execute("INSERT INTO historical_transactions SELECT * FROM synthetic_df")
+        db_client.execute(
+            """
+            INSERT INTO historical_transactions (
+                id, transaction_date, sku, product_family, customer_id, customer_name, customer_segment,
+                region, list_price, discount_percent, net_price, cost, quantity, revenue, margin,
+                quote_id, sales_rep, currency, tenant_id
+            )
+            SELECT
+                id, transaction_date, sku, product_family, customer_id, customer_name, customer_segment,
+                region, list_price, discount_percent, net_price, cost, quantity, revenue, margin,
+                quote_id, sales_rep, currency, tenant_id
+            FROM synthetic_df
+            """
+        )
         db_client.conn.unregister("synthetic_df")
     return {"rows_inserted": row_count}

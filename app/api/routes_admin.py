@@ -47,6 +47,7 @@ router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(requir
 async def ingest_csv(
     file: UploadFile = File(...),
     mapping_json: str = Form(default="{}"),
+    context: AuthContext = Depends(require_auth),
 ):
     mapping_payload = json.loads(mapping_json or "{}")
     mapping = CSVColumnMapping(**mapping_payload)
@@ -60,7 +61,7 @@ async def ingest_csv(
         tmp_path = Path(tmp.name)
 
     try:
-        result = ingest_csv_chunked(tmp_path, mapping)
+        result = ingest_csv_chunked(tmp_path, mapping, tenant_id=context.tenant_id)
         return {"status": "success", **result}
     finally:
         if tmp_path.exists():
@@ -68,8 +69,8 @@ async def ingest_csv(
 
 
 @router.post("/seed/sample-data")
-def seed_sample_data(row_count: int = 10000):
-    return generate_synthetic_transactions(row_count=row_count)
+def seed_sample_data(row_count: int = 10000, context: AuthContext = Depends(require_auth)):
+    return generate_synthetic_transactions(row_count=row_count, tenant_id=context.tenant_id)
 
 
 @router.post("/seed/workflow-rules")
