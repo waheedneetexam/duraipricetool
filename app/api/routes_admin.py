@@ -197,6 +197,20 @@ async def post_table_upload_csv(
             mapped_rows.append(mapped_row)
             
         result = import_table_data(table_id=table_name, rows=mapped_rows, tenant_id=context.tenant_id, update_duplicates=should_update)
+        
+        log_action(
+            actor_user_id=context.user_id,
+            actor_tenant_id=context.tenant_id,
+            target_type="master_data",
+            target_id=table_name,
+            action="upload_csv",
+            detail={
+                "table": table_name,
+                "rows_processed": len(mapped_rows),
+                "update_duplicates": should_update,
+                "filename": file.filename
+            }
+        )
         return {"success": True, "data": result}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
@@ -244,6 +258,15 @@ def post_data_record(table_id: str, payload: DataManagementRecordPayload, contex
     try:
         record_id = str(payload.values.get("id") or payload.values.get("code") or payload.values.get("sku") or "")
         data = save_table_record(table_id=table_id, record_id=record_id, payload=payload.values, tenant_id=context.tenant_id)
+        
+        log_action(
+            actor_user_id=context.user_id,
+            actor_tenant_id=context.tenant_id,
+            target_type="master_data",
+            target_id=f"{table_id}:{record_id}",
+            action="create_record",
+            detail={"table": table_id, "record_id": record_id, "values": payload.values}
+        )
         return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}
@@ -254,6 +277,15 @@ def put_data_record(table_id: str, record_id: str, payload: DataManagementRecord
     _require_perm(context, "master_data.manage")
     try:
         data = save_table_record(table_id=table_id, record_id=record_id, payload=payload.values, tenant_id=context.tenant_id)
+        
+        log_action(
+            actor_user_id=context.user_id,
+            actor_tenant_id=context.tenant_id,
+            target_type="master_data",
+            target_id=f"{table_id}:{record_id}",
+            action="update_record",
+            detail={"table": table_id, "record_id": record_id, "values": payload.values}
+        )
         return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}
@@ -264,6 +296,15 @@ def delete_data_record(table_id: str, record_id: str, context: AuthContext = Dep
     _require_perm(context, "master_data.manage")
     try:
         data = delete_table_record(table_id, record_id, tenant_id=context.tenant_id)
+        
+        log_action(
+            actor_user_id=context.user_id,
+            actor_tenant_id=context.tenant_id,
+            target_type="master_data",
+            target_id=f"{table_id}:{record_id}",
+            action="delete_record",
+            detail={"table": table_id, "record_id": record_id}
+        )
         return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}
@@ -274,6 +315,15 @@ def delete_data_bulk(table_id: str, payload: DataManagementBulkDeleteRequest, co
     _require_perm(context, "master_data.manage")
     try:
         data = bulk_delete_table_records(table_id, payload.ids, tenant_id=context.tenant_id)
+        
+        log_action(
+            actor_user_id=context.user_id,
+            actor_tenant_id=context.tenant_id,
+            target_type="master_data",
+            target_id=table_id,
+            action="bulk_delete",
+            detail={"table": table_id, "count": len(payload.ids), "record_ids": payload.ids}
+        )
         return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}

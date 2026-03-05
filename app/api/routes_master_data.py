@@ -27,6 +27,7 @@ from app.services.master_data_service import (
     seed_bulk_master_data,
     seed_master_data,
 )
+from app.services.audit_service import log_action
 
 router = APIRouter(prefix="/master", tags=["master"], dependencies=[Depends(require_auth)])
 
@@ -36,21 +37,47 @@ def products_list(context: AuthContext = Depends(require_auth)):
     return {"success": True, "data": list_products(tenant_id=context.tenant_id)}
 
 
-@router.post("/products")
 def create_product(payload: Product, context: AuthContext = Depends(require_auth)):
-    return {"success": True, "data": save_product(payload, tenant_id=context.tenant_id)}
+    data = save_product(payload, tenant_id=context.tenant_id)
+    log_action(
+        actor_user_id=context.user_id,
+        actor_tenant_id=context.tenant_id,
+        target_type="product",
+        target_id=payload.product_id,
+        action="create_product",
+        detail={"product_id": payload.product_id, "name": payload.name}
+    )
+    return {"success": True, "data": data}
 
 
 @router.put("/products/{product_id}")
 def update_product(product_id: str, payload: Product, context: AuthContext = Depends(require_auth)):
     if product_id != payload.product_id:
         raise HTTPException(status_code=400, detail="ID mismatch")
-    return {"success": True, "data": save_product(payload, tenant_id=context.tenant_id)}
+    data = save_product(payload, tenant_id=context.tenant_id)
+    log_action(
+        actor_user_id=context.user_id,
+        actor_tenant_id=context.tenant_id,
+        target_type="product",
+        target_id=product_id,
+        action="update_product",
+        detail={"product_id": product_id, "name": payload.name}
+    )
+    return {"success": True, "data": data}
 
 
 @router.delete("/products/{product_id}")
 def remove_product(product_id: str, context: AuthContext = Depends(require_auth)):
-    return {"success": True, "data": delete_product(product_id, tenant_id=context.tenant_id)}
+    data = delete_product(product_id, tenant_id=context.tenant_id)
+    log_action(
+        actor_user_id=context.user_id,
+        actor_tenant_id=context.tenant_id,
+        target_type="product",
+        target_id=product_id,
+        action="delete_product",
+        detail={"product_id": product_id}
+    )
+    return {"success": True, "data": data}
 
 
 @router.get("/customers")
@@ -60,19 +87,46 @@ def customers_list(context: AuthContext = Depends(require_auth)):
 
 @router.post("/customers")
 def create_customer(payload: Customer, context: AuthContext = Depends(require_auth)):
-    return {"success": True, "data": save_customer(payload, tenant_id=context.tenant_id)}
+    data = save_customer(payload, tenant_id=context.tenant_id)
+    log_action(
+        actor_user_id=context.user_id,
+        actor_tenant_id=context.tenant_id,
+        target_type="customer",
+        target_id=payload.customer_id,
+        action="create_customer",
+        detail={"customer_id": payload.customer_id, "name": payload.customer_name}
+    )
+    return {"success": True, "data": data}
 
 
 @router.put("/customers/{customer_id}")
 def update_customer(customer_id: str, payload: Customer, context: AuthContext = Depends(require_auth)):
     if customer_id != payload.customer_id:
         raise HTTPException(status_code=400, detail="ID mismatch")
-    return {"success": True, "data": save_customer(payload, tenant_id=context.tenant_id)}
+    data = save_customer(payload, tenant_id=context.tenant_id)
+    log_action(
+        actor_user_id=context.user_id,
+        actor_tenant_id=context.tenant_id,
+        target_type="customer",
+        target_id=customer_id,
+        action="update_customer",
+        detail={"customer_id": customer_id, "name": payload.customer_name}
+    )
+    return {"success": True, "data": data}
 
 
 @router.delete("/customers/{customer_id}")
 def remove_customer(customer_id: str, context: AuthContext = Depends(require_auth)):
-    return {"success": True, "data": delete_customer(customer_id, tenant_id=context.tenant_id)}
+    data = delete_customer(customer_id, tenant_id=context.tenant_id)
+    log_action(
+        actor_user_id=context.user_id,
+        actor_tenant_id=context.tenant_id,
+        target_type="customer",
+        target_id=customer_id,
+        action="delete_customer",
+        detail={"customer_id": customer_id}
+    )
+    return {"success": True, "data": data}
 
 
 @router.get("/sellers")
