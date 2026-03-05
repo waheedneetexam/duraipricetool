@@ -148,7 +148,7 @@ export function DataManagementAdmin() {
         </aside>
 
         {/* Column 2: Main Data Workspace (Data Grid) */}
-        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, minHeight: 0 }}>
           {selectedTable && (
             <TableManager
               table={selectedTable}

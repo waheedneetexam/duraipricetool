@@ -192,7 +192,7 @@ export function TableManager({ table, onBack, embedded, onDataLoad }: Props) {
         </div>
       </div>
 
-      <div className="panel-card" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <div className="panel-card" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
         <div className="tenant-controls" style={{ padding: '12px', borderBottom: '1px solid var(--line)', background: '#f8fafc' }}>
           <div style={{ position: 'relative', flex: 1 }}>
             <input
@@ -211,7 +211,7 @@ export function TableManager({ table, onBack, embedded, onDataLoad }: Props) {
           </div>
         </div>
 
-        <div className="master-table" style={{ flex: 1 }}>
+        <div className="master-table" style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
           <table className="pricing-table">
             <thead>
               <tr>
