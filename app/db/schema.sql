@@ -139,6 +139,8 @@ CREATE TABLE IF NOT EXISTS products (
     family VARCHAR,
     category VARCHAR,
     price DECIMAL,
+    cost DECIMAL,
+    unit_of_measure VARCHAR,
     active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -150,6 +152,9 @@ CREATE TABLE IF NOT EXISTS customers (
     name VARCHAR,
     segment VARCHAR,
     region VARCHAR,
+    country VARCHAR,
+    email VARCHAR,
+    credit_limit DECIMAL,
     industry VARCHAR,
     active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -196,4 +201,80 @@ CREATE TABLE IF NOT EXISTS product_references (
     reference_type VARCHAR,
     reference_value VARCHAR,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS product_hierarchies (
+    id VARCHAR PRIMARY KEY,
+    name VARCHAR,
+    description VARCHAR,
+    parent_id VARCHAR,
+    level INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sales_orgs (
+    id VARCHAR PRIMARY KEY,
+    name VARCHAR,
+    region VARCHAR,
+    manager VARCHAR,
+    manager_email VARCHAR,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS regions (
+    id VARCHAR PRIMARY KEY,
+    name VARCHAR,
+    countries VARCHAR,
+    currency VARCHAR,
+    timezone VARCHAR,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS currencies (
+    code VARCHAR PRIMARY KEY,
+    name VARCHAR,
+    symbol VARCHAR,
+    exchange_rate DOUBLE,
+    decimal_places INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS product_costs (
+    id VARCHAR PRIMARY KEY,
+    product_sku VARCHAR,
+    region_id VARCHAR,
+    cost DOUBLE,
+    effective_date DATE,
+    end_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS discount_tiers (
+    id VARCHAR PRIMARY KEY,
+    tier_name VARCHAR,
+    min_quantity INTEGER,
+    max_quantity INTEGER,
+    discount_percent DOUBLE,
+    product_category VARCHAR,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS pricing_rules (
+    id VARCHAR PRIMARY KEY,
+    rule_name VARCHAR,
+    description VARCHAR,
+    customer_type VARCHAR,
+    product_category VARCHAR,
+    discount_percent DOUBLE,
+    price_multiplier DOUBLE,
+    priority INTEGER,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

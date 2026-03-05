@@ -156,3 +156,16 @@ class FieldLogicSaveRequest(BaseModel):
 class AIPricingTemplateProcessRequest(BaseModel):
     tenant_id: str = "default"
     template_text: str
+
+
+class DataManagementImportRequest(BaseModel):
+    data: list[dict[str, Any]] = Field(default_factory=list)
+    update_duplicates: bool = True
+
+
+class DataManagementRecordPayload(BaseModel):
+    values: dict[str, Any] = Field(default_factory=dict)
+
+
+class DataManagementBulkDeleteRequest(BaseModel):
+    ids: list[str] = Field(default_factory=list)

@@ -150,6 +150,8 @@ CREATE TABLE IF NOT EXISTS products (
     family TEXT,
     category TEXT,
     price NUMERIC,
+    cost NUMERIC,
+    unit_of_measure TEXT,
     active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -161,6 +163,9 @@ CREATE TABLE IF NOT EXISTS customers (
     name TEXT,
     segment TEXT,
     region TEXT,
+    country TEXT,
+    email TEXT,
+    credit_limit NUMERIC,
     industry TEXT,
     active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -209,6 +214,88 @@ CREATE TABLE IF NOT EXISTS product_references (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS product_hierarchies (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    parent_id TEXT,
+    level INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sales_orgs (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    region TEXT NOT NULL,
+    manager TEXT,
+    manager_email TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS regions (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    countries TEXT,
+    currency TEXT,
+    timezone TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS currencies (
+    code TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    exchange_rate DOUBLE PRECISION NOT NULL,
+    decimal_places INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS product_costs (
+    id TEXT PRIMARY KEY,
+    product_sku TEXT NOT NULL,
+    region_id TEXT NOT NULL,
+    cost DOUBLE PRECISION NOT NULL,
+    effective_date DATE NOT NULL,
+    end_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS discount_tiers (
+    id TEXT PRIMARY KEY,
+    tier_name TEXT NOT NULL,
+    min_quantity INTEGER NOT NULL,
+    max_quantity INTEGER,
+    discount_percent DOUBLE PRECISION NOT NULL,
+    product_category TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS pricing_rules (
+    id TEXT PRIMARY KEY,
+    rule_name TEXT NOT NULL,
+    description TEXT,
+    customer_type TEXT,
+    product_category TEXT,
+    discount_percent DOUBLE PRECISION,
+    price_multiplier DOUBLE PRECISION,
+    priority INTEGER,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE products ADD COLUMN IF NOT EXISTS cost NUMERIC;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS unit_of_measure TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS country TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS credit_limit NUMERIC;
+
 CREATE INDEX IF NOT EXISTS idx_hist_tx_updated_at ON historical_transactions (updated_at);
 CREATE INDEX IF NOT EXISTS idx_hist_tx_date ON historical_transactions (transaction_date);
 CREATE INDEX IF NOT EXISTS idx_hist_tx_quote_id ON historical_transactions (quote_id);
@@ -219,3 +306,4 @@ CREATE INDEX IF NOT EXISTS idx_line_item_cfg_tenant ON line_item_column_configs 
 CREATE INDEX IF NOT EXISTS idx_field_logic_tenant_field ON field_logic_rules (tenant_id, scope, field_key);
 CREATE INDEX IF NOT EXISTS idx_field_logic_validation_tenant_field ON field_logic_validation_runs (tenant_id, scope, field_key);
 CREATE INDEX IF NOT EXISTS idx_ai_pricing_tenant_status ON ai_pricing_configurations (tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_product_costs_sku_region ON product_costs (product_sku, region_id);

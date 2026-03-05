@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { apiFetch, uploadCsv } from '../api/client';
+import { DataManagementAdmin } from './DataManagementAdmin';
 import type {
   AIPricingProcessResult,
   FieldLogicRule,
@@ -9,7 +10,6 @@ import type {
 import { DEFAULT_LINE_ITEM_COLUMNS, DEFAULT_LINE_ITEM_KEYS } from '../constants/lineItemColumns';
 import type { LineItemColumnConfig as ColumnConfig } from '../constants/lineItemColumns';
 import { FormulaBuilderAdmin } from './FormulaBuilderAdmin';
-import { MasterDataManager } from './MasterDataManager';
 
 type ImportResult = { status: 'ok' | 'error'; message: string };
 type AdminTab = 'data' | 'table' | 'logic' | 'ai' | 'formula';
@@ -697,10 +697,10 @@ pricing_rules: []`);
             <button className="btn" onClick={seedWorkflow} disabled={loading} type="button">Seed Workflow Rules</button>
             <button className="btn btn-primary" onClick={runSyncOnce} disabled={loading} type="button">Run Sync (Postgres to DuckDB)</button>
           </div>
-
-          <MasterDataManager />
         </div>
       )}
+
+      {adminTab === 'data' && <DataManagementAdmin />}
 
       {result && <div className={result.status === 'ok' ? 'ok-box' : 'error-box'}>{result.message}</div>}
     </section>

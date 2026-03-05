@@ -7,6 +7,9 @@ from fastapi import APIRouter, File, Form, UploadFile
 from app.models.schemas import (
     AIPricingTemplateProcessRequest,
     CSVColumnMapping,
+    DataManagementBulkDeleteRequest,
+    DataManagementImportRequest,
+    DataManagementRecordPayload,
     FieldLogicSaveRequest,
     FieldLogicValidateRequest,
     LineItemColumnConfigSaveRequest,
@@ -16,6 +19,15 @@ from app.services.admin_config_service import (
     process_ai_pricing_template,
     save_field_logic_rule,
     validate_field_logic,
+)
+from app.services.data_management_admin_service import (
+    bulk_delete_table_records,
+    delete_table_record,
+    get_table_schemas,
+    get_table_stats,
+    import_table_data,
+    list_table_data,
+    save_table_record,
 )
 from app.services.line_item_config_service import (
     get_line_item_column_config,
@@ -124,6 +136,88 @@ def get_field_logic_list(tenant_id: str = "default", scope: str = ""):
 def post_ai_pricing_process_template(payload: AIPricingTemplateProcessRequest):
     try:
         data = process_ai_pricing_template(payload.tenant_id, payload.template_text)
+        return {"success": True, "data": data}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@router.get("/data/table-schemas")
+def get_data_table_schemas():
+    return {"success": True, "data": get_table_schemas()}
+
+
+@router.get("/data/table/{table_id}")
+def get_data_table_rows(
+    table_id: str,
+    page: int = 1,
+    page_size: int = 50,
+    search: str = "",
+    sort_by: str = "",
+    sort_dir: str = "asc",
+):
+    try:
+        return list_table_data(
+            table_id=table_id,
+            page=page,
+            page_size=page_size,
+            search=search,
+            sort_by=sort_by,
+            sort_dir=sort_dir,
+        )
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@router.post("/data/import/{table_id}")
+def post_data_import(table_id: str, payload: DataManagementImportRequest):
+    try:
+        data = import_table_data(table_id=table_id, rows=payload.data, update_duplicates=payload.update_duplicates)
+        return {"success": True, "data": data}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@router.post("/data/table/{table_id}")
+def post_data_record(table_id: str, payload: DataManagementRecordPayload):
+    try:
+        record_id = str(payload.values.get("id") or payload.values.get("code") or payload.values.get("sku") or "")
+        data = save_table_record(table_id=table_id, record_id=record_id, payload=payload.values)
+        return {"success": True, "data": data}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@router.put("/data/table/{table_id}/{record_id}")
+def put_data_record(table_id: str, record_id: str, payload: DataManagementRecordPayload):
+    try:
+        data = save_table_record(table_id=table_id, record_id=record_id, payload=payload.values)
+        return {"success": True, "data": data}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@router.delete("/data/table/{table_id}/{record_id}")
+def delete_data_record(table_id: str, record_id: str):
+    try:
+        data = delete_table_record(table_id, record_id)
+        return {"success": True, "data": data}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@router.delete("/data/table/{table_id}/bulk-delete")
+def delete_data_bulk(table_id: str, payload: DataManagementBulkDeleteRequest):
+    try:
+        data = bulk_delete_table_records(table_id, payload.ids)
+        return {"success": True, "data": data}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@router.get("/data/table/{table_id}/stats")
+def get_data_table_stats(table_id: str):
+    try:
+        data = get_table_stats(table_id)
         return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}

@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+from datetime import datetime
 
 import duckdb
 
@@ -10,8 +11,28 @@ class DuckDBClient:
     def __init__(self, db_path: Path = DUCKDB_PATH):
         self.db_path = str(db_path)
         self.read_only = os.getenv("DUCKDB_READ_ONLY", "0").lower() in {"1", "true", "yes"}
-        self.conn = duckdb.connect(self.db_path, read_only=self.read_only)
+        self.conn = self._connect_with_recovery()
         self._initialize_schema()
+
+    def _connect_with_recovery(self):
+        try:
+            return duckdb.connect(self.db_path, read_only=self.read_only)
+        except Exception as exc:
+            message = str(exc)
+            wal_path = f"{self.db_path}.wal"
+            needs_recovery = "Failure while replaying WAL file" in message and os.path.exists(wal_path)
+            if not needs_recovery:
+                raise
+
+            # Preserve the problematic WAL for postmortem, then retry cleanly.
+            stamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+            backup_path = f"{wal_path}.broken-{stamp}"
+            try:
+                os.replace(wal_path, backup_path)
+            except Exception:
+                # If WAL cannot be moved, bubble up original failure.
+                raise exc
+            return duckdb.connect(self.db_path, read_only=self.read_only)
 
     def _initialize_schema(self) -> None:
         if self.read_only:
@@ -36,7 +57,7 @@ class DuckDBClient:
             pass
 
     def reconnect(self) -> None:
-        self.conn = duckdb.connect(self.db_path, read_only=self.read_only)
+        self.conn = self._connect_with_recovery()
         self._initialize_schema()
 
 
