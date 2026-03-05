@@ -180,8 +180,7 @@ export function PlatformManagementAdmin() {
                             <tbody>
                                 {tenants.map(t => (
                                     <tr key={t.tenant_id}>
-                                        <td><code>{t.tenant_id}</code></td>
-                                        <td>{t.tenant_name}</td>
+                                        <td>{t.tenant_name} <span className="muted" style={{ fontSize: '0.7em', display: 'block' }}>{t.tenant_id.substring(0, 8)}...</span></td>
                                         <td>
                                             <span className="badge" style={{
                                                 background: t.active ? '#dcfce7' : '#fee2e2',

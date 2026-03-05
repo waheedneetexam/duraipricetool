@@ -5,6 +5,8 @@ type AuditLog = {
     log_id: string;
     actor_user_id: string;
     actor_tenant_id: string;
+    actor_name?: string;
+    actor_tenant_name?: string;
     target_type: string;
     target_id: string;
     action: string;
@@ -88,8 +90,8 @@ export function AuditLogAdmin() {
                                 })}</td>
                                 <td>
                                     <div style={{ fontSize: '0.85em' }}>
-                                        <strong>User:</strong> {l.actor_user_id.substring(0, 8)}...<br />
-                                        <strong>Tenant:</strong> {l.actor_tenant_id}
+                                        <strong>User:</strong> {l.actor_name || 'System'}<br />
+                                        <strong>Tenant:</strong> {l.actor_tenant_name || 'Platform'}
                                     </div>
                                 </td>
                                 <td>
@@ -105,7 +107,7 @@ export function AuditLogAdmin() {
                                 <td>
                                     <div style={{ fontSize: '0.85em' }}>
                                         <span className="muted">{l.target_type}:</span><br />
-                                        <code>{l.target_id}</code>
+                                        <span style={{ color: '#475569' }}>{l.target_id.substring(0, 8)}...</span>
                                     </div>
                                 </td>
                                 <td>

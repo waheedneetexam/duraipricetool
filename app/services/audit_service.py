@@ -51,29 +51,60 @@ def list_audit_logs(
     limit: int = 100,
     offset: int = 0,
 ) -> list[dict[str, Any]]:
-    """Retrieve audit logs, optionally filtered by tenant."""
-    query = "SELECT log_id, actor_user_id, actor_tenant_id, target_type, target_id, action, detail, created_at_epoch FROM audit_log"
+    """Retrieve audit logs, enriched with human-readable actor and tenant names."""
+    if _pg():
+        query = """
+            SELECT l.log_id, l.actor_user_id, l.actor_tenant_id, l.target_type, l.target_id, l.action, l.detail, l.created_at_epoch,
+                   u.full_name AS actor_name, t.tenant_name AS actor_tenant_name
+            FROM audit_log l
+            LEFT JOIN app_users u ON u.user_id = l.actor_user_id
+            LEFT JOIN tenants t ON t.tenant_id = l.actor_tenant_id
+        """
+        where_clauses = []
+        params = []
+
+        if tenant_id:
+            where_clauses.append("l.actor_tenant_id = %s")
+            params.append(tenant_id)
+        
+        if target_type:
+            where_clauses.append("l.target_type = %s")
+            params.append(target_type)
+
+        if where_clauses:
+            query += " WHERE " + " AND ".join(where_clauses)
+
+        query += " ORDER BY l.created_at_epoch DESC LIMIT %s OFFSET %s"
+        params.extend([limit, offset])
+
+        rows = pg_client.execute(query, tuple(params))
+        return [dict(r) for r in rows]
+    
+    # DuckDB path
+    query = """
+        SELECT l.log_id, l.actor_user_id, l.actor_tenant_id, l.target_type, l.target_id, l.action, l.detail, l.created_at_epoch,
+               u.full_name AS actor_name, t.tenant_name AS actor_tenant_name
+        FROM audit_log l
+        LEFT JOIN app_users u ON u.user_id = l.actor_user_id
+        LEFT JOIN tenants t ON t.tenant_id = l.actor_tenant_id
+    """
     where_clauses = []
     params = []
 
     if tenant_id:
-        where_clauses.append("actor_tenant_id = %s" if _pg() else "actor_tenant_id = ?")
+        where_clauses.append("l.actor_tenant_id = ?")
         params.append(tenant_id)
     
     if target_type:
-        where_clauses.append("target_type = %s" if _pg() else "target_type = ?")
+        where_clauses.append("l.target_type = ?")
         params.append(target_type)
 
     if where_clauses:
         query += " WHERE " + " AND ".join(where_clauses)
 
-    query += " ORDER BY created_at_epoch DESC LIMIT %s OFFSET %s" if _pg() else " ORDER BY created_at_epoch DESC LIMIT ? OFFSET ?"
+    query += " ORDER BY l.created_at_epoch DESC LIMIT ? OFFSET ?"
     params.extend([limit, offset])
 
-    if _pg():
-        rows = pg_client.execute(query, tuple(params))
-        return [dict(r) for r in rows]
-    
     rows = db_client.execute(query, tuple(params)).fetchall()
     result = []
     for r in rows:
@@ -94,5 +125,7 @@ def list_audit_logs(
             "action": r[5],
             "detail": detail_val,
             "created_at_epoch": r[7],
+            "actor_name": r[8] or "System",
+            "actor_tenant_name": r[9] or "Platform",
         })
     return result

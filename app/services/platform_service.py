@@ -54,14 +54,15 @@ def set_tenant_active(tenant_id: str, active: bool) -> dict[str, Any]:
 # ── User management (platform-wide) ─────────────────────────────────────────
 
 def list_all_users() -> list[dict[str, Any]]:
-    """List all users with their tenant assignments."""
+    """List all users with their tenant assignments (readable names)."""
     if _pg():
         rows = pg_client.execute(
             """
             SELECT u.user_id, u.email, u.full_name, u.active,
-                   STRING_AGG(utr.tenant_id || ':' || r.role_name, ',') AS tenant_roles
+                   STRING_AGG(t.tenant_name || ':' || r.role_name, ',') AS tenant_roles
             FROM app_users u
             LEFT JOIN user_tenant_roles utr ON utr.user_id = u.user_id
+            LEFT JOIN tenants t ON t.tenant_id = utr.tenant_id
             LEFT JOIN roles r ON r.role_id = utr.role_id
             GROUP BY u.user_id, u.email, u.full_name, u.active
             ORDER BY u.email
@@ -71,9 +72,10 @@ def list_all_users() -> list[dict[str, Any]]:
     rows = db_client.execute(
         """
         SELECT u.user_id, u.email, u.full_name, u.active,
-               STRING_AGG(utr.tenant_id || ':' || r.role_name, ',') AS tenant_roles
+               GROUP_CONCAT(t.tenant_name || ':' || r.role_name) AS tenant_roles
         FROM app_users u
         LEFT JOIN user_tenant_roles utr ON utr.user_id = u.user_id
+        LEFT JOIN tenants t ON t.tenant_id = utr.tenant_id
         LEFT JOIN roles r ON r.role_id = utr.role_id
         GROUP BY u.user_id, u.email, u.full_name, u.active
         ORDER BY u.email
