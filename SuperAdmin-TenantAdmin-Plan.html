@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SuperAdmin & TenantAdmin — Implementation Plan</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f6f8fb; color: #1f2937; }
+    .wrap { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    .card { background: #fff; border: 1px solid #d7dee7; border-radius: 10px; padding: 24px; margin-bottom: 20px; }
+    h1 { margin-top: 0; }
+    h2 { color: #0f766e; margin-top: 24px; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; }
+    h3 { color: #1d4ed8; margin-top: 16px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #d7dee7; padding: 10px; text-align: left; vertical-align: top; }
+    th { background: #eef6ff; }
+    tr:nth-child(even) { background: #fafcff; }
+    code { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 1px 5px; font-size: 0.9em; }
+    pre { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 0.88em; }
+    .badge-done { background: #dcfce7; color: #166534; border-radius: 4px; padding: 2px 8px; font-size: 0.85em; font-weight: bold; }
+    .badge-todo { background: #fee2e2; color: #991b1b; border-radius: 4px; padding: 2px 8px; font-size: 0.85em; font-weight: bold; }
+    .badge-phase { background: #dbeafe; color: #1e40af; border-radius: 4px; padding: 2px 8px; font-size: 0.85em; font-weight: bold; }
+    ol li, ul li { margin-bottom: 6px; }
+    .meta { color: #6b7280; font-size: 0.9em; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>SuperAdmin &amp; TenantAdmin — Implementation Plan</h1>
+      <p class="meta">DuraiPricingTool · Generated: 2026-03-05 · Phase 1 in progress</p>
+      <p>This document defines the technical plan to implement the role capabilities described in
+        <a href="/library/SuperAdmin-TenantAdmin.html" target="_blank">SuperAdmin vs TenantAdmin Responsibilities</a>.
+      </p>
+
+      <h2>Current Status — Gap Analysis</h2>
+      <table>
+        <thead>
+          <tr><th>Capability</th><th>Backend API</th><th>Frontend UI</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Tenant Management (create/suspend/delete)</td><td><span class="badge-todo">MISSING</span></td><td><span class="badge-todo">MISSING</span></td></tr>
+          <tr><td>User Management (create/assign across tenants)</td><td><span class="badge-todo">MISSING</span></td><td><span class="badge-todo">MISSING</span></td></tr>
+          <tr><td>Role Assignment (grant/revoke per tenant)</td><td><span class="badge-todo">MISSING</span></td><td><span class="badge-todo">MISSING</span></td></tr>
+          <tr><td>Audit Log (user actions, cross-tenant)</td><td><span class="badge-todo">MISSING</span></td><td><span class="badge-todo">MISSING</span></td></tr>
+          <tr><td>Security Policies</td><td><span class="badge-todo">MISSING</span></td><td><span class="badge-todo">MISSING</span></td></tr>
+          <tr><td>DB schema: tenants, roles, permissions tables</td><td><span class="badge-done">DONE</span></td><td>—</td></tr>
+          <tr><td>Bootstrap SuperAdmin user + role seeding</td><td><span class="badge-done">DONE</span></td><td>—</td></tr>
+          <tr><td>JWT auth with role/permission claims</td><td><span class="badge-done">DONE</span></td><td><span class="badge-done">DONE</span></td></tr>
+          <tr><td><code>canAdmin</code> gate in navigation</td><td>—</td><td><span class="badge-done">DONE (fixed)</span></td></tr>
+        </tbody>
+      </table>
+
+      <h2>Phase 1 — Backend: User &amp; Tenant Management API <span class="badge-phase">IN PROGRESS</span></h2>
+
+      <h3>New file: <code>app/api/routes_platform.py</code> — SuperAdmin routes</h3>
+      <p>Requires <code>platform.tenants.manage</code> or <code>platform.users.manage</code> permission.</p>
+      <table>
+        <thead><tr><th>Method</th><th>Route</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>GET</td><td><code>/platform/tenants</code></td><td>List all tenants</td></tr>
+          <tr><td>POST</td><td><code>/platform/tenants</code></td><td>Create a new tenant</td></tr>
+          <tr><td>PATCH</td><td><code>/platform/tenants/{id}</code></td><td>Activate / suspend tenant</td></tr>
+          <tr><td>GET</td><td><code>/platform/users</code></td><td>List all users across tenants</td></tr>
+          <tr><td>POST</td><td><code>/platform/users</code></td><td>Create platform user</td></tr>
+          <tr><td>POST</td><td><code>/platform/users/{id}/assign-tenant</code></td><td>Assign user to tenant with role</td></tr>
+        </tbody>
+      </table>
+
+      <h3>New endpoints in <code>app/api/routes_admin.py</code> — TenantAdmin routes</h3>
+      <p>Requires <code>tenant.users.manage</code> or <code>tenant.roles.assign</code>.</p>
+      <table>
+        <thead><tr><th>Method</th><th>Route</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>GET</td><td><code>/admin/users</code></td><td>List users in current tenant</td></tr>
+          <tr><td>POST</td><td><code>/admin/users</code></td><td>Create user inside current tenant</td></tr>
+          <tr><td>POST</td><td><code>/admin/users/{id}/assign-role</code></td><td>Assign business role (blocks SuperAdmin)</td></tr>
+          <tr><td>DELETE</td><td><code>/admin/users/{id}/role/{role}</code></td><td>Remove role from user in tenant</td></tr>
+        </tbody>
+      </table>
+
+      <h3>New file: <code>app/services/platform_service.py</code></h3>
+      <p>All DB logic for user/tenant CRUD, scoped to DuckDB (and Postgres in hybrid mode).</p>
+
+      <h2>Phase 2 — Backend: Audit Log</h2>
+      <p>New <code>audit_log</code> table, <code>audit_service.py</code>, and read endpoints.
+         All SuperAdmin cross-tenant actions are logged.</p>
+
+      <h2>Phase 3 — Frontend: New Admin Tabs</h2>
+      <ul>
+        <li><strong>Users tab</strong> (shown for <code>tenant.users.manage</code>): manage users within the current tenant</li>
+        <li><strong>Platform tab</strong> (shown for <code>platform.tenants.manage</code>): SuperAdmin tenant + cross-tenant user management</li>
+      </ul>
+
+      <h2>Phase 4 — Hard Restrictions</h2>
+      <ol>
+        <li>TenantAdmin cannot read or modify data belonging to another tenant (enforced by <code>tenant_id</code> scoping in every query).</li>
+        <li>TenantAdmin cannot assign or remove the <code>SuperAdmin</code> role (enforced in the <code>assign-role</code> endpoint).</li>
+        <li>All SuperAdmin cross-tenant operations are written to the audit log.</li>
+      </ol>
+
+      <h2>Deferred (Out of Scope)</h2>
+      <ul>
+        <li>Billing / Licensing — no billing provider integrated yet</li>
+        <li>SSO / Password policy enforcement — complex, deferred</li>
+        <li>Email invitations — manual password set for now</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

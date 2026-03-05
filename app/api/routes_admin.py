@@ -7,6 +7,8 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile
 from app.core.security import AuthContext, require_auth
 from app.models.schemas import (
     AIPricingTemplateProcessRequest,
+    AssignRoleRequest,
+    CreateTenantUserRequest,
     CSVColumnMapping,
     DataManagementBulkDeleteRequest,
     DataManagementImportRequest,
@@ -223,3 +225,72 @@ def get_data_table_stats(table_id: str):
         return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}
+
+
+# ── TenantAdmin: User management within tenant ───────────────────────────
+
+from fastapi import HTTPException, status as http_status
+from app.services.platform_service import (
+    assign_tenant_user_role,
+    create_tenant_user,
+    list_available_roles,
+    list_tenant_users,
+    remove_tenant_user_role,
+)
+
+
+def _require_perm(ctx: AuthContext, perm: str) -> None:
+    if "*" not in ctx.permissions and perm not in ctx.permissions:
+        raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"Missing permission: {perm}")
+
+
+@router.get("/users")
+def get_tenant_users(context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "tenant.users.manage")
+    return {"success": True, "data": list_tenant_users(context.tenant_id)}
+
+
+@router.post("/users")
+def post_tenant_user(payload: CreateTenantUserRequest, context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "tenant.users.manage")
+    try:
+        data = create_tenant_user(
+            tenant_id=context.tenant_id,
+            email=payload.email,
+            full_name=payload.full_name,
+            password=payload.password,
+            role_name=payload.role,
+        )
+        return {"success": True, "data": data}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@router.post("/users/{user_id}/assign-role")
+def post_assign_role(user_id: str, payload: AssignRoleRequest, context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "tenant.roles.assign")
+    try:
+        data = assign_tenant_user_role(
+            tenant_id=context.tenant_id,
+            user_id=user_id,
+            role_name=payload.role,
+        )
+        return {"success": True, "data": data}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@router.delete("/users/{user_id}/role/{role_name}")
+def delete_user_role(user_id: str, role_name: str, context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "tenant.roles.assign")
+    try:
+        remove_tenant_user_role(tenant_id=context.tenant_id, user_id=user_id, role_name=role_name)
+        return {"success": True}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@router.get("/roles")
+def get_tenant_roles(context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "tenant.users.manage")
+    return {"success": True, "data": list_available_roles(for_superadmin=False)}

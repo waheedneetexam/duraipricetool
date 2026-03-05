@@ -179,3 +179,37 @@ class AuthLoginRequest(BaseModel):
 
 class AuthRefreshRequest(BaseModel):
     refresh_token: str
+
+
+# ── Platform management (Phase 1) ────────────────────────────────────────────
+
+class CreateTenantRequest(BaseModel):
+    tenant_name: str
+
+
+class SetTenantActiveRequest(BaseModel):
+    active: bool
+
+
+class CreatePlatformUserRequest(BaseModel):
+    email: str
+    full_name: str
+    password: str
+    tenant_id: str
+    role: str
+
+
+class AssignTenantRequest(BaseModel):
+    tenant_id: str
+    role: str
+
+
+class CreateTenantUserRequest(BaseModel):
+    email: str
+    full_name: str
+    password: str
+    role: str
+
+
+class AssignRoleRequest(BaseModel):
+    role: str
