@@ -127,17 +127,17 @@ export function PlatformManagementAdmin() {
     }
 
     return (
-        <div className="admin-layout" style={{ flexDirection: 'column' }}>
-            <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
-                <button className={`btn ${activeTab === 'tenants' ? 'btn-primary' : ''}`} onClick={() => setActiveTab('tenants')}>Tenants</button>
-                <button className={`btn ${activeTab === 'users' ? 'btn-primary' : ''}`} onClick={() => setActiveTab('users')}>Users (Global)</button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="tabbar" style={{ padding: '6px', gap: '4px' }}>
+                <button className={activeTab === 'tenants' ? 'active' : ''} onClick={() => setActiveTab('tenants')}>Tenants</button>
+                <button className={activeTab === 'users' ? 'active' : ''} onClick={() => setActiveTab('users')}>Users (Global)</button>
             </div>
 
-            {error && <div className="error-box" style={{ marginBottom: '16px' }}>{error}</div>}
+            {error && <div className="error-box">{error}</div>}
 
             {activeTab === 'tenants' && (
-                <div style={{ display: 'flex', gap: '16px' }}>
-                    <div className="panel-card" style={{ flex: 2 }}>
+                <div className="admin-layout">
+                    <div className="panel-card">
                         <h3>Platform Tenants</h3>
                         <table className="admin-config-table">
                             <thead>
@@ -175,7 +175,7 @@ export function PlatformManagementAdmin() {
                             </tbody>
                         </table>
                     </div>
-                    <form className="panel-card" style={{ flex: 1 }} onSubmit={handleCreateTenant}>
+                    <form className="panel-card" onSubmit={handleCreateTenant}>
                         <h3>Create Tenant</h3>
                         <p className="muted" style={{ fontSize: '0.9em', marginBottom: '16px' }}>
                             Add a new client organization to the platform.
@@ -192,8 +192,8 @@ export function PlatformManagementAdmin() {
             )}
 
             {activeTab === 'users' && (
-                <div style={{ display: 'flex', gap: '16px' }}>
-                    <div className="panel-card" style={{ flex: 2 }}>
+                <div className="admin-layout">
+                    <div className="panel-card">
                         <h3>Global User Management</h3>
                         <table className="admin-config-table">
                             <thead>
@@ -226,7 +226,7 @@ export function PlatformManagementAdmin() {
                             </tbody>
                         </table>
                     </div>
-                    <form className="panel-card" style={{ flex: 1 }} onSubmit={handleCreateUser}>
+                    <form className="panel-card" onSubmit={handleCreateUser}>
                         <h3>Platform User Sign-up</h3>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <label>Email <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} required /></label>
