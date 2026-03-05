@@ -3,6 +3,7 @@ import { apiFetch } from '../api/client';
 import type { DataTableDefinition } from '../constants/dataManagementTables';
 import { TableManager } from './TableManager';
 import { CsvUpload } from './CsvUpload';
+import { CreateTableModal } from './CreateTableModal';
 
 type SchemasResponse = { success: boolean; data: Record<string, DataTableDefinition> };
 type StatsResponse = { success: boolean; data: { totalRecords: number; lastUpdated: string | null } };
@@ -13,6 +14,7 @@ export function DataManagementAdmin() {
   const [message, setMessage] = useState('');
   const [statsByTable, setStatsByTable] = useState<Record<string, { totalRecords: number; lastUpdated: string | null }>>({});
   const [sidebarSearch, setSidebarSearch] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const reloadStats = () => {
     if (selectedTableId) {
@@ -41,7 +43,7 @@ export function DataManagementAdmin() {
       if (response.success) {
         setSchemas(response.data);
         const ids = Object.keys(response.data);
-        if (ids.length > 0 && !response.data[selectedTableId]) {
+        if (ids.length > 0 && (!selectedTableId || !response.data[selectedTableId])) {
           setSelectedTableId(ids[0]);
         }
       }
@@ -58,6 +60,24 @@ export function DataManagementAdmin() {
       }
     } catch {
       // ignore
+    }
+  }
+
+  async function deleteTable(tableId: string) {
+    if (!window.confirm(`Are you sure you want to delete the table "${schemas[tableId]?.displayName}"? All data will be lost.`)) return;
+
+    try {
+      const res = await apiFetch<{ success: boolean; error?: string }>(`/admin/data/table-schemas/${tableId}`, {
+        method: 'DELETE'
+      });
+      if (res.success) {
+        await loadSchemas();
+        setSelectedTableId(Object.keys(schemas)[0]);
+      } else {
+        alert(res.error || 'Failed to delete table');
+      }
+    } catch (err) {
+      alert(String(err));
     }
   }
 
@@ -88,12 +108,9 @@ export function DataManagementAdmin() {
             />
             <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }}>🔍</span>
           </div>
-          <button className="btn" type="button">⚙️</button>
+          <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>+ New Table</button>
           <div className="status-indicator">
             System <span className="dot green"></span>
-          </div>
-          <div className="status-indicator">
-            API <span className="dot green"></span>
           </div>
         </div>
       </div>
@@ -103,15 +120,15 @@ export function DataManagementAdmin() {
         {/* Column 1: Sidebar Navigation */}
         <aside className="admin-data-sidebar" style={{ overflowY: 'auto' }}>
           <div className="admin-sidebar-head">
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', display: 'flex', gap: '8px' }}>
               <input
                 className="btn btn-xs"
-                placeholder="Filter categories..."
-                style={{ height: '32px', fontSize: '12px' }}
+                placeholder="Filter..."
+                style={{ flex: 1, height: '32px', fontSize: '12px' }}
                 value={sidebarSearch}
                 onChange={(e) => setSidebarSearch(e.target.value)}
               />
-              <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '10px' }}>⚙️</span>
+              <button className="btn btn-xs" title="Manage Tables">⚙️</button>
             </div>
           </div>
           <div className="admin-sidebar-list">
@@ -124,22 +141,28 @@ export function DataManagementAdmin() {
                   onClick={() => setSelectedTableId(table.id)}
                 >
                   <div className="sidebar-item-label">
-                    <span>🗄️</span>
+                    <span>{table.isDynamic ? '✨' : '🗄️'}</span>
                     <span>{table.displayName}</span>
                   </div>
-                  <span className="status-dot online"></span>
+                  {table.isDynamic && (
+                    <button
+                      className="btn btn-xs"
+                      style={{ padding: '0 4px', background: 'transparent', border: 'none', color: 'inherit', opacity: 0.5 }}
+                      onClick={(e) => { e.stopPropagation(); deleteTable(table.id); }}
+                    >
+                      &times;
+                    </button>
+                  )}
+                  {!table.isDynamic && <span className="status-dot online"></span>}
+
                   {/* Hover Tooltip */}
                   <div className="sidebar-tooltip">
                     <div style={{ fontWeight: 700, marginBottom: '8px', borderBottom: '1px solid var(--line)', paddingBottom: '6px' }}>
-                      🗄️ {table.displayName}
+                      {table.isDynamic ? '✨' : '🗄️'} {table.displayName} {table.isDynamic && '(Dynamic)'}
                     </div>
                     <div className="metadata-item"><label>Total Records:</label><strong>{stats?.totalRecords ?? 0}</strong></div>
                     <div className="metadata-item"><label>Primary Key:</label><strong>🔑 {table.primaryKey}</strong></div>
                     <div className="metadata-item"><label>Last Updated:</label><strong style={{ fontSize: '11px' }}>{stats?.lastUpdated ? new Date(stats.lastUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</strong></div>
-                    <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--line)', fontSize: '12px', display: 'flex', gap: '12px' }}>
-                      <span style={{ color: '#22c55e', fontWeight: 600 }}>Nulls: 0</span>
-                      <span style={{ color: '#64748b', fontWeight: 600 }}>Duplicates: 0</span>
-                    </div>
                   </div>
                 </div>
               );
@@ -167,6 +190,13 @@ export function DataManagementAdmin() {
           />
         </div>
       </div>
+
+      {showCreateModal && (
+        <CreateTableModal
+          onClose={() => setShowCreateModal(false)}
+          onCreated={loadSchemas}
+        />
+      )}
 
       {message && <div className="error-box" style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 1000 }}>{message}</div>}
     </div>

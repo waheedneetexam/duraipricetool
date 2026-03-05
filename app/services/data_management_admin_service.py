@@ -1,5 +1,6 @@
 import csv
 import io
+import json
 import math
 import re
 from dataclasses import dataclass
@@ -225,6 +226,18 @@ def _execute(query: str, params: tuple | list | None = None) -> list[dict[str, A
     return db_client.fetch_df(query, tuple(params)).to_dict(orient="records")
 
 
+def _get_dynamic_table_definitions(tenant_id: str | None = None) -> list[dict[str, Any]]:
+    query = "SELECT * FROM dynamic_table_definitions"
+    params = []
+    if tenant_id:
+        query += " WHERE tenant_id = %s OR tenant_id IS NULL" if _tx_on_postgres() else " WHERE tenant_id = ? OR tenant_id IS NULL"
+        params.append(tenant_id)
+    try:
+        return _execute(query, tuple(params))
+    except Exception:
+        return []
+
+
 def _ensure_tables() -> None:
     if _tx_on_postgres():
         pg_client.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS cost NUMERIC")
@@ -301,6 +314,16 @@ def _ensure_tables() -> None:
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """,
+        """
+        CREATE TABLE IF NOT EXISTS dynamic_table_definitions (
+            table_id TEXT PRIMARY KEY,
+            tenant_id TEXT,
+            display_name TEXT NOT NULL,
+            schema_json TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """,
     ]
     for stmt in statements:
         if _tx_on_postgres():
@@ -308,11 +331,46 @@ def _ensure_tables() -> None:
         else:
             db_client.execute(stmt)
 
+    # Initialize tables for any dynamic schema in the DB
+    for dynamic in _get_dynamic_table_definitions():
+        try:
+            schema = json.loads(dynamic["schema_json"])
+            _ensure_individual_table(schema)
+        except Exception as exc:
+            print(f"Failed to ensure dynamic table {dynamic['table_id']}: {exc}")
 
-def _table_def(table_id: str) -> TableDef:
-    if table_id not in TABLE_DEFS:
-        raise ValueError(f"Unknown table '{table_id}'")
-    return TABLE_DEFS[table_id]
+
+def _ensure_individual_table(schema: dict[str, Any]) -> None:
+    table_name = schema["name"]
+    pk = schema["primaryKey"]
+    fields = schema["fields"]
+    
+    col_defs = []
+    for f in fields:
+        col_type = "TEXT"
+        if f["type"] in {"number", "currency"}:
+            col_type = "DOUBLE PRECISION" if _tx_on_postgres() else "DECIMAL"
+        elif f["type"] == "boolean":
+            col_type = "BOOLEAN"
+        elif f["type"] == "date":
+            col_type = "DATE"
+            
+        col_name = f["name"]
+        is_pk = "PRIMARY KEY" if col_name == pk else ""
+        is_req = "NOT NULL" if f.get("required") and not is_pk else ""
+        col_defs.append(f"{col_name} {col_type} {is_pk} {is_req}")
+        
+    # Standard columns
+    if "tenant_id" not in [f["name"] for f in fields]:
+        col_defs.append("tenant_id TEXT")
+    col_defs.append("created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    col_defs.append("updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    
+    stmt = f"CREATE TABLE IF NOT EXISTS {table_name} ({', '.join(col_defs)})"
+    if _tx_on_postgres():
+        pg_client.execute(stmt)
+    else:
+        db_client.execute(stmt)
 
 
 def _normalize_value(field: FieldDef, raw: Any) -> Any:
@@ -404,9 +462,11 @@ def _validate_references(record: dict[str, Any], table: TableDef, row_number: in
     return errors
 
 
-def get_table_schemas() -> dict[str, Any]:
+def get_table_schemas(tenant_id: str | None = None) -> dict[str, Any]:
     _ensure_tables()
     out: dict[str, Any] = {}
+    
+    # 1. Static Schemas
     for table_id, table in TABLE_DEFS.items():
         out[table_id] = {
             "id": table.id,
@@ -427,8 +487,72 @@ def get_table_schemas() -> dict[str, Any]:
                 for f in table.fields
             ],
             "sampleCsv": table.sample_csv,
+            "isDynamic": False,
         }
+    
+    # 2. Dynamic Schemas from DB
+    dynamics = _get_dynamic_table_definitions(tenant_id)
+    for row in dynamics:
+        try:
+            schema = json.loads(row["schema_json"])
+            schema["isDynamic"] = True
+            out[row["table_id"]] = schema
+        except Exception:
+            continue
+            
     return out
+
+
+def save_dynamic_table_schema(schema: dict[str, Any], tenant_id: str) -> None:
+    _ensure_tables()
+    table_id = schema["id"]
+    display_name = schema["displayName"]
+    schema_json = json.dumps(schema)
+    placeholder = _sql_placeholder()
+    
+    if _tx_on_postgres():
+        pg_client.execute(
+            """
+            INSERT INTO dynamic_table_definitions (table_id, tenant_id, display_name, schema_json, updated_at)
+            VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+            ON CONFLICT (table_id) DO UPDATE SET
+                display_name = EXCLUDED.display_name,
+                schema_json = EXCLUDED.schema_json,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (table_id, tenant_id, display_name, schema_json)
+        )
+    else:
+        db_client.execute("DELETE FROM dynamic_table_definitions WHERE table_id = ?", (table_id,))
+        db_client.execute(
+            "INSERT INTO dynamic_table_definitions (table_id, tenant_id, display_name, schema_json) VALUES (?, ?, ?, ?)",
+            (table_id, tenant_id, display_name, schema_json)
+        )
+        
+    # Create the actual SQL table
+    _ensure_individual_table(schema)
+
+
+def _table_def(table_id: str) -> TableDef | dict[str, Any]:
+    # Check static first
+    if table_id in TABLE_DEFS:
+        return TABLE_DEFS[table_id]
+        
+    # Check dynamic
+    schemas = get_table_schemas()
+    if table_id in schemas:
+        s = schemas[table_id]
+        return TableDef(
+            id=s["id"],
+            table_name=s["name"],
+            display_name=s["displayName"],
+            primary_key=s["primaryKey"],
+            fields=tuple(FieldDef(f["name"], type=f["type"], required=f.get("required", False), unique=f.get("unique", False)) for f in s["fields"]),
+            sample_csv=s.get("sampleCsv", ""),
+            requires_validation=s.get("requiresValidation", True)
+        )
+        
+    raise ValueError(f"Unknown table '{table_id}'")
 
 
 def parse_csv_text(content: str) -> list[dict[str, Any]]:

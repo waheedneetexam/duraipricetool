@@ -35,6 +35,7 @@ from app.services.data_management_admin_service import (
     import_table_data,
     list_table_data,
     parse_csv_text,
+    save_dynamic_table_schema,
     save_table_record,
 )
 from app.services.line_item_config_service import (
@@ -164,7 +165,43 @@ def post_ai_pricing_process_template(payload: AIPricingTemplateProcessRequest, c
 @router.get("/data/table-schemas")
 def get_data_table_schemas(context: AuthContext = Depends(require_auth)):
     _require_perm(context, "master_data.read")
-    return {"success": True, "data": get_table_schemas()}
+    return {"success": True, "data": get_table_schemas(tenant_id=context.tenant_id)}
+
+
+@router.post("/data/table-schemas")
+def post_data_table_schema(payload: dict, context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "master_data.manage")
+    try:
+        save_dynamic_table_schema(payload, tenant_id=context.tenant_id)
+        return {"success": True}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@router.delete("/data/table-schemas/{table_id}")
+def delete_data_table_schema(table_id: str, context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "master_data.manage")
+    # Only allow deleting dynamic tables
+    schemas = get_table_schemas(tenant_id=context.tenant_id)
+    if table_id not in schemas or not schemas[table_id].get("isDynamic"):
+        return {"success": False, "error": "Cannot delete core system tables"}
+        
+    from app.db.duckdb_client import db_client
+    from app.db.postgres_client import pg_client
+    from app.core.config import DB_ENGINE
+    
+    table_name = schemas[table_id]["name"]
+    
+    try:
+        if DB_ENGINE in {"postgres", "hybrid"}:
+            pg_client.execute(f"DROP TABLE IF EXISTS {table_name}")
+            pg_client.execute("DELETE FROM dynamic_table_definitions WHERE table_id = %s AND tenant_id = %s", (table_id, context.tenant_id))
+        else:
+            db_client.execute(f"DROP TABLE IF EXISTS {table_name}")
+            db_client.execute("DELETE FROM dynamic_table_definitions WHERE table_id = ? AND tenant_id = ?", (table_id, context.tenant_id))
+        return {"success": True}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}
 
 
 @router.get("/tables/{table_name}/columns")

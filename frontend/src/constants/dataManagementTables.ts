@@ -15,6 +15,7 @@ export type DataTableDefinition = {
   description: string;
   primaryKey: string;
   requiresValidation: boolean;
+  isDynamic?: boolean;
   parentTables?: string[];
   fields: DataFieldDefinition[];
   sampleCsv: string;
