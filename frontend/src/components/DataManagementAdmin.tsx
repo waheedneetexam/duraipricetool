@@ -123,9 +123,9 @@ export function DataManagementAdmin() {
                   className={`sidebar-item sidebar-item-hover ${selectedTableId === table.id ? 'active' : ''}`}
                   onClick={() => setSelectedTableId(table.id)}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div className="sidebar-item-label">
                     <span>🗄️</span>
-                    {table.displayName}
+                    <span>{table.displayName}</span>
                   </div>
                   <span className="status-dot online"></span>
                   {/* Hover Tooltip */}
