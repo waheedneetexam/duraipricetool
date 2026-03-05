@@ -132,6 +132,12 @@ export function App() {
     setView('pricing');
   }
 
+  const [compactMode, setCompactMode] = useState(() => localStorage.getItem('compact_mode') === 'true');
+
+  useEffect(() => {
+    localStorage.setItem('compact_mode', String(compactMode));
+  }, [compactMode]);
+
   if (authLoading) {
     return <div className="login-shell"><div className="login-card"><h2>Loading...</h2></div></div>;
   }
@@ -141,19 +147,38 @@ export function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${compactMode ? 'compact-mode' : ''}`}>
       <header className="top-nav">
-        <div className="brand-block">
+        <div className="brand-block" style={{ cursor: 'pointer' }} onClick={() => setView('quotes')}>
           <h1>Enterprise Pricing <span style={{ color: 'var(--accent)' }}>System</span></h1>
           <p>Next-Gen CPQ & Pricing Intelligence</p>
         </div>
 
-        {view !== 'pricing' && (
-          <nav className="top-links">
-            <button className={view === 'quotes' ? 'active' : ''} onClick={() => setView('quotes')}>Quotes</button>
-            {canAdmin && <button className={view === 'admin' ? 'active' : ''} onClick={() => setView('admin')}>Admin</button>}
-          </nav>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {view !== 'pricing' && (
+            <nav className="top-links">
+              <button className={view === 'quotes' ? 'active' : ''} onClick={() => setView('quotes')}>Quotes</button>
+              {canAdmin && <button className={view === 'admin' ? 'active' : ''} onClick={() => setView('admin')}>Admin</button>}
+            </nav>
+          )}
+
+          <button
+            className={`btn btn-xs ${compactMode ? 'btn-primary' : ''}`}
+            onClick={() => setCompactMode(!compactMode)}
+            title={compactMode ? "Switch to Normal View" : "Switch to Compact View (80%)"}
+            style={{
+              padding: '6px 10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              border: '1px solid var(--glass-border)',
+              background: compactMode ? 'var(--primary)' : 'var(--glass)',
+              color: '#fff'
+            }}
+          >
+            {compactMode ? '🔍 100%' : '🔍 80%'}
+          </button>
+        </div>
 
         <div className="auth-controls">
           <div className="tenant-selector-wrapper">
