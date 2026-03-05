@@ -147,8 +147,8 @@ export function CsvUpload({ selectedTableId, onUploadComplete, embedded }: CsvUp
     const totalFields = columns.length;
 
     return (
-        <div className={containerClass} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h3 style={{ margin: 0, fontWeight: 800 }}>Import & Validate</h3>
+        <div className={containerClass} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <h4 style={{ margin: 0, fontWeight: 800 }}>Import & Validate</h4>
 
             <div
                 className={`drag-drop-zone ${isDragging ? 'active' : ''}`}
@@ -156,14 +156,14 @@ export function CsvUpload({ selectedTableId, onUploadComplete, embedded }: CsvUp
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleFiles(e.dataTransfer.files); }}
             >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '24px' }}>📄</span>
-                    <strong>{csvFile ? csvFile.name : 'Drag & Drop CSV File'}</strong>
-                    <label className="btn btn-xs" style={{ cursor: 'pointer', background: '#fff' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '20px' }}>📄</span>
+                    <strong style={{ fontSize: '13px' }}>{csvFile ? csvFile.name : 'Drag & Drop CSV File'}</strong>
+                    <label className="btn btn-xs" style={{ cursor: 'pointer', background: '#fff', padding: '4px 8px' }}>
                         Choose File
                         <input type="file" style={{ display: 'none' }} onChange={(e) => handleFiles(e.target.files)} />
                     </label>
-                    <span className="muted" style={{ fontSize: '11px' }}>(up to 10MB)</span>
+                    <span className="muted" style={{ fontSize: '10px' }}>(up to 10MB)</span>
                 </div>
             </div>
 
@@ -215,7 +215,7 @@ export function CsvUpload({ selectedTableId, onUploadComplete, embedded }: CsvUp
                 style={{
                     background: (uploading || !csvFile || mappedCount === 0) ? '#94a3b8' : '#065f46',
                     border: 'none',
-                    padding: '12px',
+                    padding: '10px',
                     fontWeight: 700,
                     cursor: (uploading || !csvFile || mappedCount === 0) ? 'not-allowed' : 'pointer',
                     opacity: (uploading || !csvFile || mappedCount === 0) ? 0.7 : 1,
