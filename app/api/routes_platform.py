@@ -9,6 +9,7 @@ from app.models.schemas import (
     CreatePlatformUserRequest,
     AssignTenantRequest,
     SetTenantActiveRequest,
+    UpdateTenantNameRequest,
 )
 from app.services.platform_service import (
     assign_user_to_tenant,
@@ -19,6 +20,7 @@ from app.services.platform_service import (
     list_available_roles,
     set_tenant_active,
     delete_tenant,
+    update_tenant_name,
 )
 from app.services.audit_service import log_action
 
@@ -88,6 +90,24 @@ def delete_tenant_route(tenant_id: str, context: AuthContext = Depends(require_a
             detail={"tenant_id": tenant_id}
         )
         return {"success": True}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@router.patch("/tenants/{tenant_id}/name")
+def patch_tenant_name(tenant_id: str, payload: UpdateTenantNameRequest, context: AuthContext = Depends(require_auth)):
+    _require_permission(context, "platform.tenants.manage")
+    try:
+        data = update_tenant_name(tenant_id, payload.tenant_name)
+        log_action(
+            actor_user_id=context.user_id,
+            actor_tenant_id=context.tenant_id,
+            target_type="tenant",
+            target_id=tenant_id,
+            action="rename",
+            detail={"new_name": payload.tenant_name}
+        )
+        return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}
 

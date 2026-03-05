@@ -191,6 +191,10 @@ class SetTenantActiveRequest(BaseModel):
     active: bool
 
 
+class UpdateTenantNameRequest(BaseModel):
+    tenant_name: str
+
+
 class CreatePlatformUserRequest(BaseModel):
     email: str
     full_name: str

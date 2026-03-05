@@ -36,6 +36,10 @@ export function PlatformManagementAdmin() {
     const [assignTenantId, setAssignTenantId] = useState('');
     const [assignRoleId, setAssignRoleId] = useState('TenantAdmin');
 
+    // Inline editing state
+    const [editingTenantId, setEditingTenantId] = useState<string | null>(null);
+    const [editingTenantName, setEditingTenantName] = useState('');
+
     useEffect(() => {
         void loadData();
     }, [activeTab]);
@@ -127,6 +131,27 @@ export function PlatformManagementAdmin() {
         }
     }
 
+    async function handleRenameTenant(tenantId: string) {
+        if (!editingTenantName.trim()) return;
+        setLoading(true);
+        try {
+            const res = await apiFetch<{ success: boolean; error?: string }>(`/platform/tenants/${tenantId}/name`, {
+                method: 'PATCH',
+                body: JSON.stringify({ tenant_name: editingTenantName })
+            });
+            if (!res.success) {
+                setError(res.error || 'Failed to rename tenant');
+                return;
+            }
+            setEditingTenantId(null);
+            await loadData();
+        } catch (err) {
+            setError(String(err));
+        } finally {
+            setLoading(false);
+        }
+    }
+
     async function handleCreateUser(e: React.FormEvent) {
         e.preventDefault();
         setLoading(true);
@@ -204,7 +229,39 @@ export function PlatformManagementAdmin() {
                             <tbody>
                                 {tenants.map(t => (
                                     <tr key={t.tenant_id}>
-                                        <td>{t.tenant_name} <span className="muted" style={{ fontSize: '0.7em', display: 'block' }}>{t.tenant_id.substring(0, 8)}...</span></td>
+                                        <td>
+                                            {editingTenantId === t.tenant_id ? (
+                                                <div style={{ display: 'flex', gap: '4px' }}>
+                                                    <input
+                                                        value={editingTenantName}
+                                                        onChange={e => setEditingTenantName(e.target.value)}
+                                                        autoFocus
+                                                        onKeyDown={e => {
+                                                            if (e.key === 'Enter') handleRenameTenant(t.tenant_id);
+                                                            if (e.key === 'Escape') setEditingTenantId(null);
+                                                        }}
+                                                        style={{ padding: '2px 4px', fontSize: '0.9em' }}
+                                                    />
+                                                    <button className="btn btn-xs btn-primary" onClick={() => handleRenameTenant(t.tenant_id)}>Save</button>
+                                                    <button className="btn btn-xs" onClick={() => setEditingTenantId(null)}>X</button>
+                                                </div>
+                                            ) : (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span>{t.tenant_name}</span>
+                                                    <button
+                                                        className="btn btn-xs"
+                                                        style={{ padding: '2px 4px', fontSize: '0.8em', opacity: 0.6 }}
+                                                        onClick={() => {
+                                                            setEditingTenantId(t.tenant_id);
+                                                            setEditingTenantName(t.tenant_name);
+                                                        }}
+                                                    >
+                                                        ✎
+                                                    </button>
+                                                </div>
+                                            )}
+                                            <span className="muted" style={{ fontSize: '0.7em', display: 'block' }}>{t.tenant_id.substring(0, 8)}...</span>
+                                        </td>
                                         <td>
                                             <span className="badge" style={{
                                                 background: t.active ? '#dcfce7' : '#fee2e2',

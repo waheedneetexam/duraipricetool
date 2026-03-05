@@ -74,6 +74,21 @@ def delete_tenant(tenant_id: str) -> None:
             db_client.execute(f"DELETE FROM {table} WHERE tenant_id = ?", (tenant_id,))
 
 
+def update_tenant_name(tenant_id: str, new_name: str) -> dict[str, Any]:
+    """Update a tenant's name. Parameterized query handles escaping."""
+    if _pg():
+        pg_client.execute("UPDATE tenants SET tenant_name = %s WHERE tenant_id = %s", (new_name, tenant_id))
+        rows = pg_client.execute("SELECT tenant_id, tenant_name, active FROM tenants WHERE tenant_id = %s", (tenant_id,))
+        if not rows:
+            raise ValueError(f"Tenant {tenant_id!r} not found.")
+        return dict(rows[0])
+    db_client.execute("UPDATE tenants SET tenant_name = ? WHERE tenant_id = ?", (new_name, tenant_id))
+    row = db_client.execute("SELECT tenant_id, tenant_name, active FROM tenants WHERE tenant_id = ?", (tenant_id,)).fetchone()
+    if not row:
+        raise ValueError(f"Tenant {tenant_id!r} not found.")
+    return {"tenant_id": row[0], "tenant_name": row[1], "active": bool(row[2])}
+
+
 # ── User management (platform-wide) ─────────────────────────────────────────
 
 def list_all_users() -> list[dict[str, Any]]:
