@@ -47,9 +47,6 @@ h4 {
   flex-direction: column;
 }
 
-.app-shell.compact-mode {
-  zoom: 0.8;
-}
 
 .top-nav {
   background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);

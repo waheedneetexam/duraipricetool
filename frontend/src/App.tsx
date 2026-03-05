@@ -132,11 +132,6 @@ export function App() {
     setView('pricing');
   }
 
-  const [compactMode, setCompactMode] = useState(() => localStorage.getItem('compact_mode') === 'true');
-
-  useEffect(() => {
-    localStorage.setItem('compact_mode', String(compactMode));
-  }, [compactMode]);
 
   if (authLoading) {
     return <div className="login-shell"><div className="login-card"><h2>Loading...</h2></div></div>;
@@ -147,7 +142,7 @@ export function App() {
   }
 
   return (
-    <div className={`app-shell ${compactMode ? 'compact-mode' : ''}`}>
+    <div className="app-shell">
       <header className="top-nav">
         <div className="brand-block" style={{ cursor: 'pointer' }} onClick={() => setView('quotes')}>
           <h1>Enterprise Pricing <span style={{ color: 'var(--accent)' }}>System</span></h1>
@@ -162,22 +157,6 @@ export function App() {
             </nav>
           )}
 
-          <button
-            className={`btn btn-xs ${compactMode ? 'btn-primary' : ''}`}
-            onClick={() => setCompactMode(!compactMode)}
-            title={compactMode ? "Switch to Normal View" : "Switch to Compact View (80%)"}
-            style={{
-              padding: '6px 10px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              border: '1px solid var(--glass-border)',
-              background: compactMode ? 'var(--primary)' : 'var(--glass)',
-              color: '#fff'
-            }}
-          >
-            {compactMode ? '🔍 100%' : '🔍 80%'}
-          </button>
         </div>
 
         <div className="auth-controls">
