@@ -175,7 +175,15 @@ export function TableManager({ table, onBack, embedded, onDataLoad }: Props) {
   const contentClass = embedded ? "master-data-panel" : "panel-card master-data-panel";
 
   return (
-    <section className={contentClass} style={{ padding: embedded ? 0 : '12px', border: embedded ? 'none' : undefined, background: embedded ? 'transparent' : undefined }}>
+    <section className={contentClass} style={{
+      padding: embedded ? 0 : '12px',
+      border: embedded ? 'none' : undefined,
+      background: embedded ? 'transparent' : undefined,
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%',
+      minHeight: 0,
+    }}>
       <div className="table-manager-head" style={{ marginBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <h3 style={{ fontWeight: 800 }}>{table.displayName} Table Manager</h3>
@@ -192,7 +200,15 @@ export function TableManager({ table, onBack, embedded, onDataLoad }: Props) {
         </div>
       </div>
 
-      <div className="panel-card" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      <div className="panel-card" style={{
+        padding: '0',
+        display: 'flex',
+        flexDirection: 'column',
+        flex: 1,
+        minHeight: 0,
+        overflow: 'hidden',
+        maxHeight: 'calc(100vh - 280px)',
+      }}>
         <div className="tenant-controls" style={{ padding: '12px', borderBottom: '1px solid var(--line)', background: '#f8fafc' }}>
           <div style={{ position: 'relative', flex: 1 }}>
             <input
