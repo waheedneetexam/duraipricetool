@@ -1,0 +1,2 @@
+sku,name,description,category,price,cost,unit_of_measure,active
+SW-001,Enterprise Software Suite,Complete package,software,50000,25000,EA,true

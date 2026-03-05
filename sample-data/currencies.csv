@@ -1,0 +1,26 @@
+code,name,symbol,exchange_rate,decimal_places
+USD,US Dollar,$,1.0000,2
+EUR,Euro,€,0.9200,2
+GBP,British Pound,£,0.7900,2
+JPY,Japanese Yen,¥,149.5000,0
+AUD,Australian Dollar,A$,1.5200,2
+CAD,Canadian Dollar,C$,1.3500,2
+CHF,Swiss Franc,CHF,0.8800,2
+CNY,Chinese Yuan,¥,7.1800,2
+INR,Indian Rupee,₹,83.1000,2
+AED,UAE Dirham,د.إ,3.6725,2
+SAR,Saudi Riyal,﷼,3.7500,2
+SGD,Singapore Dollar,S$,1.3400,2
+NZD,New Zealand Dollar,NZ$,1.6400,2
+HKD,Hong Kong Dollar,HK$,7.8200,2
+SEK,Swedish Krona,kr,10.4000,2
+NOK,Norwegian Krone,kr,10.7000,2
+DKK,Danish Krone,kr,6.8600,2
+ZAR,South African Rand,R,18.5000,2
+BRL,Brazilian Real,R$,4.9800,2
+MXN,Mexican Peso,$,17.1000,2
+TRY,Turkish Lira,₺,32.1000,2
+KRW,South Korean Won,₩,1330.0000,0
+THB,Thai Baht,฿,35.9000,2
+MYR,Malaysian Ringgit,RM,4.7000,2
+IDR,Indonesian Rupiah,Rp,15600.0000,0
