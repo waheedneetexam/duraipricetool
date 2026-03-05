@@ -60,6 +60,10 @@ export function TableManager({ table, onBack, embedded, onDataLoad }: Props) {
     void loadData();
   }, [table.id, page, pageSize, sortBy, sortDir]);
 
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [table.id, page]);
+
   function toggleSort(field: string) {
     if (sortBy === field) {
       setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
@@ -243,12 +247,13 @@ export function TableManager({ table, onBack, embedded, onDataLoad }: Props) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => {
-                const id = String(row[table.primaryKey] || '');
+              {rows.map((row, index) => {
+                const id = String(row[table.primaryKey] ?? '');
                 const isEditing = editingId === id;
+                const rowKey = id || `row-${index}`;
                 return (
-                  <tr key={id}>
-                    <td><input type="checkbox" checked={selectedIds.includes(id)} onChange={() => toggleSelected(id)} /></td>
+                  <tr key={rowKey}>
+                    <td><input type="checkbox" checked={id !== '' && selectedIds.includes(id)} onChange={() => toggleSelected(id)} disabled={id === ''} /></td>
                     {table.fields.map((field) => (
                       <td key={`${id}-${field.name}`}>
                         {isEditing ? (
