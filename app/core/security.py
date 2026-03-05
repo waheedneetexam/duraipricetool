@@ -14,10 +14,16 @@ class AuthContext:
     permissions: list[str]
 
 
+_PUBLIC_AUTH_PATHS = {"/auth/login", "/auth/refresh", "/auth/logout"}
+
+
 def _is_public_path(path: str) -> bool:
     if path in {"/", "/health", "/openapi.json"}:
         return True
-    return path.startswith("/docs") or path.startswith("/redoc") or path.startswith("/auth/")
+    if path.startswith("/docs") or path.startswith("/redoc"):
+        return True
+    # Only specific auth endpoints are truly public — /auth/me and /auth/tenants require a valid token
+    return path in _PUBLIC_AUTH_PATHS
 
 
 def _required_permission(path: str, method: str) -> str | None:
