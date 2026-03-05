@@ -29,6 +29,7 @@ export function TableManager({ table, onBack, embedded, onDataLoad }: Props) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [historyRecordId, setHistoryRecordId] = useState<string | null>(null);
+  const [showAddRow, setShowAddRow] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [message, setMessage] = useState('');
 
@@ -123,10 +124,21 @@ export function TableManager({ table, onBack, embedded, onDataLoad }: Props) {
         return;
       }
       setDraft({});
+      setShowAddRow(false);
       await loadData();
     } catch (err) {
       setMessage(String(err));
     }
+  }
+
+  function startAdd() {
+    setShowAddRow(true);
+    setEditingId(null);
+    const next: Record<string, string> = {};
+    headers.forEach((h) => {
+      next[h] = '';
+    });
+    setDraft(next);
   }
 
   async function deleteRow(id: string) {
@@ -195,7 +207,7 @@ export function TableManager({ table, onBack, embedded, onDataLoad }: Props) {
           <h3 style={{ fontWeight: 800 }}>{table.displayName} Table Manager</h3>
         </div>
         <div className="tenant-actions">
-          <button className="btn" type="button" onClick={createRow} style={{ background: '#059669', color: '#fff', border: 'none' }}>
+          <button className="btn" type="button" onClick={startAdd} style={{ background: '#059669', color: '#fff', border: 'none' }}>
             New {table.displayName.replace(/s$/, '')} +
           </button>
           <button className="btn" onClick={exportCsv} type="button">Export CSV</button>
@@ -249,6 +261,28 @@ export function TableManager({ table, onBack, embedded, onDataLoad }: Props) {
               </tr>
             </thead>
             <tbody>
+              {showAddRow && (
+                <tr className="add-row" style={{ background: '#f0fdf4' }}>
+                  <td></td>
+                  {table.fields.map((field) => (
+                    <td key={`new-${field.name}`}>
+                      <input
+                        className="btn btn-xs"
+                        autoFocus={field.name === table.primaryKey}
+                        placeholder={field.displayName}
+                        value={draft[field.name] ?? ''}
+                        onChange={(e) => setDraft((prev) => ({ ...prev, [field.name]: e.target.value }))}
+                      />
+                    </td>
+                  ))}
+                  <td style={{ textAlign: 'right' }}>
+                    <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                      <button className="btn btn-xs" type="button" onClick={createRow} style={{ background: '#059669', color: '#fff' }}>💾 Create</button>
+                      <button className="btn btn-xs" type="button" onClick={() => setShowAddRow(false)}>✕</button>
+                    </div>
+                  </td>
+                </tr>
+              )}
               {rows.map((row, index) => {
                 const id = String(row[table.primaryKey] ?? '');
                 const isEditing = editingId === id;
