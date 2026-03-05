@@ -1,0 +1,26 @@
+id,name,countries,currency,timezone
+north-america,North America,"US,CA,MX",USD,America/New_York
+south-america,South America,"BR,AR,CL",BRL,America/Sao_Paulo
+western-europe,Western Europe,"DE,FR,NL",EUR,Europe/Berlin
+northern-europe,Northern Europe,"SE,NO,DK",SEK,Europe/Stockholm
+southern-europe,Southern Europe,"IT,ES,PT",EUR,Europe/Rome
+eastern-europe,Eastern Europe,"PL,CZ,RO",EUR,Europe/Warsaw
+uk-ireland,UK and Ireland,"GB,IE",GBP,Europe/London
+gulf-cooperation,Gulf Cooperation Council,"AE,SA,QA",AED,Asia/Dubai
+levant,Levant,"JO,LB,IQ",USD,Asia/Amman
+north-africa,North Africa,"EG,MA,TN",USD,Africa/Cairo
+west-africa,West Africa,"NG,GH,CI",USD,Africa/Lagos
+east-africa,East Africa,"KE,TZ,UG",USD,Africa/Nairobi
+southern-africa,Southern Africa,"ZA,BW,NA",ZAR,Africa/Johannesburg
+india-subcontinent,India Subcontinent,"IN,PK,BD",INR,Asia/Kolkata
+greater-china,Greater China,"CN,HK,TW",CNY,Asia/Shanghai
+japan,Japan,"JP",JPY,Asia/Tokyo
+korea,Korea,"KR",KRW,Asia/Seoul
+southeast-asia,Southeast Asia,"SG,MY,TH",SGD,Asia/Singapore
+indonesia,Indonesia,"ID",IDR,Asia/Jakarta
+philippines,Philippines,"PH",USD,Asia/Manila
+australia,Australia,"AU",AUD,Australia/Sydney
+new-zealand,New Zealand,"NZ",NZD,Pacific/Auckland
+central-america,Central America,"GT,CR,PA",USD,America/Costa_Rica
+caribbean,Caribbean,"DO,JM,TT",USD,America/Jamaica
+central-asia,Central Asia,"KZ,UZ,TM",USD,Asia/Almaty

@@ -2,9 +2,11 @@ import json
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, UploadFile, HTTPException, status as http_status
 
 from app.core.security import AuthContext, require_auth
+from app.api.routes_audit import router as audit_router
+from app.services.audit_service import list_audit_logs, log_action
 from app.models.schemas import (
     AIPricingTemplateProcessRequest,
     AssignRoleRequest,
@@ -25,7 +27,9 @@ from app.services.admin_config_service import (
 )
 from app.services.data_management_admin_service import (
     bulk_delete_table_records,
+    compute_diff,
     delete_table_record,
+    get_table_record,
     get_table_schemas,
     get_table_stats,
     import_table_data,
@@ -42,6 +46,14 @@ from app.services.csv_ingestion import ingest_csv_chunked
 from app.services.quote_service import seed_default_workflow_rules
 from app.services.sample_data_generator import generate_synthetic_transactions
 from app.services.sync_service import run_sync_once
+
+from app.services.platform_service import (
+    assign_tenant_user_role,
+    create_tenant_user,
+    list_available_roles,
+    list_tenant_users,
+    remove_tenant_user_role,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_auth)])
 
@@ -276,19 +288,41 @@ def post_data_record(table_id: str, payload: DataManagementRecordPayload, contex
 def put_data_record(table_id: str, record_id: str, payload: DataManagementRecordPayload, context: AuthContext = Depends(require_auth)):
     _require_perm(context, "master_data.manage")
     try:
+        # Fetch old record for diffing
+        old_record = get_table_record(table_id, record_id, tenant_id=context.tenant_id)
+        
         data = save_table_record(table_id=table_id, record_id=record_id, payload=payload.values, tenant_id=context.tenant_id)
         
+        # Compute diff
+        diff = {}
+        if old_record:
+            fields = [f.get("name") for f in get_table_schemas().get(table_id, {}).get("fields", [])]
+            diff = compute_diff(old_record, data, fields)
+
         log_action(
             actor_user_id=context.user_id,
             actor_tenant_id=context.tenant_id,
             target_type="master_data",
             target_id=f"{table_id}:{record_id}",
             action="update_record",
-            detail={"table": table_id, "record_id": record_id, "values": payload.values}
+            detail={
+                "table": table_id, 
+                "record_id": record_id, 
+                "values": payload.values,
+                "diff": diff
+            }
         )
         return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}
+
+
+@router.get("/data/table/{table_id}/{record_id}/changelog")
+def get_record_changelog(table_id: str, record_id: str, context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "master_data.read")
+    target_id = f"{table_id}:{record_id}"
+    logs = list_audit_logs(tenant_id=context.tenant_id, target_type="master_data", target_id=target_id)
+    return {"success": True, "data": logs}
 
 
 @router.delete("/data/table/{table_id}/{record_id}")
@@ -337,19 +371,6 @@ def get_data_table_stats(table_id: str, context: AuthContext = Depends(require_a
         return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}
-
-
-# ── TenantAdmin: User management within tenant ───────────────────────────
-
-from fastapi import HTTPException, status as http_status
-from app.services.platform_service import (
-    assign_tenant_user_role,
-    create_tenant_user,
-    list_available_roles,
-    list_tenant_users,
-    remove_tenant_user_role,
-)
-from app.services.audit_service import log_action
 
 
 def _require_perm(ctx: AuthContext, perm: str) -> None:

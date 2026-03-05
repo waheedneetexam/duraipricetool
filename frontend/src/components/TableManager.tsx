@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../api/client';
+import { ChangelogModal } from './ChangelogModal';
 import type { DataTableDefinition } from '../constants/dataManagementTables';
 import { toCsv } from '../constants/dataManagementTables';
 
@@ -27,6 +28,7 @@ export function TableManager({ table, onBack, embedded, onDataLoad }: Props) {
   const [total, setTotal] = useState(0);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [historyRecordId, setHistoryRecordId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [message, setMessage] = useState('');
 
@@ -270,6 +272,7 @@ export function TableManager({ table, onBack, embedded, onDataLoad }: Props) {
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
                         {!isEditing && <button className="btn btn-xs" type="button" onClick={() => startEdit(row)}>📝 Edit</button>}
+                        {!isEditing && <button className="btn btn-xs" type="button" onClick={() => setHistoryRecordId(id)} title="View History">🕒</button>}
                         {isEditing && <button className="btn btn-xs" type="button" onClick={saveEdit}>💾 Save</button>}
                         {isEditing && <button className="btn btn-xs" type="button" onClick={() => setEditingId(null)}>✕</button>}
                         {!isEditing && <button className="btn btn-danger btn-xs" type="button" onClick={() => deleteRow(id)}>🗑️</button>}
@@ -331,6 +334,13 @@ export function TableManager({ table, onBack, embedded, onDataLoad }: Props) {
       </div>
 
       {message && <div className="error-box" style={{ marginTop: '12px' }}>{message}</div>}
+      {historyRecordId && (
+        <ChangelogModal
+          tableId={table.id}
+          recordId={historyRecordId}
+          onClose={() => setHistoryRecordId(null)}
+        />
+      )}
     </section>
   );
 }

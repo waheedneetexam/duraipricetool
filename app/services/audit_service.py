@@ -48,6 +48,7 @@ def log_action(
 def list_audit_logs(
     tenant_id: str | None = None,
     target_type: str | None = None,
+    target_id: str | None = None,
     limit: int = 100,
     offset: int = 0,
 ) -> list[dict[str, Any]]:
@@ -75,6 +76,10 @@ def list_audit_logs(
         if target_type:
             where_clauses.append("l.target_type = %s")
             params.append(target_type)
+        
+        if target_id:
+            where_clauses.append("l.target_id = %s")
+            params.append(target_id)
 
         if where_clauses:
             query += " WHERE " + " AND ".join(where_clauses)
@@ -108,6 +113,10 @@ def list_audit_logs(
     if target_type:
         where_clauses.append("l.target_type = ?")
         params.append(target_type)
+
+    if target_id:
+        where_clauses.append("l.target_id = ?")
+        params.append(target_id)
 
     if where_clauses:
         query += " WHERE " + " AND ".join(where_clauses)

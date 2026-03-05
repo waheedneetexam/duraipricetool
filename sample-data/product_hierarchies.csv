@@ -1,0 +1,26 @@
+id,name,description,parent_id,level
+software,Software Solutions,Enterprise software products,,1
+hardware,Hardware Products,Physical infrastructure products,,1
+services,Professional Services,Implementation and consulting services,,1
+subscriptions,Subscription Plans,Recurring service plans,,1
+training,Training Programs,Customer and partner training offerings,,1
+crm,Customer Relationship Management,Manage leads and customer pipelines,software,2
+erp,Enterprise Resource Planning,Core finance and operations modules,software,2
+analytics,Analytics Platform,Business intelligence and dashboards,software,2
+security-suite,Security Suite,Identity access and endpoint protection,software,2
+integration,Integration Tools,Connectors and API management tools,software,2
+servers,Servers,Rack and blade server systems,hardware,2
+networking,Networking Equipment,Switches routers and wireless access points,hardware,2
+storage,Storage Systems,SAN NAS and backup storage appliances,hardware,2
+endpoints,Endpoint Devices,Laptops desktops and mobile devices,hardware,2
+peripherals,Peripherals,Monitors printers and accessories,hardware,2
+implementation,Implementation Services,Deployment and configuration engagements,services,2
+consulting,Consulting Services,Architecture optimization and advisory,services,2
+support,Support Services,Technical support and incident resolution,services,2
+managed-services,Managed Services,Ongoing monitoring and operations management,services,2
+custom-dev,Custom Development,Tailored software extension projects,services,2
+monthly,Monthly Plans,Month to month subscription packages,subscriptions,2
+annual,Annual Plans,Discounted annual commitment packages,subscriptions,2
+enterprise-plan,Enterprise Plans,High scale plans with advanced controls,subscriptions,2
+onboarding,Onboarding Training,Initial product enablement for new teams,training,2
+certification,Certification Training,Role based technical certification tracks,training,2

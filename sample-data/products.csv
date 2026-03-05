@@ -1,0 +1,26 @@
+sku,name,description,category,price,cost,unit_of_measure,active
+SW-001,CRM Core,Lead and opportunity management platform,crm,18000,8200,EA,true
+SW-002,CRM Advanced,CRM with automation and forecasting,crm,26000,11800,EA,true
+SW-003,ERP Finance,Financial planning and accounting suite,erp,32000,14500,EA,true
+SW-004,ERP Operations,Inventory and supply chain management,erp,34000,15600,EA,true
+SW-005,Insights Starter,Entry business intelligence dashboards,analytics,12000,5400,EA,true
+SW-006,Insights Pro,Advanced analytics and scheduled reporting,analytics,21000,9300,EA,true
+SW-007,Secure Identity,Single sign on and access governance,security-suite,16000,7000,EA,true
+SW-008,Secure Endpoint,Endpoint protection and compliance controls,security-suite,19000,8600,EA,true
+SW-009,API Gateway,Centralized API security and traffic routing,integration,22000,9700,EA,true
+SW-010,Data Connector Pack,Prebuilt ERP and CRM integrations,integration,14000,6200,EA,true
+HW-001,Rack Server X1,1U server for general workloads,servers,6200,3900,EA,true
+HW-002,Rack Server X2,2U compute optimized server,servers,8900,5600,EA,true
+HW-003,Core Switch 48,48 port managed network switch,networking,2800,1700,EA,true
+HW-004,Edge Router Pro,High throughput enterprise router,networking,3400,2100,EA,true
+HW-005,SAN Storage 20TB,High availability block storage appliance,storage,12500,7900,EA,true
+HW-006,NAS Storage 40TB,Shared file storage system,storage,9800,6100,EA,true
+HW-007,Business Laptop 14,Standard enterprise laptop,endpoints,1450,980,EA,true
+HW-008,Mobile Workstation 16,High performance portable workstation,endpoints,2650,1780,EA,true
+HW-009,4K Monitor 27,Professional display for office setups,peripherals,420,260,EA,true
+HW-010,Color Laser Printer,Network ready office printer,peripherals,690,430,EA,true
+SV-001,Implementation Basic,Initial deployment and setup package,implementation,8500,4200,EA,true
+SV-002,Consulting Retainer,Monthly architecture consulting service,consulting,12000,6400,EA,true
+SV-003,Premium Support,24x7 priority support subscription,support,15000,8300,EA,true
+SUB-001,Annual Enterprise Plan,Enterprise annual software bundle,enterprise-plan,48000,23000,EA,true
+TR-001,Admin Certification Bootcamp,Five day administrator certification,certification,3900,1800,EA,true

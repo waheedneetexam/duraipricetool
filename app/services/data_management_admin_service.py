@@ -523,6 +523,26 @@ def list_table_data(
     }
 
 
+def get_table_record(table_id: str, record_id: str, tenant_id: str) -> dict[str, Any] | None:
+    _ensure_tables()
+    table = _table_def(table_id)
+    rows = _execute(
+        f"SELECT * FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()} AND tenant_id = {_sql_placeholder()} LIMIT 1",
+        (record_id, tenant_id),
+    )
+    return rows[0] if rows else None
+
+
+def compute_diff(old_vals: dict[str, Any], new_vals: dict[str, Any], fields: list[str]) -> dict[str, Any]:
+    diff = {}
+    for f in fields:
+        ov = old_vals.get(f)
+        nv = new_vals.get(f)
+        if str(ov) != str(nv):
+            diff[f] = [ov, nv]
+    return diff
+
+
 def save_table_record(table_id: str, record_id: str, payload: dict[str, Any], tenant_id: str, allow_missing_pk: bool = False) -> dict[str, Any]:
     _ensure_tables()
     table = _table_def(table_id)

@@ -45,3 +45,311 @@ Traceback (most recent call last):
   File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/db/duckdb_client.py", line 5, in <module>
     import duckdb
 ModuleNotFoundError: No module named 'duckdb'
+WARNING:  WatchFiles detected changes in 'app/api/routes_admin.py'. Reloading...
+Process SpawnProcess-2:
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/usr/lib/python3.10/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/_subprocess.py", line 80, in subprocess_started
+    target(sockets=sockets)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 67, in run
+    return asyncio_run(self.serve(sockets=sockets), loop_factory=self.config.get_loop_factory())
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/_compat.py", line 60, in asyncio_run
+    return loop.run_until_complete(main)
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 649, in run_until_complete
+    return future.result()
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 71, in serve
+    await self._serve(sockets)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 78, in _serve
+    config.load()
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/config.py", line 439, in load
+    self.loaded_app = import_from_string(self.app)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/importer.py", line 22, in import_from_string
+    raise exc from None
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/importer.py", line 19, in import_from_string
+    module = importlib.import_module(module_str)
+  File "/usr/lib/python3.10/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 883, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/main.py", line 4, in <module>
+    from app.api.routes_auth import router as auth_router
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/api/routes_auth.py", line 3, in <module>
+    from app.core.security import AuthContext, require_auth
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/core/security.py", line 6, in <module>
+    from app.services.auth_service import decode_token
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/services/auth_service.py", line 19, in <module>
+    from app.db.duckdb_client import db_client
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/db/duckdb_client.py", line 5, in <module>
+    import duckdb
+ModuleNotFoundError: No module named 'duckdb'
+WARNING:  WatchFiles detected changes in 'app/api/routes_master_data.py'. Reloading...
+Process SpawnProcess-3:
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/usr/lib/python3.10/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/_subprocess.py", line 80, in subprocess_started
+    target(sockets=sockets)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 67, in run
+    return asyncio_run(self.serve(sockets=sockets), loop_factory=self.config.get_loop_factory())
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/_compat.py", line 60, in asyncio_run
+    return loop.run_until_complete(main)
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 649, in run_until_complete
+    return future.result()
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 71, in serve
+    await self._serve(sockets)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 78, in _serve
+    config.load()
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/config.py", line 439, in load
+    self.loaded_app = import_from_string(self.app)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/importer.py", line 22, in import_from_string
+    raise exc from None
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/importer.py", line 19, in import_from_string
+    module = importlib.import_module(module_str)
+  File "/usr/lib/python3.10/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 883, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/main.py", line 4, in <module>
+    from app.api.routes_auth import router as auth_router
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/api/routes_auth.py", line 3, in <module>
+    from app.core.security import AuthContext, require_auth
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/core/security.py", line 6, in <module>
+    from app.services.auth_service import decode_token
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/services/auth_service.py", line 19, in <module>
+    from app.db.duckdb_client import db_client
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/db/duckdb_client.py", line 5, in <module>
+    import duckdb
+ModuleNotFoundError: No module named 'duckdb'
+WARNING:  WatchFiles detected changes in 'app/services/data_management_admin_service.py'. Reloading...
+Process SpawnProcess-4:
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/usr/lib/python3.10/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/_subprocess.py", line 80, in subprocess_started
+    target(sockets=sockets)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 67, in run
+    return asyncio_run(self.serve(sockets=sockets), loop_factory=self.config.get_loop_factory())
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/_compat.py", line 60, in asyncio_run
+    return loop.run_until_complete(main)
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 649, in run_until_complete
+    return future.result()
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 71, in serve
+    await self._serve(sockets)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 78, in _serve
+    config.load()
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/config.py", line 439, in load
+    self.loaded_app = import_from_string(self.app)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/importer.py", line 22, in import_from_string
+    raise exc from None
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/importer.py", line 19, in import_from_string
+    module = importlib.import_module(module_str)
+  File "/usr/lib/python3.10/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 883, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/main.py", line 4, in <module>
+    from app.api.routes_auth import router as auth_router
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/api/routes_auth.py", line 3, in <module>
+    from app.core.security import AuthContext, require_auth
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/core/security.py", line 6, in <module>
+    from app.services.auth_service import decode_token
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/services/auth_service.py", line 19, in <module>
+    from app.db.duckdb_client import db_client
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/db/duckdb_client.py", line 5, in <module>
+    import duckdb
+ModuleNotFoundError: No module named 'duckdb'
+WARNING:  WatchFiles detected changes in 'app/services/audit_service.py'. Reloading...
+Process SpawnProcess-5:
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/usr/lib/python3.10/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/_subprocess.py", line 80, in subprocess_started
+    target(sockets=sockets)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 67, in run
+    return asyncio_run(self.serve(sockets=sockets), loop_factory=self.config.get_loop_factory())
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/_compat.py", line 60, in asyncio_run
+    return loop.run_until_complete(main)
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 649, in run_until_complete
+    return future.result()
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 71, in serve
+    await self._serve(sockets)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 78, in _serve
+    config.load()
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/config.py", line 439, in load
+    self.loaded_app = import_from_string(self.app)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/importer.py", line 22, in import_from_string
+    raise exc from None
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/importer.py", line 19, in import_from_string
+    module = importlib.import_module(module_str)
+  File "/usr/lib/python3.10/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 883, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/main.py", line 4, in <module>
+    from app.api.routes_auth import router as auth_router
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/api/routes_auth.py", line 3, in <module>
+    from app.core.security import AuthContext, require_auth
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/core/security.py", line 6, in <module>
+    from app.services.auth_service import decode_token
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/services/auth_service.py", line 19, in <module>
+    from app.db.duckdb_client import db_client
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/db/duckdb_client.py", line 5, in <module>
+    import duckdb
+ModuleNotFoundError: No module named 'duckdb'
+WARNING:  WatchFiles detected changes in 'app/api/routes_admin.py'. Reloading...
+Process SpawnProcess-6:
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/usr/lib/python3.10/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/_subprocess.py", line 80, in subprocess_started
+    target(sockets=sockets)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 67, in run
+    return asyncio_run(self.serve(sockets=sockets), loop_factory=self.config.get_loop_factory())
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/_compat.py", line 60, in asyncio_run
+    return loop.run_until_complete(main)
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 649, in run_until_complete
+    return future.result()
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 71, in serve
+    await self._serve(sockets)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 78, in _serve
+    config.load()
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/config.py", line 439, in load
+    self.loaded_app = import_from_string(self.app)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/importer.py", line 22, in import_from_string
+    raise exc from None
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/importer.py", line 19, in import_from_string
+    module = importlib.import_module(module_str)
+  File "/usr/lib/python3.10/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 883, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/main.py", line 4, in <module>
+    from app.api.routes_auth import router as auth_router
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/api/routes_auth.py", line 3, in <module>
+    from app.core.security import AuthContext, require_auth
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/core/security.py", line 6, in <module>
+    from app.services.auth_service import decode_token
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/services/auth_service.py", line 19, in <module>
+    from app.db.duckdb_client import db_client
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/db/duckdb_client.py", line 5, in <module>
+    import duckdb
+ModuleNotFoundError: No module named 'duckdb'
+WARNING:  WatchFiles detected changes in 'app/api/routes_admin.py'. Reloading...
+Process SpawnProcess-7:
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/usr/lib/python3.10/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/_subprocess.py", line 80, in subprocess_started
+    target(sockets=sockets)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 67, in run
+    return asyncio_run(self.serve(sockets=sockets), loop_factory=self.config.get_loop_factory())
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/_compat.py", line 60, in asyncio_run
+    return loop.run_until_complete(main)
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 649, in run_until_complete
+    return future.result()
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 71, in serve
+    await self._serve(sockets)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 78, in _serve
+    config.load()
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/config.py", line 439, in load
+    self.loaded_app = import_from_string(self.app)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/importer.py", line 22, in import_from_string
+    raise exc from None
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/importer.py", line 19, in import_from_string
+    module = importlib.import_module(module_str)
+  File "/usr/lib/python3.10/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 883, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/main.py", line 4, in <module>
+    from app.api.routes_auth import router as auth_router
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/api/routes_auth.py", line 3, in <module>
+    from app.core.security import AuthContext, require_auth
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/core/security.py", line 6, in <module>
+    from app.services.auth_service import decode_token
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/services/auth_service.py", line 19, in <module>
+    from app.db.duckdb_client import db_client
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/db/duckdb_client.py", line 5, in <module>
+    import duckdb
+ModuleNotFoundError: No module named 'duckdb'
+WARNING:  WatchFiles detected changes in 'app/api/routes_admin.py'. Reloading...
+Process SpawnProcess-8:
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/usr/lib/python3.10/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/_subprocess.py", line 80, in subprocess_started
+    target(sockets=sockets)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 67, in run
+    return asyncio_run(self.serve(sockets=sockets), loop_factory=self.config.get_loop_factory())
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/_compat.py", line 60, in asyncio_run
+    return loop.run_until_complete(main)
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 649, in run_until_complete
+    return future.result()
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 71, in serve
+    await self._serve(sockets)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/server.py", line 78, in _serve
+    config.load()
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/config.py", line 439, in load
+    self.loaded_app = import_from_string(self.app)
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/importer.py", line 22, in import_from_string
+    raise exc from None
+  File "/home/waheed/.local/lib/python3.10/site-packages/uvicorn/importer.py", line 19, in import_from_string
+    module = importlib.import_module(module_str)
+  File "/usr/lib/python3.10/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 883, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/main.py", line 4, in <module>
+    from app.api.routes_auth import router as auth_router
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/api/routes_auth.py", line 3, in <module>
+    from app.core.security import AuthContext, require_auth
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/core/security.py", line 6, in <module>
+    from app.services.auth_service import decode_token
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/services/auth_service.py", line 19, in <module>
+    from app.db.duckdb_client import db_client
+  File "/home/waheed/Work/Anti-Gravity/DuraiPriceTool/app/db/duckdb_client.py", line 5, in <module>
+    import duckdb
+ModuleNotFoundError: No module named 'duckdb'

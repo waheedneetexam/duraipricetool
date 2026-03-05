@@ -180,3 +180,17 @@ export type AuthTenantsResponse = {
   success: boolean;
   data: Array<{ tenant_id: string; tenant_name: string }>;
 };
+
+export type AuditLog = {
+  log_id: string;
+  actor_user_id: string;
+  actor_tenant_id: string;
+  actor_name?: string;
+  actor_tenant_name?: string;
+  target_type: string;
+  target_id: string;
+  target_name?: string;
+  action: string;
+  detail: any;
+  created_at_epoch: number;
+};
