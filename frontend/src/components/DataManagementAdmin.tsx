@@ -91,26 +91,31 @@ export function DataManagementAdmin() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px' }}>
-      {/* Global Header */}
-      <div className="panel-card" style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="panel-card" style={{ padding: '24px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: 'var(--shadow-sm)' }}>
         <div className="title-block">
-          <h3 style={{ fontWeight: 800 }}>Data Management Admin</h3>
-          <p className="muted">Manage {tableList.length} master data tables with CRUD, CSV import, and validation.</p>
+          <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#1e293b', marginBottom: '4px' }}>Data Management Admin</h3>
+          <p style={{ color: '#64748b', fontSize: '14px' }}>Manage {tableList.length} master data tables with CRUD, CSV import, and validation.</p>
         </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
           <div style={{ position: 'relative' }}>
+            <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }}>🔍</span>
             <input
-              className="btn"
+              className="form-input"
               placeholder="Search tables..."
-              style={{ width: '220px', paddingLeft: '32px' }}
+              style={{ width: '240px', padding: '10px 12px 10px 36px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px' }}
               value={sidebarSearch}
               onChange={(e) => setSidebarSearch(e.target.value)}
             />
-            <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }}>🔍</span>
           </div>
-          <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>+ New Table</button>
-          <div className="status-indicator">
-            System <span className="dot green"></span>
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowCreateModal(true)}
+            style={{ background: '#4f46e5', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, fontSize: '14px', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <span style={{ fontSize: '18px' }}>+</span> New Table
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1e293b', fontWeight: 600, fontSize: '14px' }}>
+            System <span style={{ width: '8px', height: '8px', background: '#22c55e', borderRadius: '50%' }}></span>
           </div>
         </div>
       </div>

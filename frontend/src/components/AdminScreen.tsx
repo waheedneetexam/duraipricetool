@@ -453,35 +453,64 @@ PricingRules: []`);
   }
 
   return (
-    <section className="screen">
-      <div className="screen-head admin-screen-header">
-        <div className="title-block">
-          <h2>Admin <span style={{ color: 'var(--primary)' }}>Configuration</span></h2>
-          <p>Orchestrate global settings, logic rules, and data intelligence.</p>
-        </div>
-        <div className="admin-tab-row" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <button className={adminTab === 'table' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('table')} type="button">Table Manager</button>
-          <button className={adminTab === 'logic' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('logic')} type="button">Field Logic</button>
-          <button className={adminTab === 'ai' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('ai')} type="button">AI Pricing</button>
-          {canManageUsers && <button className={adminTab === 'users' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('users')} type="button">Users</button>}
-          {canManagePlatform && <button className={adminTab === 'platform' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('platform')} type="button">Platform</button>}
-          {canReadAudit && <button className={adminTab === 'audit' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('audit')} type="button">Audit Log</button>}
-          <button className={adminTab === 'data' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('data')} type="button">Data</button>
-          <button className={adminTab === 'formula' ? 'btn btn-primary' : 'btn'} onClick={() => setAdminTab('formula')} type="button">Formula</button>
+    <section className="screen" style={{ background: 'transparent', padding: '0' }}>
+      <div className="admin-screen-header" style={{ marginBottom: '24px' }}>
+        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '16px' }}>Orchestrate global settings, logic rules, and data intelligence.</p>
+
+        <div className="admin-tab-row" style={{
+          display: 'flex',
+          gap: '8px',
+          alignItems: 'center',
+          background: '#fff',
+          padding: '8px 16px',
+          borderRadius: '12px',
+          boxShadow: 'var(--shadow-sm)',
+          border: '1px solid #e2e8f0'
+        }}>
+          {[
+            { id: 'table', label: 'Table Manager' },
+            { id: 'logic', label: 'Field Logic' },
+            { id: 'ai', label: 'AI Pricing' },
+            { id: 'users', label: 'Users', hide: !canManageUsers },
+            { id: 'platform', label: 'Platform', hide: !canManagePlatform },
+            { id: 'audit', label: 'Audit Log', hide: !canReadAudit },
+            { id: 'data', label: 'Data' },
+            { id: 'formula', label: 'Formula' }
+          ].filter(t => !t.hide).map(tab => (
+            <button
+              key={tab.id}
+              className={`btn ${adminTab === tab.id ? 'btn-primary' : ''}`}
+              onClick={() => setAdminTab(tab.id as AdminTab)}
+              type="button"
+              style={{
+                padding: '8px 16px',
+                fontSize: '13px',
+                fontWeight: 600,
+                background: adminTab === tab.id ? '#4f46e5' : 'transparent',
+                color: adminTab === tab.id ? '#fff' : '#64748b',
+                border: 'none',
+                borderRadius: '8px'
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+
           <div style={{ flex: 1 }} />
+
           <button
-            className="btn"
             onClick={runSyncOnce}
             disabled={loading || !canAdminManage}
             type="button"
             style={{
-              background: 'var(--primary)',
+              background: '#4f46e5',
               color: '#fff',
               fontWeight: '700',
-              padding: '8px 16px',
+              padding: '10px 20px',
               fontSize: '13px',
               border: 'none',
-              boxShadow: 'var(--shadow-sm)'
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.2)'
             }}
           >
             {loading ? 'Syncing...' : 'Run Sync (Postgres to DuckDB)'}
