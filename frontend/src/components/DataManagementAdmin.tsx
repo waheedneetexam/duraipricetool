@@ -3,6 +3,7 @@ import { apiFetch } from '../api/client';
 import type { DataTableDefinition } from '../constants/dataManagementTables';
 import { parseCsv } from '../constants/dataManagementTables';
 import { TableManager } from './TableManager';
+import { CsvUpload } from './CsvUpload';
 
 type SchemasResponse = { success: boolean; data: Record<string, DataTableDefinition> };
 type ImportResult = {
@@ -25,6 +26,12 @@ export function DataManagementAdmin() {
   const [message, setMessage] = useState('');
   const [viewTableManager, setViewTableManager] = useState(false);
   const [statsByTable, setStatsByTable] = useState<Record<string, { totalRecords: number; lastUpdated: string | null }>>({});
+
+  const reloadStats = () => {
+    if (selectedTableId) {
+      loadStats(selectedTableId);
+    }
+  };
 
   useEffect(() => {
     void loadSchemas();
@@ -120,38 +127,38 @@ export function DataManagementAdmin() {
       <h3>Data Management Admin</h3>
       <p className="muted">Manage 9 master data tables with CSV import, validation, and table manager CRUD.</p>
 
-      <div className="tenant-controls">
-        <label>
-          Select Table
-          <select value={selectedTableId} onChange={(e) => setSelectedTableId(e.target.value)}>
-            {tableList.map((table) => (
-              <option key={table.id} value={table.id}>{table.displayName}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          CSV File
-          <input type="file" accept=".csv,text/csv" onChange={(e) => setCsvFile(e.target.files?.[0] ?? null)} />
-        </label>
-        <div className="tenant-actions">
-          <button className="btn" type="button" onClick={downloadSampleCsv} disabled={!selectedTable}>Download Sample CSV</button>
-          <button className="btn" type="button" onClick={() => void importCsv(false)} disabled={importLoading || !csvFile}>Import (Skip Duplicates)</button>
-          <button className="btn btn-primary" type="button" onClick={() => void importCsv(true)} disabled={importLoading || !csvFile}>
-            {importLoading ? 'Importing...' : 'Import (Update Duplicates)'}
-          </button>
-          <button className="btn" type="button" onClick={() => setViewTableManager(true)} disabled={!selectedTable}>Open Table Manager</button>
-        </div>
-      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'start', marginBottom: '1.5rem' }}>
+        <div className="tenant-controls" style={{ margin: 0, height: '100%' }}>
+          <label>
+            Select Table
+            <select value={selectedTableId} onChange={(e) => setSelectedTableId(e.target.value)}>
+              {tableList.map((table) => (
+                <option key={table.id} value={table.id}>{table.displayName}</option>
+              ))}
+            </select>
+          </label>
 
-      {selectedTable && (
-        <div className="info-box">
-          <p><strong>{selectedTable.displayName}</strong>: {selectedTable.description}</p>
-          <p><strong>Primary Key:</strong> {selectedTable.primaryKey}</p>
-          {selectedTable.parentTables && selectedTable.parentTables.length > 0 && (
-            <p><strong>Parent Tables:</strong> {selectedTable.parentTables.join(', ')}</p>
+          <div className="tenant-actions" style={{ marginTop: '1rem' }}>
+            <button className="btn" type="button" onClick={downloadSampleCsv} disabled={!selectedTable}>Download Sample CSV</button>
+            <button className="btn" type="button" onClick={() => setViewTableManager(true)} disabled={!selectedTable}>Open Table Manager CRUD</button>
+          </div>
+
+          {selectedTable && (
+            <div className="info-box" style={{ marginTop: '1rem' }}>
+              <p><strong>{selectedTable.displayName}</strong>: {selectedTable.description}</p>
+              <p><strong>Primary Key:</strong> {selectedTable.primaryKey}</p>
+              {selectedTable.parentTables && selectedTable.parentTables.length > 0 && (
+                <p><strong>Parent Tables:</strong> {selectedTable.parentTables.join(', ')}</p>
+              )}
+            </div>
           )}
         </div>
-      )}
+
+        <CsvUpload
+          selectedTableId={selectedTableId}
+          onUploadComplete={reloadStats}
+        />
+      </div>
 
       {importResult && (
         <div className={importResult.errors.length > 0 ? 'error-box' : 'ok-box'}>

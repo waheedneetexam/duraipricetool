@@ -30,6 +30,7 @@ from app.services.data_management_admin_service import (
     get_table_stats,
     import_table_data,
     list_table_data,
+    parse_csv_text,
     save_table_record,
 )
 from app.services.line_item_config_service import (
@@ -152,6 +153,54 @@ def post_ai_pricing_process_template(payload: AIPricingTemplateProcessRequest, c
 def get_data_table_schemas(context: AuthContext = Depends(require_auth)):
     _require_perm(context, "master_data.read")
     return {"success": True, "data": get_table_schemas()}
+
+
+@router.get("/tables/{table_name}/columns")
+def get_table_columns_endpoint(table_name: str, context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "master_data.read")
+    schemas = get_table_schemas()
+    if table_name not in schemas:
+        return {"success": False, "error": f"Unknown table '{table_name}'"}
+    return {"success": True, "data": schemas[table_name]["fields"]}
+
+
+@router.post("/tables/{table_name}/upload-csv")
+async def post_table_upload_csv(
+    table_name: str,
+    file: UploadFile = File(...),
+    mapping_json: str = Form(default="{}"),
+    update_duplicates: str = Form(default="true"),
+    context: AuthContext = Depends(require_auth)
+):
+    _require_perm(context, "master_data.manage")
+    
+    schemas = get_table_schemas()
+    if table_name not in schemas:
+        return {"success": False, "error": f"Unknown table '{table_name}'"}
+        
+    mapping_payload = json.loads(mapping_json or "{}")
+    should_update = update_duplicates.lower() == "true"
+    
+    content = await file.read()
+    text = content.decode("utf-8", errors="replace")
+    
+    try:
+        raw_rows = parse_csv_text(text)
+        
+        # Apply mapping
+        mapped_rows = []
+        for raw_row in raw_rows:
+            mapped_row = {"_rowNumber": raw_row.get("_rowNumber")}
+            for table_field, csv_header in mapping_payload.items():
+                if csv_header in raw_row:
+                    mapped_row[table_field] = raw_row[csv_header]
+            mapped_rows.append(mapped_row)
+            
+        result = import_table_data(table_id=table_name, rows=mapped_rows, tenant_id=context.tenant_id, update_duplicates=should_update)
+        return {"success": True, "data": result}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}
+
 
 
 @router.get("/data/table/{table_id}")
