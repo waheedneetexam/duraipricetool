@@ -195,6 +195,21 @@ TABLE_DEFS: dict[str, TableDef] = {
         ),
         sample_csv="id,rule_name,description,customer_type,product_category,discount_percent,price_multiplier,priority,active\nrule-001,Enterprise Discount,Standard enterprise discount,Enterprise,,15,,1,true",
     ),
+    "brands": TableDef(
+        id="brands",
+        table_name="brands",
+        display_name="Product Brands",
+        primary_key="brand_code",
+        fields=(
+            FieldDef("brand_code", required=True, unique=True),
+            FieldDef("brand_name", required=True),
+            FieldDef("description"),
+            FieldDef("origin_country"),
+            FieldDef("active", type="boolean"),
+        ),
+        sample_csv="brand_code,brand_name,description,origin_country,active\nB001,Nike,Sportswear,USA,true",
+        requires_validation=True,
+    ),
 }
 
 
@@ -272,6 +287,18 @@ def _ensure_tables() -> None:
             id TEXT PRIMARY KEY, rule_name TEXT NOT NULL, description TEXT, customer_type TEXT, product_category TEXT, discount_percent DOUBLE PRECISION,
             price_multiplier DOUBLE PRECISION, priority INTEGER, active BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS brands (
+            brand_code TEXT PRIMARY KEY, 
+            brand_name TEXT NOT NULL, 
+            description TEXT, 
+            origin_country TEXT, 
+            active BOOLEAN DEFAULT TRUE,
+            tenant_id TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """,
     ]
