@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fourth Week Plan - Pilot Hardening, Reporting, and Operationalization</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f6f8fb; color:#1f2937; }
+    .wrap { max-width: 980px; margin: 20px auto; padding: 0 16px; }
+    .card { background:#fff; border:1px solid #d7dee7; border-radius:10px; padding:20px; }
+    h1, h2, h3 { color:#0f766e; }
+    pre { background:#0f172a; color:#f8fafc; padding:12px; border-radius:8px; overflow:auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    ul, ol { padding-left: 20px; }
+    a { color:#0b63ce; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Fourth Week Plan - Pilot Hardening, Reporting, and Operationalization</h1>
+<h2>Goal</h2>
+<p>Harden Selenium coverage for pilot readiness and produce operational reporting for rollout decisions.</p>
+<h2>Scope</h2>
+<ul>
+<li>Stabilize flaky tests.</li>
+<li>Add analytics and regression checkpoints.</li>
+<li>Prepare execution packs for business and IT sign-off.</li>
+</ul>
+<h2>Selenium Workstream</h2>
+<ol>
+<li>Suite hardening:</li>
+</ol>
+<ul>
+<li>Add explicit wait strategy refinement.</li>
+<li>Add retry strategy for transient UI/network delays.</li>
+<li>Tag tests by priority (`smoke`, `admin`, `quote`, `workflow`, `compliance`).</li>
+</ul>
+<ol>
+<li>Regression pack:</li>
+</ol>
+<ul>
+<li>Daily smoke on production URL.</li>
+<li>Full nightly quote-processing suite across regions.</li>
+<li>Weekly end-to-end compliance suite.</li>
+</ul>
+<ol>
+<li>Analytics checkpoints automation:</li>
+</ol>
+<ul>
+<li>Navigate to analytics screens.</li>
+<li>Validate visibility of key charts and filters.</li>
+<li>Validate drilldown access for quote-related slices.</li>
+</ul>
+<ol>
+<li>Reporting and evidence:</li>
+</ol>
+<ul>
+<li>Export junit/html reports.</li>
+<li>Capture screenshots for each failed assertion.</li>
+<li>Publish weekly summary:</li>
+<li>pass/fail trend</li>
+<li>defects by rule category</li>
+<li>high-risk flows</li>
+</ul>
+<h2>Business Rules Governance Plan</h2>
+<ul>
+<li>Maintain rule catalog mapped to automated test IDs.</li>
+<li>Maintain approval threshold change log by region.</li>
+<li>Introduce release gate: no production release when critical quote-compliance tests fail.</li>
+</ul>
+<h2>Deliverables</h2>
+<ul>
+<li>Pilot-ready Selenium suite and execution guide.</li>
+<li>Weekly dashboard/report template for stakeholders.</li>
+<li>Go-live checklist covering Admin setup, quote processing, and compliance controls.</li>
+</ul>
+<h2>Exit Criteria</h2>
+<ul>
+<li>Stable pilot suite with low flakiness.</li>
+<li>Clear defect/risk visibility for leadership decision.</li>
+<li>Approved readiness to move from pilot to wider rollout.</li>
+</ul>
+    </div>
+  </div>
+</body>
+</html>

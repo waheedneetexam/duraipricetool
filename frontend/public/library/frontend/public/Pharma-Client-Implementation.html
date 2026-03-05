@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pharma Client Implementation Report</title>
+  <style>
+    :root {
+      --bg: #f7faf8;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #4b5563;
+      --accent: #0f766e;
+      --border: #d1d5db;
+    }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(160deg, #eefbf7 0%, var(--bg) 60%, #f3f4f6 100%);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 980px;
+      margin: 28px auto;
+      padding: 0 16px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.06);
+    }
+    h1, h2, h3 {
+      color: #0f172a;
+      margin-top: 0;
+    }
+    h1 {
+      font-size: 1.8rem;
+      border-bottom: 2px solid #99f6e4;
+      padding-bottom: 8px;
+    }
+    h2 {
+      font-size: 1.25rem;
+      margin-top: 24px;
+      color: var(--accent);
+    }
+    h3 {
+      font-size: 1.05rem;
+      margin-top: 16px;
+    }
+    ul, ol {
+      margin-top: 6px;
+      padding-left: 20px;
+    }
+    code {
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 5px;
+      padding: 1px 5px;
+    }
+    .meta {
+      color: var(--muted);
+      margin-bottom: 16px;
+      font-size: 0.95rem;
+    }
+    .highlight {
+      background: #ecfeff;
+      border: 1px solid #99f6e4;
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Pharma Client Implementation Report</h1>
+      <p class="meta">
+        Client profile: Global pharmaceutical manufacturer with multi-region production plants and regional customer quoting needs.<br>
+        Platform: DuraiPricingTool (FastAPI + DuckDB/Postgres hybrid + configurable formula/workflow engine)
+      </p>
+
+      <h2>1) Implementation Start Plan (First 4 Weeks)</h2>
+
+      <h3>Week 1: Data Foundation and Regional Model</h3>
+      <ol>
+        <li>Define master data for products, customers, sellers, and plant-region attributes.</li>
+        <li>Include pharma fields: dosage form, strength, pack size, cold-chain flag, controlled-substance flag, plant code, source country, transfer price, lead time, GMP status.</li>
+        <li>Load baseline data via <code>POST /master/seed-sample-large</code> and <code>POST /admin/data/import/{table_id}</code>.</li>
+        <li>Enable hybrid mode for transactional + analytics scale (<code>DB_ENGINE=hybrid</code>).</li>
+      </ol>
+
+      <h3>Week 2: Quote Structure and Formula Layer</h3>
+      <ol>
+        <li>Configure line-item columns using <code>GET/PUT /admin/line-item-config</code>.</li>
+        <li>Add mandatory quote fields: <code>region</code>, <code>country</code>, <code>incoterm</code>, <code>tender_id</code>, <code>contract_type</code>, <code>fx_rate_date</code>.</li>
+        <li>Add line fields: <code>batch_risk</code>, <code>shelf_life_months</code>, <code>plant_source</code>, <code>cold_chain_cost</code>, <code>regulatory_fee</code>.</li>
+        <li>Implement formulas via <code>POST /quotes/calculate</code> and reusable logic via <code>POST /admin/field-logic/save</code>.</li>
+      </ol>
+
+      <h3>Week 3: Workflow and Approval Governance</h3>
+      <ol>
+        <li>Configure approvals by region and channel using <code>POST /quotes/workflow/evaluate</code> and <code>workflow_rules</code>.</li>
+        <li>Enforce hard stops for non-compliant deals (low margin, invalid shelf-life, unauthorized controlled-substance channel).</li>
+      </ol>
+
+      <h3>Week 4: Pilot and KPI Validation</h3>
+      <ol>
+        <li>Pilot in two regions first (example: NA and EU), then expand.</li>
+        <li>Track KPIs: quote cycle time, approval rate, margin leakage, win rate by region/channel.</li>
+        <li>Validate with <code>/quotes/list</code> and analytics endpoints (<code>/analytics/waterfall</code>, <code>/bar</code>, <code>/time-series</code>, <code>/drilldown</code>).</li>
+      </ol>
+
+      <h2>2) Recommended Business Rules for Multi-Region Pharma Quoting</h2>
+
+      <h3>A. Price Construction Rules</h3>
+      <ol>
+        <li><strong>Base Price:</strong> Regional list price by SKU and country.</li>
+        <li><strong>Plant Sourcing:</strong> Select source plant by regulatory approval, capacity, and landed cost.</li>
+        <li><strong>Landed Cost:</strong> <code>landed_cost = ex_plant_cost + freight + cold_chain_cost + duty + insurance</code>.</li>
+        <li><strong>FX Rule:</strong> Convert using approved treasury rate; lock rate for quote validity.</li>
+        <li><strong>Net Price:</strong> <code>net_price = list_price - contract_discount - volume_discount - tender_discount + surcharge</code>.</li>
+      </ol>
+
+      <h3>B. Margin and Compliance Guardrails</h3>
+      <ol>
+        <li>Define minimum gross margin thresholds by region and channel.</li>
+        <li>Block quote if controlled-substance license or eligibility is missing.</li>
+        <li>Require QA approval when cold-chain route/lead-time violates stability constraints.</li>
+        <li>Enforce minimum remaining shelf-life percentage at delivery.</li>
+      </ol>
+
+      <h3>C. Volume, Tender, and Contract Rules</h3>
+      <ol>
+        <li>Apply discounts only from approved tier tables.</li>
+        <li>Allow tender contracts to override commercial list only within approved floor rules.</li>
+        <li>Separate off-invoice rebates from invoice discounts for compliance and analytics transparency.</li>
+      </ol>
+
+      <h3>D. Intercompany and Multi-Plant Rules</h3>
+      <ol>
+        <li>Set transfer price floor by source plant and legal entity.</li>
+        <li>Route for finance approval when transfer floor would be breached.</li>
+        <li>Trigger regional finance review when plant-country mismatch occurs.</li>
+      </ol>
+
+      <h3>E. Workflow Rules</h3>
+      <ol>
+        <li>Auto-approve when margin and discount are within policy.</li>
+        <li>Sales manager approval for moderate threshold breaches.</li>
+        <li>Regional pricing head approval for large deals or tender exceptions.</li>
+        <li>Finance/CFO approval for floor breaches, high FX volatility, or intercompany exceptions.</li>
+        <li>QA/Regulatory co-approval for cold-chain risk and controlled-substance products.</li>
+      </ol>
+
+      <h2>3) DuraiPricingTool Configuration Blueprint</h2>
+      <ol>
+        <li>Add master data tables: <code>regional_price_list</code>, <code>plant_costs</code>, <code>fx_rates</code>, <code>tender_contracts</code>, <code>regulatory_rules</code>, <code>channel_discounts</code>, <code>freight_lanes</code>.</li>
+        <li>Apply formula order: cost build -> discounts/surcharges -> net price -> margin -> validations.</li>
+        <li>Use validation levels: <code>warning</code> for policy deviation, <code>error</code> for compliance breach.</li>
+        <li>Persist audit trail: rule version, approver role, timestamp, and reason.</li>
+        <li>Add analytics: margin bridge by region, plant-source impact, tender vs non-tender profitability.</li>
+      </ol>
+
+      <h2>4) Target Outcome</h2>
+      <p class="highlight">
+        A controlled multi-region quote process with region-aware pricing, plant-aware cost-to-serve logic,
+        compliance-first approvals, and measurable margin protection across global pharma operations.
+      </p>
+    </div>
+  </div>
+</body>
+</html>

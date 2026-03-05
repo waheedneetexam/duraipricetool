@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Validation Documentation</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f6f8fb; color:#1f2937; }
+    .wrap { max-width: 980px; margin: 20px auto; padding: 0 16px; }
+    .card { background:#fff; border:1px solid #d7dee7; border-radius:10px; padding:20px; }
+    h1, h2, h3 { color:#0f766e; }
+    pre { background:#0f172a; color:#f8fafc; padding:12px; border-radius:8px; overflow:auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    ul, ol { padding-left: 20px; }
+    a { color:#0b63ce; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Validation Documentation</h1>
+<h2>Objective</h2>
+<p>Implement the new Admin capabilities using the provided specifications so that:</p>
+<ul>
+<li>Table Manager uses the target design language consistently.</li>
+<li>Line Item Configurator behavior matches `LineItemConfiguration.md`.</li>
+<li>AI Pricing Engine flow matches `AIPricingEngineConfiguration.md`.</li>
+<li>Field logic validation and error handling align with the guides.</li>
+<li>Database changes are applied first to support safe feature rollout.</li>
+</ul>
+<h2>Implementation Order</h2>
+<h3>1. Baseline and Gap Validation</h3>
+<ul>
+<li>Review current Admin UI (`frontend/src/components/AdminScreen.tsx`) and existing line-item config flow.</li>
+<li>Map current API and schema coverage against:</li>
+<li>`LineItemConfiguration.md`</li>
+<li>`AIPricingEngineConfiguration.md`</li>
+<li>`FIELD_LOGIC_GUIDE.md`</li>
+<li>`PRICING_ENGINE_GUIDE.md`</li>
+<li>`ERROR_RESOLUTION.md`</li>
+<li>Produce a gap checklist (implemented / missing / partial).</li>
+</ul>
+<h3>2. Database and Schema Changes (First)</h3>
+<ul>
+<li>Add/extend tables for configurable field logic and AI engine persistence (Postgres + DuckDB parity).</li>
+<li>Ensure existing `line_item_column_configs` supports required attributes (validation, options, descriptions, ordering fidelity).</li>
+<li>Add structures for:</li>
+<li>field-level logic definitions and versions</li>
+<li>validation results/errors</li>
+<li>AI-generated config artifacts and status</li>
+<li>Add indexes for tenant lookup, field lookup, and update-time queries.</li>
+<li>Keep migration scripts idempotent (`CREATE TABLE IF NOT EXISTS`, safe ALTER path).</li>
+</ul>
+<h3>3. Backend API Layer</h3>
+<ul>
+<li>Extend admin routes with endpoints for:</li>
+<li>full line-item field CRUD + reorder</li>
+<li>field logic validate/generate/save lifecycle</li>
+<li>AI pricing template validate/process/apply lifecycle</li>
+<li>Add strong request/response models in `app/models/schemas.py`.</li>
+<li>Add service layer functions with DB-engine-aware persistence (`postgres` / `duckdb` / `hybrid`).</li>
+<li>Enforce server-side validation for:</li>
+<li>unique field names</li>
+<li>valid identifiers</li>
+<li>formula reference checks</li>
+<li>required table/column dependency checks</li>
+</ul>
+<h3>4. Admin UI Implementation</h3>
+<ul>
+<li>Refactor Admin into tabbed modules:</li>
+<li>Data Management (existing)</li>
+<li>Line Item Configurator</li>
+<li>Field Logic Manager</li>
+<li>AI Pricing Engine</li>
+<li>Reuse existing project design tokens/components so Table Manager design is consistent.</li>
+<li>Build:</li>
+<li>add/edit/delete/reorder field UI</li>
+<li>formula builder/editors with validation status</li>
+<li>AI YAML template editor with processing/results panels</li>
+<li>dependency/error panels with actionable suggestions</li>
+</ul>
+<h3>5. Validation and Error Handling</h3>
+<ul>
+<li>Implement validation pipeline with typed severities (`error`, `warning`, `info`).</li>
+<li>Add clear user-facing error messages + fix suggestions per docs.</li>
+<li>Keep non-blocking warnings and block on hard validation errors.</li>
+<li>Preserve robust UI error boundaries and console filtering behavior already documented.</li>
+</ul>
+<h3>6. Integration with Runtime Pricing Table</h3>
+<ul>
+<li>Ensure configured columns/logic are reflected immediately in quote line-item interface.</li>
+<li>Maintain backward compatibility for tenants with existing configs.</li>
+<li>Add safe fallback to defaults when config is missing or invalid.</li>
+</ul>
+<h3>7. Testing and Verification</h3>
+<ul>
+<li>Backend:</li>
+<li>unit tests for config validation and persistence paths</li>
+<li>API tests for CRUD/validate/process endpoints</li>
+<li>Frontend:</li>
+<li>component-level behavior checks for add/edit/reorder/validation flows</li>
+<li>Manual verification:</li>
+<li>tenant isolation</li>
+<li>formula execution order</li>
+<li>AI config apply path</li>
+<li>error recovery scenarios from docs</li>
+</ul>
+<h3>8. Rollout Strategy</h3>
+<ul>
+<li>Deploy schema changes first.</li>
+<li>Enable new endpoints and UI behind safe defaults.</li>
+<li>Run seed/smoke validation on sample data.</li>
+<li>Monitor logs for validation failures and migration drift.</li>
+</ul>
+<h2>Deliverables</h2>
+<ul>
+<li>Updated DB schemas (`app/db/postgres_schema.sql`, `app/db/schema.sql`) and migration-safe service guards.</li>
+<li>Updated admin APIs and schemas.</li>
+<li>New/updated frontend Admin modules for configurator, logic manager, and AI engine.</li>
+<li>Validation + error resolution paths aligned to provided documentation.</li>
+<li>Test coverage for critical flows.</li>
+</ul>
+<h2>Acceptance Criteria</h2>
+<ul>
+<li>Admin users can configure, reorder, and validate line-item fields end-to-end.</li>
+<li>Field logic can be validated, corrected, and saved permanently with versionability.</li>
+<li>AI template can be processed and applied into executable configuration.</li>
+<li>Table Manager renders with the intended design and respects new config at runtime.</li>
+<li>No regression in existing data import/sync/formula flows.</li>
+</ul>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Second Week Plan - Admin Configuration Automation</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f6f8fb; color:#1f2937; }
+    .wrap { max-width: 980px; margin: 20px auto; padding: 0 16px; }
+    .card { background:#fff; border:1px solid #d7dee7; border-radius:10px; padding:20px; }
+    h1, h2, h3 { color:#0f766e; }
+    pre { background:#0f172a; color:#f8fafc; padding:12px; border-radius:8px; overflow:auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    ul, ol { padding-left: 20px; }
+    a { color:#0b63ce; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Second Week Plan - Admin Configuration Automation</h1>
+<h2>Goal</h2>
+<p>Automate Admin workflows needed to configure quote-processing foundations for a multi-region pharma client.</p>
+<h2>Scope</h2>
+<ul>
+<li>Automate master data setup actions in Admin.</li>
+<li>Automate line-item/header configuration checks.</li>
+<li>Automate field logic validation flow (without complex rule coding yet).</li>
+</ul>
+<h2>Selenium Workstream</h2>
+<ol>
+<li>Admin navigation automation:</li>
+</ol>
+<ul>
+<li>Open app and go to `Admin`.</li>
+<li>Navigate tabs: `Master Data`, `Line Item Config`, `Field Logic`, `Data Management`.</li>
+</ul>
+<ol>
+<li>Master data automation plan:</li>
+</ol>
+<ul>
+<li>Create/read/update/delete validations for core entities:</li>
+<li>Products</li>
+<li>Customers</li>
+<li>Sellers</li>
+<li>Validate required attributes:</li>
+<li>Product: cold-chain flag, controlled-substance flag.</li>
+<li>Customer: region, country, channel, segment.</li>
+</ul>
+<ol>
+<li>Line item config automation plan:</li>
+</ol>
+<ul>
+<li>Validate presence of mandatory columns for pharma quoting:</li>
+<li>`plant_source`, `shelf_life_months`, `cold_chain_cost`, `regulatory_fee`.</li>
+<li>Validate visible/mandatory/editable settings and save behavior.</li>
+</ul>
+<ol>
+<li>Field logic flow automation plan:</li>
+</ol>
+<ul>
+<li>Navigate to Field Logic Manager.</li>
+<li>Input sample logic text.</li>
+<li>Trigger validate action.</li>
+<li>Assert success/warning/error response containers.</li>
+</ul>
+<h2>Business Rules Planning (to automate later)</h2>
+<ul>
+<li>Enforce mandatory plant and region dimensions.</li>
+<li>Enforce controlled-substance eligibility checks by customer/country.</li>
+<li>Enforce shelf-life fields for temperature-sensitive products.</li>
+</ul>
+<h2>Deliverables</h2>
+<ul>
+<li>Admin page objects and locators.</li>
+<li>Admin smoke + CRUD/checkpoint test cases.</li>
+<li>Validation checklist for pharma-specific configuration fields.</li>
+</ul>
+<h2>Exit Criteria</h2>
+<ul>
+<li>Admin flows can be executed end-to-end by automation without manual intervention.</li>
+<li>Mandatory configuration fields are verified and recorded in test reports.</li>
+</ul>
+    </div>
+  </div>
+</body>
+</html>

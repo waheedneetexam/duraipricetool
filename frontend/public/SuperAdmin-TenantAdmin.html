@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SuperAdmin vs TenantAdmin Responsibilities</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f6f8fb; color: #1f2937; }
+    .wrap { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    .card { background: #fff; border: 1px solid #d7dee7; border-radius: 10px; padding: 20px; }
+    h1 { margin-top: 0; }
+    h2 { color: #0f766e; margin-top: 22px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #d7dee7; padding: 10px; text-align: left; vertical-align: top; }
+    th { background: #eef6ff; }
+    code { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 1px 5px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>SuperAdmin vs TenantAdmin: What They Can Do</h1>
+      <p>Context: multi-tenant DuraiPricingTool with tenant-scoped roles and permissions.</p>
+
+      <h2>Role Comparison</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Capability</th>
+            <th>SuperAdmin</th>
+            <th>TenantAdmin</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Tenant Management</td>
+            <td>Create, suspend, reactivate, and delete tenants.</td>
+            <td>Manage only the assigned tenant settings.</td>
+          </tr>
+          <tr>
+            <td>User Management</td>
+            <td>Create platform users; assign users across tenants.</td>
+            <td>Create users inside own tenant only.</td>
+          </tr>
+          <tr>
+            <td>Role Assignment</td>
+            <td>Grant/revoke any role, including TenantAdmin.</td>
+            <td>Grant tenant-level business roles (not SuperAdmin).</td>
+          </tr>
+          <tr>
+            <td>Access Scope</td>
+            <td>All tenants and global administration APIs.</td>
+            <td>Single tenant data and configurations.</td>
+          </tr>
+          <tr>
+            <td>Master Data</td>
+            <td>Can view/fix any tenant master data issues.</td>
+            <td>Full CRUD on own tenant master data.</td>
+          </tr>
+          <tr>
+            <td>Workflow Rules</td>
+            <td>Can enforce global guardrails/templates.</td>
+            <td>Configure approval rules for own tenant.</td>
+          </tr>
+          <tr>
+            <td>Quotes</td>
+            <td>Cross-tenant support view (audited), emergency override policy.</td>
+            <td>Full quote operations within tenant policy limits.</td>
+          </tr>
+          <tr>
+            <td>Audit & Compliance</td>
+            <td>Platform-wide audit access and compliance export.</td>
+            <td>Tenant-level audit access only.</td>
+          </tr>
+          <tr>
+            <td>Security Policies</td>
+            <td>Set platform defaults (password, SSO, token policy).</td>
+            <td>Can apply tenant options within platform limits.</td>
+          </tr>
+          <tr>
+            <td>Billing / Licensing</td>
+            <td>Manage subscription, usage limits, and plan controls.</td>
+            <td>View tenant usage; no cross-tenant billing actions.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Recommended Permission Keys</h2>
+      <p><strong>SuperAdmin</strong>: <code>platform.tenants.manage</code>, <code>platform.users.manage</code>, <code>platform.audit.read</code>, <code>platform.security.manage</code></p>
+      <p><strong>TenantAdmin</strong>: <code>tenant.users.manage</code>, <code>tenant.roles.assign</code>, <code>tenant.masterdata.manage</code>, <code>tenant.workflow.manage</code>, <code>tenant.audit.read</code></p>
+
+      <h2>Hard Restrictions</h2>
+      <ol>
+        <li>TenantAdmin must never access another tenant’s rows.</li>
+        <li>TenantAdmin cannot assign or remove SuperAdmin role.</li>
+        <li>Cross-tenant support by SuperAdmin must be fully audited.</li>
+      </ol>
+    </div>
+  </div>
+</body>
+</html>

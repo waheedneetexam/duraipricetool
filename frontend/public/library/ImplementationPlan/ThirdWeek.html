@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Third Week Plan - Quote Processing and Workflow Automation</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f6f8fb; color:#1f2937; }
+    .wrap { max-width: 980px; margin: 20px auto; padding: 0 16px; }
+    .card { background:#fff; border:1px solid #d7dee7; border-radius:10px; padding:20px; }
+    h1, h2, h3 { color:#0f766e; }
+    pre { background:#0f172a; color:#f8fafc; padding:12px; border-radius:8px; overflow:auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    ul, ol { padding-left: 20px; }
+    a { color:#0b63ce; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Third Week Plan - Quote Processing and Workflow Automation</h1>
+<h2>Goal</h2>
+<p>Automate quote-processing journeys for different regional clients, including approvals and exception routing.</p>
+<h2>Scope</h2>
+<ul>
+<li>Create regional quote scenarios.</li>
+<li>Validate pricing workflow transitions.</li>
+<li>Validate policy and compliance guardrail behavior.</li>
+</ul>
+<h2>Selenium Workstream</h2>
+<ol>
+<li>Quote creation flow automation:</li>
+</ol>
+<ul>
+<li>Navigate to Quote screen.</li>
+<li>Create quote header for each region (NA/EU/APAC/LATAM).</li>
+<li>Add line items with pharma attributes (plant, shelf-life, cold-chain).</li>
+<li>Save and reopen quote to verify persistence.</li>
+</ul>
+<ol>
+<li>Workflow transition automation:</li>
+</ol>
+<ul>
+<li>Submit Draft to Pending Approval.</li>
+<li>Validate route by discount/margin thresholds.</li>
+<li>Validate role-based next-step indicators (Sales Manager, Regional Head, Finance, QA/Regulatory).</li>
+</ul>
+<ol>
+<li>Regional scenario pack:</li>
+</ol>
+<ul>
+<li>NA commercial quote (standard approval).</li>
+<li>EU hospital quote (stricter margin and compliance checks).</li>
+<li>APAC distributor quote (FX sensitivity).</li>
+<li>LATAM tender quote (floor-price exception path).</li>
+</ul>
+<ol>
+<li>Negative-path automation:</li>
+</ol>
+<ul>
+<li>Missing controlled-substance eligibility -&gt; block submission.</li>
+<li>Shelf-life below threshold -&gt; warning/error path.</li>
+<li>Margin below floor -&gt; escalation required.</li>
+</ul>
+<h2>Business Rules Planning (to automate later)</h2>
+<ul>
+<li>Net price sequence: list -&gt; discounts/tender -&gt; surcharge -&gt; net.</li>
+<li>Margin gates by region/channel.</li>
+<li>Compliance hard stops for restricted products/channels.</li>
+<li>Intercompany/plant transfer floor review triggers.</li>
+</ul>
+<h2>Deliverables</h2>
+<ul>
+<li>Quote page object coverage.</li>
+<li>Regional quote test suite.</li>
+<li>Workflow transition matrix with expected approvers.</li>
+<li>Defect log template mapped to business rules.</li>
+</ul>
+<h2>Exit Criteria</h2>
+<ul>
+<li>Regional quote flows run end-to-end with deterministic assertions.</li>
+<li>Blockers/warnings/escalations are correctly detected by automation.</li>
+</ul>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>First Week Plan - Selenium Automation Foundation</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f6f8fb; color:#1f2937; }
+    .wrap { max-width: 980px; margin: 20px auto; padding: 0 16px; }
+    .card { background:#fff; border:1px solid #d7dee7; border-radius:10px; padding:20px; }
+    h1, h2, h3 { color:#0f766e; }
+    pre { background:#0f172a; color:#f8fafc; padding:12px; border-radius:8px; overflow:auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    ul, ol { padding-left: 20px; }
+    a { color:#0b63ce; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>First Week Plan - Selenium Automation Foundation</h1>
+<h2>Goal</h2>
+<p>Set up a stable Selenium automation baseline for the DuraiPricingTool web app and prepare regional pharma test data for quote processing scenarios.</p>
+<h2>Scope</h2>
+<ul>
+<li>Create automation project structure for UI regression and workflow validation.</li>
+<li>Validate access and navigation across key screens.</li>
+<li>Build reusable login and navigation utilities.</li>
+<li>Prepare data assumptions for multi-region plants and clients.</li>
+</ul>
+<h2>Selenium Workstream</h2>
+<ol>
+<li>Initialize framework:</li>
+</ol>
+<ul>
+<li>Python + Selenium + pytest + page object model.</li>
+<li>Config for environments (`prod`, `staging`) and credentials.</li>
+<li>Browser setup for Chrome headless/headed.</li>
+</ul>
+<ol>
+<li>Build base components:</li>
+</ol>
+<ul>
+<li>`BasePage` (waits, click, type, retry wrappers).</li>
+<li>`LoginPage` (if auth exists) and session bootstrap.</li>
+<li>`HomePage` navigation helpers.</li>
+<li>Screenshot and HTML dump on failures.</li>
+</ul>
+<ol>
+<li>Validate critical navigation paths:</li>
+</ol>
+<ul>
+<li>Open `https://duraiprice.swapunits.online`.</li>
+<li>Navigate to `Admin`.</li>
+<li>Navigate to quote-related screens (`Quote`, `Line Item`, `Analytics` where available).</li>
+<li>Confirm each screen has expected anchor element.</li>
+</ul>
+<ol>
+<li>Add smoke tests:</li>
+</ol>
+<ul>
+<li>App availability test.</li>
+<li>Admin screen load test.</li>
+<li>Master Data screen load test.</li>
+<li>Quotes screen load test.</li>
+</ul>
+<h2>Business Rules Planning (to automate later)</h2>
+<ul>
+<li>Region mandatory in quote header.</li>
+<li>Plant source required for pharma line items.</li>
+<li>Country/channel must be valid for controlled products.</li>
+<li>Currency/FX date field must exist for regional processing.</li>
+</ul>
+<h2>Deliverables</h2>
+<ul>
+<li>Selenium framework skeleton.</li>
+<li>Smoke navigation test suite.</li>
+<li>Selector inventory for Admin and Quote screens.</li>
+<li>Test data matrix draft for regions: NA, EU, APAC, LATAM.</li>
+</ul>
+<h2>Exit Criteria</h2>
+<ul>
+<li>Tests run reliably in CI/local with &gt;=95% pass rate for smoke set.</li>
+<li>All key pages open and selectors are stable for future workflow automation.</li>
+</ul>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Pricing Engine Configuration - Technical Specification</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f6f8fb; color:#1f2937; }
+    .wrap { max-width: 980px; margin: 20px auto; padding: 0 16px; }
+    .card { background:#fff; border:1px solid #d7dee7; border-radius:10px; padding:20px; }
+    h1, h2, h3 { color:#0f766e; }
+    pre { background:#0f172a; color:#f8fafc; padding:12px; border-radius:8px; overflow:auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    ul, ol { padding-left: 20px; }
+    a { color:#0b63ce; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>AI Pricing Engine Configuration - Technical Specification</h1>
+<h2>Overview</h2>
+<p>Create an **AI Pricing Engine** that uses OpenAI GPT-4o to interpret natural language pricing requirements from YAML templates and automatically configure quote header fields, line item fields, and calculation rules.</p>
+<h2>Purpose</h2>
+<p>Enable non-technical business users to define complex pricing logic by filling out a structured template in plain English, which AI then translates into executable pricing configurations.</p>
+<p>---</p>
+<h2>Technical Requirements</h2>
+<h3>Component Location</h3>
+<ul>
+<li>**Main Component**: `/src/app/components/AIPricingEngine.tsx`</li>
+<li>**Sub-components**:</li>
+<li>Template editor modal</li>
+<li>Processing status display</li>
+<li>Results preview</li>
+<li>Settings panel</li>
+<li>**Backend**: `/supabase/functions/server/index.tsx` (AI processing endpoints)</li>
+</ul>
+<h3>Dependencies</h3>
+<pre><code class="language-typescript">
+import React, { useState, useEffect } from &#x27;react&#x27;;
+import { 
+  Sparkles, Upload, Download, Settings, Play, CheckCircle, 
+  AlertCircle, Zap, FileText, Code, Brain, Loader
+} from &#x27;lucide-react&#x27;;
+import { Button } from &#x27;./ui/button&#x27;;
+import { Card } from &#x27;./ui/card&#x27;;
+import { Tabs, TabsContent, TabsList, TabsTrigger } from &#x27;./ui/tabs&#x27;;
+import { Textarea } from &#x27;./ui/textarea&#x27;;
+import { Input } from &#x27;./ui/input&#x27;;
+import { Label } from &#x27;./ui/label&#x27;;
+import { Alert, AlertDescription } from &#x27;./ui/alert&#x27;;
+import { projectId, publicAnonKey } from &#x27;/utils/supabase/info&#x27;;
+</code></pre>
+<p>---</p>
+<h2>YAML Template Structure</h2>
+<h3>Complete Template Format</h3>
+<pre><code class="language-yaml">
+# Pricing Requirements Template
+# Fill out this template with your business requirements
+
+company_info:
+  name: &quot;Acme Corporation&quot;
+  industry: &quot;Software/SaaS&quot;
+  pricing_model: &quot;Subscription with volume discounts&quot;
+
+quote_header_fields:
+  - name: &quot;customer_id&quot;
+    display: &quot;Customer&quot;
+    type: &quot;text&quot;
+    required: true
+    description: &quot;Customer identifier&quot;
+  
+  - name: &quot;quote_date&quot;
+    display: &quot;Quote Date&quot;
+    type: &quot;date&quot;
+    required: true
+    description: &quot;Date quote was created&quot;
+  
+  - name: &quot;total_amount&quot;
+    display: &quot;Total Amount&quot;
+    type: &quot;currency&quot;
+    calculated: true
+    description: &quot;Sum of all line item extended prices&quot;
+    logic: &quot;Sum all line item extended_price values&quot;
+
+line_item_fields:
+  - name: &quot;product_sku&quot;
+    display: &quot;Product SKU&quot;
+    type: &quot;text&quot;
+    required: true
+    description: &quot;Product identifier&quot;
+  
+  - name: &quot;quantity&quot;
+    display: &quot;Quantity&quot;
+    type: &quot;number&quot;
+    required: true
+    default_value: 1
+    description: &quot;Number of units&quot;
+  
+  - name: &quot;unit_price&quot;
+    display: &quot;Unit Price&quot;
+    type: &quot;currency&quot;
+    required: true
+    description: &quot;Price per unit&quot;
+    logic: |
+      Look up standard_price from products table by product_sku.
+      If customer_segment is Enterprise, apply 15% discount.
+      If quantity &gt; 100, apply additional 10% volume discount.
+  
+  - name: &quot;extended_price&quot;
+    display: &quot;Extended Price&quot;
+    type: &quot;currency&quot;
+    calculated: true
+    description: &quot;Total price for this line&quot;
+    logic: &quot;quantity * unit_price&quot;
+
+pricing_rules:
+  - name: &quot;volume_discount&quot;
+    description: &quot;Apply tiered volume discounts&quot;
+    logic: |
+      If total quantity across all line items &gt; 1000:
+        Apply 20% discount to all line items
+      Else if total quantity &gt; 500:
+        Apply 15% discount to all line items
+      Else if total quantity &gt; 100:
+        Apply 10% discount to all line items
+  
+  - name: &quot;customer_segment_pricing&quot;
+    description: &quot;Different pricing for customer segments&quot;
+    logic: |
+      Look up customer_segment from customers table by customer_id.
+      Enterprise customers get list_price * 0.85
+      Mid-market customers get list_price * 0.90
+      SMB customers get list_price * 0.95
+  
+  - name: &quot;margin_validation&quot;
+    description: &quot;Ensure minimum margin percentage&quot;
+    logic: |
+      For each line item:
+        Calculate margin = (unit_price - cost) / unit_price * 100
+        If margin &lt; 20%, flag as warning
+        If margin &lt; 10%, flag as error and require approval
+
+table_dependencies:
+  - name: &quot;products&quot;
+    description: &quot;Product catalog with SKU, name, cost, standard price&quot;
+    required_columns: [&quot;product_sku&quot;, &quot;product_name&quot;, &quot;standard_price&quot;, &quot;cost&quot;]
+  
+  - name: &quot;customers&quot;
+    description: &quot;Customer master data&quot;
+    required_columns: [&quot;customer_id&quot;, &quot;customer_name&quot;, &quot;customer_segment&quot;]
+  
+  - name: &quot;volume_discounts&quot;
+    description: &quot;Volume discount tiers&quot;
+    required_columns: [&quot;min_quantity&quot;, &quot;max_quantity&quot;, &quot;discount_percent&quot;]
+
+calculation_priorities:
+  - field: &quot;unit_price&quot;
+    priority: 1
+    reason: &quot;Must be calculated before extended_price&quot;
+  
+  - field: &quot;extended_price&quot;
+    priority: 2
+    reason: &quot;Depends on unit_price and quantity&quot;
+  
+  - field: &quot;total_amount&quot;
+    priority: 3
+    reason: &quot;Depends on all line item extended_price values&quot;
+
+special_requirements:
+  - &quot;All currency values should be rounded to 2 decimal places&quot;
+  - &quot;Discounts cannot be stacked beyond 50% total&quot;
+  - &quot;Quotes over $100,000 require manager approval&quot;
+  - &quot;Customer segment must be validated before pricing&quot;
+</code></pre>
+<h3>Minimal Template (Starter)</h3>
+<pre><code class="language-yaml">
+company_info:
+  name: &quot;My Company&quot;
+  industry: &quot;General&quot;
+
+quote_header_fields:
+  - name: &quot;customer_name&quot;
+    display: &quot;Customer Name&quot;
+    type: &quot;text&quot;
+    required: true
+
+line_item_fields:
+  - name: &quot;product_name&quot;
+    display: &quot;Product&quot;
+    type: &quot;text&quot;
+    required: true
+  
+  - name: &quot;quantity&quot;
+    display: &quot;Qty&quot;
+    type: &quot;number&quot;
+    required: true
+    default_value: 1
+  
+  - name: &quot;unit_price&quot;
+    display: &quot;Unit Price&quot;
+    type: &quot;currency&quot;
+    required: true
+  
+  - name: &quot;extended_price&quot;
+    display: &quot;Total&quot;
+    type: &quot;currency&quot;
+    calculated: true
+    logic: &quot;quantity * unit_price&quot;
+
+pricing_rules: []
+
+table_dependencies: []
+</code></pre>
+<p>---</p>
+<h2>Component Structure</h2>
+<h3>Main Component States</h3>
+<pre><code class="language-typescript">
+interface AIPricingEngineState {
+  template: string;
+  processing: boolean;
+  processedResults: ProcessedConfiguration | null;
+  errors: ValidationError[];
+  apiKey: string;
+  showSettings: boolean;
+  activeTab: &#x27;editor&#x27; | &#x27;results&#x27; | &#x27;settings&#x27;;
+}
+
+interface ProcessedConfiguration {
+  headerFields: HeaderField[];
+  lineItemFields: LineItemField[];
+  calculationRules: CalculationRule[];
+  tableDependencies: TableDependency[];
+  validationErrors: ValidationError[];
+  summary: string;
+  confidence: number; // 0-100
+}
+
+interface ValidationError {
+  type: &#x27;missing_table&#x27; | &#x27;invalid_logic&#x27; | &#x27;syntax_error&#x27; | &#x27;missing_dependency&#x27;;
+  field?: string;
+  message: string;
+  severity: &#x27;error&#x27; | &#x27;warning&#x27; | &#x27;info&#x27;;
+  suggestion: string;
+}
+
+interface CalculationRule {
+  id: string;
+  name: string;
+  description: string;
+  type: &#x27;header&#x27; | &#x27;line_item&#x27; | &#x27;aggregate&#x27;;
+  fieldName: string;
+  formula: string;
+  priority: number;
+  dependencies: string[];
+  generatedCode: string;
+}
+</code></pre>
+<h3>UI Layout</h3>
+<pre><code>
+┌──────────────────────────────────────────────────────────────┐
+│ 🤖 AI Pricing Engine                         [Settings] [?]  │
+├──────────────────────────────────────────────────────────────┤
+│                                                               │
+│  [Editor] [Results] [Settings]                               │
+│                                                               │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │ YAML Template Editor                                   │  │
+│  │                                                         │  │
+│  │ company_info:                                          │  │
+│  │   name: &quot;Acme Corp&quot;                                    │  │
+│  │   industry: &quot;Software&quot;                                 │  │
+│  │                                                         │  │
+│  │ quote_header_fields:                                   │  │
+│  │   - name: &quot;customer_id&quot;                                │  │
+│  │     display: &quot;Customer&quot;                                │  │
+│  │     type: &quot;text&quot;                                       │  │
+│  │                                                         │  │
+│  │ line_item_fields:                                      │  │
+│  │   - name: &quot;quantity&quot;                                   │  │
+│  │     type: &quot;number&quot;                                     │  │
+│  │     logic: &quot;User enters quantity&quot;                      │  │
+│  │                                                         │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                               │
+│  [📥 Load Template] [💾 Save Template] [✨ Process with AI]  │
+│                                                               │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │ ℹ️ Processing Status                                    │  │
+│  │                                                         │  │
+│  │ ⏳ Analyzing requirements...                           │  │
+│  │ ✅ Header fields configured (5 fields)                 │  │
+│  │ ✅ Line item fields configured (8 fields)              │  │
+│  │ ⏳ Generating calculation rules...                     │  │
+│  │ ⚠️  Warning: Table &quot;volume_discounts&quot; not found        │  │
+│  │                                                         │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                               │
+└──────────────────────────────────────────────────────────────┘
+</code></pre>
+<p>---</p>
+<h2>AI Processing Workflow</h2>
+<h3>Step-by-Step Process</h3>
+<pre><code>
+1. User fills YAML template
+         ↓
+2. Click &quot;Process with AI&quot;
+         ↓
+3. Frontend sends template to backend
+         ↓
+4. Backend calls OpenAI GPT-4o
+         ↓
+5. AI analyzes requirements:
+   - Parses YAML structure
+   - Identifies all fields
+   - Extracts pricing logic
+   - Determines dependencies
+   - Generates formulas
+   - Creates calculation order
+         ↓
+6. Backend validates AI output:
+   - Check table references
+   - Verify field names
+   - Validate formulas
+   - Detect circular dependencies
+         ↓
+7. Return structured configuration
+         ↓
+8. Frontend displays results
+         ↓
+9. User reviews and applies
+         ↓
+10. Configuration saved to database
+</code></pre>
+<p>---</p>
+<h2>Backend API Endpoints</h2>
+<h3>1. Process Pricing Requirements</h3>
+<pre><code class="language-typescript">
+POST /make-server-acb28b15/ai-pricing/process
+
+Request Body:
+{
+  template: string;  // YAML template content
+  validateTables: boolean;  // Check if tables exist
+}
+
+Response:
+{
+  success: boolean;
+  data: {
+    headerFields: HeaderField[];
+    lineItemFields: LineItemField[];
+    calculationRules: CalculationRule[];
+    tableDependencies: string[];
+    validationErrors: ValidationError[];
+    summary: string;
+    processingTime: number;  // milliseconds
+  };
+  error?: string;
+}
+</code></pre>
+<h3>2. Save Configuration</h3>
+<pre><code class="language-typescript">
+POST /make-server-acb28b15/ai-pricing/save
+
+Request Body:
+{
+  configuration: ProcessedConfiguration;
+  overwrite: boolean;  // Overwrite existing config
+}
+
+Response:
+{
+  success: boolean;
+  message: string;
+}
+</code></pre>
+<h3>3. Get Current Configuration</h3>
+<pre><code class="language-typescript">
+GET /make-server-acb28b15/ai-pricing/current
+
+Response:
+{
+  success: boolean;
+  data: {
+    template: string;
+    configuration: ProcessedConfiguration;
+    lastUpdated: string;
+  };
+}
+</code></pre>
+<h3>4. Validate Template</h3>
+<pre><code class="language-typescript">
+POST /make-server-acb28b15/ai-pricing/validate
+
+Request Body:
+{
+  template: string;
+}
+
+Response:
+{
+  success: boolean;
+  valid: boolean;
+  errors: ValidationError[];
+}
+</code></pre>
+<h3>5. API Key Management</h3>
+<pre><code class="language-typescript">
+POST /make-server-acb28b15/ai-pricing/settings/api-key
+
+Request Body:
+{
+  apiKey: string;
+}
+
+Response:
+{
+  success: boolean;
+  message: string;
+}
+
+GET /make-server-acb28b15/ai-pricing/settings/api-key
+
+Response:
+{
+  success: boolean;
+  hasKey: boolean;  // Don&#x27;t return actual key
+  keyPrefix?: string;  // e.g., &quot;sk-...abc&quot;
+}
+</code></pre>
+<p>---</p>
+<h2>Backend Implementation</h2>
+<h3>OpenAI Integration</h3>
+<pre><code class="language-typescript">
+app.post(&quot;/make-server-acb28b15/ai-pricing/process&quot;, async (c) =&gt; {
+  try {
+    const { template, validateTables = true } = await c.req.json();
+    
+    // Get OpenAI API key from settings
+    const apiKey = await kv.get(&quot;config:openai_api_key&quot;);
+    if (!apiKey) {
+      return c.json({ 
+        success: false, 
+        error: &quot;OpenAI API key not configured. Please add it in Settings.&quot; 
+      }, 400);
+    }
+    
+    console.log(&quot;Processing pricing requirements with AI...&quot;);
+    const startTime = Date.now();
+    
+    // Parse YAML template
+    let parsedTemplate;
+    try {
+      parsedTemplate = parseYAML(template);
+    } catch (error) {
+      return c.json({
+        success: false,
+        error: `YAML parsing error: ${error.message}`
+      }, 400);
+    }
+    
+    // Get available tables for validation
+    const availableTables = await kv.keys(&quot;table:&quot;);
+    const tableNames = availableTables.map(key =&gt; key.split(&#x27;:&#x27;)[1]);
+    
+    // Build AI prompt
+    const prompt = buildAIPrompt(parsedTemplate, tableNames);
+    
+    // Call OpenAI GPT-4o
+    const openaiResponse = await fetch(&quot;https://api.openai.com/v1/chat/completions&quot;, {
+      method: &quot;POST&quot;,
+      headers: {
+        &quot;Content-Type&quot;: &quot;application/json&quot;,
+        &quot;Authorization&quot;: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: &quot;gpt-4o&quot;,
+        messages: [
+          {
+            role: &quot;system&quot;,
+            content: SYSTEM_PROMPT
+          },
+          {
+            role: &quot;user&quot;,
+            content: prompt
+          }
+        ],
+        temperature: 0.2,
+        response_format: { type: &quot;json_object&quot; }
+      }),
+    });
+    
+    if (!openaiResponse.ok) {
+      const errorData = await openaiResponse.text();
+      console.error(&quot;OpenAI API error:&quot;, errorData);
+      return c.json({
+        success: false,
+        error: `AI processing failed: ${openaiResponse.status}`
+      }, 500);
+    }
+    
+    const aiData = await openaiResponse.json();
+    const result = JSON.parse(aiData.choices[0].message.content);
+    
+    // Validate table references
+    const validationErrors: ValidationError[] = [];
+    if (validateTables) {
+      for (const tableName of result.tableDependencies || []) {
+        if (!tableNames.includes(tableName)) {
+          validationErrors.push({
+            type: &#x27;missing_table&#x27;,
+            message: `Table &quot;${tableName}&quot; not found in database`,
+            severity: &#x27;error&#x27;,
+            suggestion: `Create the &quot;${tableName}&quot; table or import data via CSV in the Admin tab`
+          });
+        }
+      }
+    }
+    
+    // Add validation errors to result
+    result.validationErrors = [
+      ...(result.validationErrors || []),
+      ...validationErrors
+    ];
+    
+    const processingTime = Date.now() - startTime;
+    console.log(`AI processing completed in ${processingTime}ms`);
+    
+    // Save results
+    await kv.set(&quot;config:ai_processed&quot;, {
+      template,
+      configuration: result,
+      timestamp: new Date().toISOString(),
+      processingTime
+    });
+    
+    return c.json({
+      success: true,
+      data: {
+        ...result,
+        processingTime
+      }
+    });
+    
+  } catch (error) {
+    console.error(&quot;Error processing pricing requirements:&quot;, error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    }, 500);
+  }
+});
+</code></pre>
+<h3>AI System Prompt</h3>
+<pre><code class="language-typescript">
+const SYSTEM_PROMPT = `You are an expert pricing configuration system that converts natural language business requirements into structured pricing configurations.
+
+Your task is to analyze a YAML template containing pricing requirements and generate:
+1. Header field configurations
+2. Line item field configurations  
+3. Calculation rules with executable JavaScript code
+4. Table dependencies
+5. Validation and error detection
+
+Return valid JSON with this structure:
+{
+  &quot;headerFields&quot;: [
+    {
+      &quot;id&quot;: &quot;unique_id&quot;,
+      &quot;name&quot;: &quot;field_name&quot;,
+      &quot;displayName&quot;: &quot;Field Label&quot;,
+      &quot;type&quot;: &quot;text|number|currency|date|select&quot;,
+      &quot;required&quot;: boolean,
+      &quot;editable&quot;: boolean,
+      &quot;calculated&quot;: boolean,
+      &quot;formula&quot;: &quot;javascript formula if calculated&quot;,
+      &quot;defaultValue&quot;: any,
+      &quot;description&quot;: &quot;help text&quot;,
+      &quot;order&quot;: number
+    }
+  ],
+  &quot;lineItemFields&quot;: [...same structure...],
+  &quot;calculationRules&quot;: [
+    {
+      &quot;id&quot;: &quot;rule_id&quot;,
+      &quot;name&quot;: &quot;rule_name&quot;,
+      &quot;description&quot;: &quot;what this rule does&quot;,
+      &quot;type&quot;: &quot;header|line_item|aggregate&quot;,
+      &quot;fieldName&quot;: &quot;target_field&quot;,
+      &quot;formula&quot;: &quot;plain english description&quot;,
+      &quot;generatedCode&quot;: &quot;executable JavaScript function&quot;,
+      &quot;priority&quot;: number,
+      &quot;dependencies&quot;: [&quot;field1&quot;, &quot;field2&quot;]
+    }
+  ],
+  &quot;tableDependencies&quot;: [&quot;table1&quot;, &quot;table2&quot;],
+  &quot;validationErrors&quot;: [
+    {
+      &quot;type&quot;: &quot;missing_table|invalid_logic|syntax_error&quot;,
+      &quot;field&quot;: &quot;field_name&quot;,
+      &quot;message&quot;: &quot;error description&quot;,
+      &quot;severity&quot;: &quot;error|warning&quot;,
+      &quot;suggestion&quot;: &quot;how to fix&quot;
+    }
+  ],
+  &quot;summary&quot;: &quot;Natural language summary of the configuration&quot;,
+  &quot;confidence&quot;: 85
+}
+
+Guidelines:
+- Generate production-ready JavaScript code
+- Use proper error handling
+- Include comments in generated code
+- Detect circular dependencies
+- Validate all table and field references
+- Assign proper calculation priorities
+- Use clear, descriptive names
+- Follow the field type conventions
+- Ensure formulas are syntactically correct
+- Return confidence score (0-100) based on clarity of requirements
+`;
+</code></pre>
+<h3>Save Configuration Endpoint</h3>
+<pre><code class="language-typescript">
+app.post(&quot;/make-server-acb28b15/ai-pricing/save&quot;, async (c) =&gt; {
+  try {
+    const { configuration, overwrite = false } = await c.req.json();
+    
+    // Check if configuration already exists
+    const existing = await kv.get(&quot;config:header_fields&quot;);
+    if (existing &amp;&amp; !overwrite) {
+      return c.json({
+        success: false,
+        error: &quot;Configuration already exists. Set overwrite=true to replace.&quot;
+      }, 400);
+    }
+    
+    // Save header fields
+    if (configuration.headerFields) {
+      await kv.set(&quot;config:header_fields&quot;, configuration.headerFields);
+    }
+    
+    // Save line item fields
+    if (configuration.lineItemFields) {
+      await kv.set(&quot;config:line_item_fields&quot;, configuration.lineItemFields);
+    }
+    
+    // Save calculation rules
+    if (configuration.calculationRules) {
+      await kv.set(&quot;config:calculation_rules&quot;, configuration.calculationRules);
+    }
+    
+    console.log(&quot;AI-generated configuration saved successfully&quot;);
+    
+    return c.json({
+      success: true,
+      message: &quot;Configuration saved successfully&quot;
+    });
+    
+  } catch (error) {
+    console.error(&quot;Error saving configuration:&quot;, error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    }, 500);
+  }
+});
+</code></pre>
+<p>---</p>
+<h2>Frontend Component Implementation</h2>
+<h3>Main Component Structure</h3>
+<pre><code class="language-typescript">
+export function AIPricingEngine({ onBack }: { onBack: () =&gt; void }) {
+  const [template, setTemplate] = useState&lt;string&gt;(DEFAULT_TEMPLATE);
+  const [processing, setProcessing] = useState(false);
+  const [results, setResults] = useState&lt;ProcessedConfiguration | null&gt;(null);
+  const [activeTab, setActiveTab] = useState&lt;&#x27;editor&#x27; | &#x27;results&#x27; | &#x27;settings&#x27;&gt;(&#x27;editor&#x27;);
+  const [apiKey, setApiKey] = useState(&#x27;&#x27;);
+  const [hasApiKey, setHasApiKey] = useState(false);
+
+  useEffect(() =&gt; {
+    checkApiKey();
+    loadLastTemplate();
+  }, []);
+
+  const processWithAI = async () =&gt; {
+    if (!hasApiKey) {
+      alert(&#x27;Please configure OpenAI API key in Settings tab&#x27;);
+      setActiveTab(&#x27;settings&#x27;);
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-acb28b15/ai-pricing/process`,
+        {
+          method: &#x27;POST&#x27;,
+          headers: {
+            &#x27;Content-Type&#x27;: &#x27;application/json&#x27;,
+            &#x27;Authorization&#x27;: `Bearer ${publicAnonKey}`,
+          },
+          body: JSON.stringify({ template, validateTables: true }),
+        }
+      );
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setResults(data.data);
+        setActiveTab(&#x27;results&#x27;);
+      } else {
+        alert(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      console.error(&#x27;Error processing:&#x27;, error);
+      alert(&#x27;Failed to process template&#x27;);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const saveConfiguration = async () =&gt; {
+    if (!results) return;
+
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-acb28b15/ai-pricing/save`,
+        {
+          method: &#x27;POST&#x27;,
+          headers: {
+            &#x27;Content-Type&#x27;: &#x27;application/json&#x27;,
+            &#x27;Authorization&#x27;: `Bearer ${publicAnonKey}`,
+          },
+          body: JSON.stringify({ configuration: results, overwrite: true }),
+        }
+      );
+
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(&#x27;Configuration saved successfully!&#x27;);
+      } else {
+        alert(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      console.error(&#x27;Error saving:&#x27;, error);
+      alert(&#x27;Failed to save configuration&#x27;);
+    }
+  };
+
+  return (
+    &lt;div className=&quot;w-full h-screen flex flex-col bg-gray-50&quot;&gt;
+      {/* Header */}
+      &lt;div className=&quot;bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-4&quot;&gt;
+        &lt;h1 className=&quot;text-2xl font-bold flex items-center gap-3&quot;&gt;
+          &lt;Sparkles className=&quot;w-6 h-6&quot; /&gt;
+          AI Pricing Engine
+        &lt;/h1&gt;
+      &lt;/div&gt;
+
+      {/* Tabs */}
+      &lt;Tabs value={activeTab} onValueChange={setActiveTab}&gt;
+        &lt;TabsList&gt;
+          &lt;TabsTrigger value=&quot;editor&quot;&gt;Template Editor&lt;/TabsTrigger&gt;
+          &lt;TabsTrigger value=&quot;results&quot;&gt;Results&lt;/TabsTrigger&gt;
+          &lt;TabsTrigger value=&quot;settings&quot;&gt;Settings&lt;/TabsTrigger&gt;
+        &lt;/TabsList&gt;
+
+        &lt;TabsContent value=&quot;editor&quot;&gt;
+          {/* Template editor UI */}
+        &lt;/TabsContent&gt;
+
+        &lt;TabsContent value=&quot;results&quot;&gt;
+          {/* Results display UI */}
+        &lt;/TabsContent&gt;
+
+        &lt;TabsContent value=&quot;settings&quot;&gt;
+          {/* Settings UI */}
+        &lt;/TabsContent&gt;
+      &lt;/Tabs&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+<p>---</p>
+<h2>Template Examples</h2>
+<h3>Example 1: Simple Product Pricing</h3>
+<pre><code class="language-yaml">
+company_info:
+  name: &quot;ABC Products&quot;
+  industry: &quot;Manufacturing&quot;
+
+line_item_fields:
+  - name: &quot;product_id&quot;
+    display: &quot;Product&quot;
+    type: &quot;text&quot;
+    required: true
+    logic: &quot;User selects from product catalog&quot;
+  
+  - name: &quot;quantity&quot;
+    display: &quot;Qty&quot;
+    type: &quot;number&quot;
+    required: true
+    default_value: 1
+  
+  - name: &quot;unit_price&quot;
+    display: &quot;Price&quot;
+    type: &quot;currency&quot;
+    required: true
+    logic: &quot;Look up from products table by product_id&quot;
+  
+  - name: &quot;total&quot;
+    display: &quot;Total&quot;
+    type: &quot;currency&quot;
+    calculated: true
+    logic: &quot;quantity * unit_price&quot;
+</code></pre>
+<h3>Example 2: Volume Discount Model</h3>
+<pre><code class="language-yaml">
+line_item_fields:
+  - name: &quot;discount_percent&quot;
+    display: &quot;Discount %&quot;
+    type: &quot;percent&quot;
+    calculated: true
+    logic: |
+      Look up discount from volume_discounts table where:
+      - quantity is between min_qty and max_qty
+      Return discount_percent
+  
+  - name: &quot;discounted_price&quot;
+    display: &quot;Discounted Price&quot;
+    type: &quot;currency&quot;
+    calculated: true
+    logic: &quot;unit_price * (1 - discount_percent / 100)&quot;
+</code></pre>
+<h3>Example 3: Customer Segment Pricing</h3>
+<pre><code class="language-yaml">
+pricing_rules:
+  - name: &quot;segment_pricing&quot;
+    logic: |
+      Get customer_segment from customers table
+      If Enterprise: multiply all prices by 0.80
+      If Mid-Market: multiply all prices by 0.90
+      If SMB: use standard prices
+</code></pre>
+<p>---</p>
+<h2>Testing &amp; Validation</h2>
+<h3>Test Scenarios</h3>
+<ol>
+<li>**Valid Template Processing**</li>
+</ol>
+<ul>
+<li>Input: Complete YAML template</li>
+<li>Expected: All fields configured correctly</li>
+<li>Verify: No validation errors</li>
+</ul>
+<ol>
+<li>**Invalid Table Reference**</li>
+</ol>
+<ul>
+<li>Input: Template referencing non-existent table</li>
+<li>Expected: Validation error with suggestion</li>
+<li>Verify: Error displayed to user</li>
+</ul>
+<ol>
+<li>**Circular Dependency**</li>
+</ol>
+<ul>
+<li>Input: Field A depends on B, B depends on A</li>
+<li>Expected: Circular dependency detected</li>
+<li>Verify: Clear error message</li>
+</ul>
+<ol>
+<li>**Complex Formula**</li>
+</ol>
+<ul>
+<li>Input: Multi-step calculation logic</li>
+<li>Expected: Correct JavaScript code generated</li>
+<li>Verify: Formula executes correctly</li>
+</ul>
+<ol>
+<li>**API Key Management**</li>
+</ol>
+<ul>
+<li>Input: Save API key</li>
+<li>Expected: Key stored securely</li>
+<li>Verify: Masked display, working AI calls</li>
+</ul>
+<p>---</p>
+<h2>Success Criteria</h2>
+<p>✅ Users can write pricing requirements in plain English</p>
+<p>✅ AI accurately interprets requirements</p>
+<p>✅ Generated configurations are valid and executable</p>
+<p>✅ Table validation catches missing dependencies</p>
+<p>✅ Formulas are syntactically correct</p>
+<p>✅ Circular dependencies are detected</p>
+<p>✅ Configuration can be saved and applied</p>
+<p>✅ Changes reflect in quote interface</p>
+<p>✅ Error messages are clear and actionable</p>
+<p>✅ Processing completes within 10 seconds</p>
+<p>---</p>
+<h2>Code Generation Prompt</h2>
+<pre><code>
+Create an AI Pricing Engine component based on AIPricingEngineConfiguration.md.
+
+Requirements:
+1. Create AIPricingEngine.tsx with template editor, results display, and settings
+2. Implement YAML template parsing
+3. Add OpenAI GPT-4o integration in backend
+4. Include table validation against existing data
+5. Generate executable JavaScript code for formulas
+6. Detect circular dependencies
+7. Provide clear error messages with suggestions
+8. Add API key management with secure storage
+9. Create comprehensive results preview
+10. Enable one-click configuration save
+
+Follow all data structures, API endpoints, and UI specifications exactly as documented.
+</code></pre>
+<p>---</p>
+<p>This specification provides complete technical details for building an AI-powered pricing configuration system that translates natural language requirements into executable pricing logic.</p>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,1097 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Line Item Configurator - Technical Specification</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f6f8fb; color:#1f2937; }
+    .wrap { max-width: 980px; margin: 20px auto; padding: 0 16px; }
+    .card { background:#fff; border:1px solid #d7dee7; border-radius:10px; padding:20px; }
+    h1, h2, h3 { color:#0f766e; }
+    pre { background:#0f172a; color:#f8fafc; padding:12px; border-radius:8px; overflow:auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    ul, ol { padding-left: 20px; }
+    a { color:#0b63ce; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Line Item Configurator - Technical Specification</h1>
+<h2>Overview</h2>
+<p>Create a **Line Item Configurator** component that allows administrators to dynamically add, edit, delete, and reorder fields in quote line items. Changes should be reflected immediately in the quote line item interface.</p>
+<h2>Purpose</h2>
+<p>Enable business users to customize the line item structure without code changes, supporting different industries, products, and pricing models.</p>
+<p>---</p>
+<h2>Technical Requirements</h2>
+<h3>Component Location</h3>
+<ul>
+<li>**Path**: `/src/app/components/LineItemConfigurator.tsx`</li>
+<li>**Type**: React Functional Component with TypeScript</li>
+<li>**Parent**: Embedded in AdminScreen component as a tab</li>
+</ul>
+<h3>Dependencies</h3>
+<pre><code class="language-typescript">
+import React, { useState, useEffect } from &#x27;react&#x27;;
+import { Plus, Edit, Trash2, Save, X, GripVertical, ArrowUp, ArrowDown } from &#x27;lucide-react&#x27;;
+import { Button } from &#x27;./ui/button&#x27;;
+import { Card } from &#x27;./ui/card&#x27;;
+import { Input } from &#x27;./ui/input&#x27;;
+import { Label } from &#x27;./ui/label&#x27;;
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from &#x27;./ui/select&#x27;;
+import { Checkbox } from &#x27;./ui/checkbox&#x27;;
+import { Alert, AlertDescription } from &#x27;./ui/alert&#x27;;
+import { projectId, publicAnonKey } from &#x27;/utils/supabase/info&#x27;;
+</code></pre>
+<p>---</p>
+<h2>Data Structures</h2>
+<h3>Field Interface</h3>
+<pre><code class="language-typescript">
+interface LineItemField {
+  id: string;                    // Unique identifier (e.g., &quot;field_1234567890&quot;)
+  name: string;                  // Internal name (e.g., &quot;unit_price&quot;, &quot;discount_percent&quot;)
+  displayName: string;           // User-facing label (e.g., &quot;Unit Price&quot;, &quot;Discount %&quot;)
+  type: FieldType;              // Data type
+  required: boolean;            // Is field mandatory?
+  editable: boolean;            // Can users edit this field?
+  calculated: boolean;          // Is this a calculated field?
+  formula?: string;             // JavaScript formula if calculated
+  defaultValue?: any;           // Default value for new line items
+  order: number;                // Display order (0, 1, 2, ...)
+  width?: number;               // Column width in pixels
+  visible: boolean;             // Show/hide in UI
+  options?: string[];           // For dropdown/select types
+  validation?: FieldValidation; // Validation rules
+  description?: string;         // Help text
+  category?: string;            // Grouping category
+}
+
+type FieldType = 
+  | &#x27;text&#x27;           // String input
+  | &#x27;number&#x27;         // Numeric input
+  | &#x27;currency&#x27;       // Money (formatted number)
+  | &#x27;percent&#x27;        // Percentage
+  | &#x27;date&#x27;           // Date picker
+  | &#x27;select&#x27;         // Dropdown
+  | &#x27;textarea&#x27;       // Multi-line text
+  | &#x27;checkbox&#x27;       // Boolean
+  | &#x27;calculated&#x27;;    // Auto-calculated
+
+interface FieldValidation {
+  min?: number;           // Minimum value (for numbers)
+  max?: number;           // Maximum value (for numbers)
+  minLength?: number;     // Min string length
+  maxLength?: number;     // Max string length
+  pattern?: string;       // Regex pattern
+  errorMessage?: string;  // Custom error message
+}
+</code></pre>
+<h3>Default Line Item Fields</h3>
+<pre><code class="language-typescript">
+const DEFAULT_LINE_ITEM_FIELDS: LineItemField[] = [
+  {
+    id: &#x27;product_sku&#x27;,
+    name: &#x27;product_sku&#x27;,
+    displayName: &#x27;Product SKU&#x27;,
+    type: &#x27;text&#x27;,
+    required: true,
+    editable: true,
+    calculated: false,
+    order: 0,
+    width: 150,
+    visible: true,
+    description: &#x27;Product identifier&#x27;
+  },
+  {
+    id: &#x27;product_name&#x27;,
+    name: &#x27;product_name&#x27;,
+    displayName: &#x27;Product Name&#x27;,
+    type: &#x27;text&#x27;,
+    required: true,
+    editable: true,
+    calculated: false,
+    order: 1,
+    width: 200,
+    visible: true,
+    description: &#x27;Product description&#x27;
+  },
+  {
+    id: &#x27;quantity&#x27;,
+    name: &#x27;quantity&#x27;,
+    displayName: &#x27;Quantity&#x27;,
+    type: &#x27;number&#x27;,
+    required: true,
+    editable: true,
+    calculated: false,
+    defaultValue: 1,
+    order: 2,
+    width: 100,
+    visible: true,
+    validation: { min: 1 }
+  },
+  {
+    id: &#x27;unit_price&#x27;,
+    name: &#x27;unit_price&#x27;,
+    displayName: &#x27;Unit Price&#x27;,
+    type: &#x27;currency&#x27;,
+    required: true,
+    editable: true,
+    calculated: false,
+    defaultValue: 0,
+    order: 3,
+    width: 120,
+    visible: true,
+    validation: { min: 0 }
+  },
+  {
+    id: &#x27;extended_price&#x27;,
+    name: &#x27;extended_price&#x27;,
+    displayName: &#x27;Extended Price&#x27;,
+    type: &#x27;currency&#x27;,
+    required: false,
+    editable: false,
+    calculated: true,
+    formula: &#x27;quantity * unit_price&#x27;,
+    order: 4,
+    width: 120,
+    visible: true,
+    description: &#x27;Quantity × Unit Price&#x27;
+  }
+];
+</code></pre>
+<p>---</p>
+<h2>Component Features</h2>
+<h3>1. Field List Display</h3>
+<ul>
+<li>**Show all configured fields** in a table/card grid</li>
+<li>**Display**: Field name, type, required, editable, calculated, order</li>
+<li>**Visual indicators**: Icons for calculated fields, required fields</li>
+<li>**Sorting**: By order number (ascending)</li>
+<li>**Filtering**: Show/hide categories</li>
+</ul>
+<h3>2. Add New Field</h3>
+<ul>
+<li>**Modal/drawer** form to add field</li>
+<li>**Required inputs**:</li>
+<li>Field name (must be unique, no spaces)</li>
+<li>Display name</li>
+<li>Field type (dropdown)</li>
+<li>Required (checkbox)</li>
+<li>Editable (checkbox)</li>
+<li>Calculated (checkbox)</li>
+<li>**Conditional inputs**:</li>
+<li>Formula (if calculated = true)</li>
+<li>Options (if type = &#x27;select&#x27;)</li>
+<li>Validation rules (if type = &#x27;number&#x27; or &#x27;currency&#x27;)</li>
+<li>Default value</li>
+<li>**Validation**:</li>
+<li>Field name must be unique</li>
+<li>Field name must be valid JavaScript identifier</li>
+<li>Formula must be valid if calculated</li>
+<li>**Auto-assign order**: Next highest number</li>
+</ul>
+<h3>3. Edit Field</h3>
+<ul>
+<li>**Open modal** with pre-filled values</li>
+<li>**Same form** as add field</li>
+<li>**Cannot change**: Field ID</li>
+<li>**Warning**: If field has data, changing type may cause issues</li>
+<li>**Save button**: Updates field configuration</li>
+</ul>
+<h3>4. Delete Field</h3>
+<ul>
+<li>**Confirmation dialog**: &quot;Are you sure?&quot;</li>
+<li>**Warning**: &quot;This field may have data in existing quotes&quot;</li>
+<li>**Action**: Remove field from configuration</li>
+<li>**Reorder**: Adjust order numbers of remaining fields</li>
+</ul>
+<h3>5. Reorder Fields</h3>
+<ul>
+<li>**Drag handles**: Using GripVertical icon</li>
+<li>**Up/Down buttons**: Move field up or down in order</li>
+<li>**Auto-save**: Update order numbers after move</li>
+<li>**Visual feedback**: Highlight during drag</li>
+</ul>
+<h3>6. Field Type Selector</h3>
+<pre><code class="language-typescript">
+const FIELD_TYPES = [
+  { value: &#x27;text&#x27;, label: &#x27;Text&#x27;, icon: &#x27;Type&#x27; },
+  { value: &#x27;number&#x27;, label: &#x27;Number&#x27;, icon: &#x27;Hash&#x27; },
+  { value: &#x27;currency&#x27;, label: &#x27;Currency&#x27;, icon: &#x27;DollarSign&#x27; },
+  { value: &#x27;percent&#x27;, label: &#x27;Percentage&#x27;, icon: &#x27;Percent&#x27; },
+  { value: &#x27;date&#x27;, label: &#x27;Date&#x27;, icon: &#x27;Calendar&#x27; },
+  { value: &#x27;select&#x27;, label: &#x27;Dropdown&#x27;, icon: &#x27;ChevronDown&#x27; },
+  { value: &#x27;textarea&#x27;, label: &#x27;Text Area&#x27;, icon: &#x27;AlignLeft&#x27; },
+  { value: &#x27;checkbox&#x27;, label: &#x27;Checkbox&#x27;, icon: &#x27;CheckSquare&#x27; },
+  { value: &#x27;calculated&#x27;, label: &#x27;Calculated&#x27;, icon: &#x27;Calculator&#x27; }
+];
+</code></pre>
+<h3>7. Formula Builder (for calculated fields)</h3>
+<p>**Simple formula input**:</p>
+<pre><code class="language-typescript">
+// Example formulas
+&quot;quantity * unit_price&quot;
+&quot;unit_price * (1 - discount_percent / 100)&quot;
+&quot;extended_price - cost&quot;
+&quot;(extended_price - total_cost) / extended_price * 100&quot;
+</code></pre>
+<p>**Available variables**:</p>
+<ul>
+<li>All other field names in the line item</li>
+<li>Header fields via `header.field_name`</li>
+<li>Math operations: +, -, *, /, %, ()</li>
+<li>Functions: Math.round(), Math.ceil(), Math.floor(), Math.max(), Math.min()</li>
+</ul>
+<p>**Validation**:</p>
+<ul>
+<li>Check formula syntax</li>
+<li>Verify referenced fields exist</li>
+<li>Prevent circular dependencies</li>
+</ul>
+<h3>8. Field Preview</h3>
+<p>**Show preview** of how field will appear:</p>
+<pre><code class="language-typescript">
+interface FieldPreview {
+  fieldName: string;
+  displayName: string;
+  type: FieldType;
+  sampleValue: any;
+  width: number;
+}
+</code></pre>
+<p>**Preview component**:</p>
+<ul>
+<li>Mock table cell showing the field</li>
+<li>Sample data based on type</li>
+<li>Proper formatting (currency, percent, date)</li>
+</ul>
+<p>---</p>
+<h2>UI/UX Specifications</h2>
+<h3>Layout Structure</h3>
+<pre><code>
+┌─────────────────────────────────────────────────────┐
+│ Line Item Configurator                    [+ Add]   │
+├─────────────────────────────────────────────────────┤
+│                                                      │
+│  ┌──────────────────────────────────────────────┐  │
+│  │ [≡] Product SKU          Text      Required  │  │
+│  │     Order: 0             Editable  [↑][↓]    │  │
+│  │                          [Edit] [Delete]      │  │
+│  └──────────────────────────────────────────────┘  │
+│                                                      │
+│  ┌──────────────────────────────────────────────┐  │
+│  │ [≡] Product Name         Text      Required  │  │
+│  │     Order: 1             Editable  [↑][↓]    │  │
+│  │                          [Edit] [Delete]      │  │
+│  └──────────────────────────────────────────────┘  │
+│                                                      │
+│  ┌──────────────────────────────────────────────┐  │
+│  │ [≡] Extended Price       Currency  🧮        │  │
+│  │     Order: 4             Calculated [↑][↓]   │  │
+│  │     Formula: quantity * unit_price            │  │
+│  │                          [Edit] [Delete]      │  │
+│  └──────────────────────────────────────────────┘  │
+│                                                      │
+│  Total Fields: 5                                    │
+└─────────────────────────────────────────────────────┘
+</code></pre>
+<h3>Field Card Design</h3>
+<pre><code class="language-typescript">
+&lt;Card className=&quot;p-4 mb-3 hover:shadow-md transition-shadow&quot;&gt;
+  &lt;div className=&quot;flex items-start justify-between&quot;&gt;
+    &lt;div className=&quot;flex items-start gap-3 flex-1&quot;&gt;
+      {/* Drag Handle */}
+      &lt;GripVertical className=&quot;w-5 h-5 text-gray-400 cursor-grab&quot; /&gt;
+      
+      {/* Field Info */}
+      &lt;div className=&quot;flex-1&quot;&gt;
+        &lt;div className=&quot;flex items-center gap-2 mb-1&quot;&gt;
+          &lt;h3 className=&quot;font-semibold text-gray-900&quot;&gt;{field.displayName}&lt;/h3&gt;
+          {field.required &amp;&amp; (
+            &lt;span className=&quot;text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded&quot;&gt;
+              Required
+            &lt;/span&gt;
+          )}
+          {field.calculated &amp;&amp; (
+            &lt;span className=&quot;text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded flex items-center gap-1&quot;&gt;
+              &lt;Calculator className=&quot;w-3 h-3&quot; /&gt;
+              Calculated
+            &lt;/span&gt;
+          )}
+        &lt;/div&gt;
+        
+        &lt;div className=&quot;text-sm text-gray-600 space-y-1&quot;&gt;
+          &lt;div&gt;Name: &lt;code className=&quot;text-xs bg-gray-100 px-1 rounded&quot;&gt;{field.name}&lt;/code&gt;&lt;/div&gt;
+          &lt;div&gt;Type: &lt;span className=&quot;font-medium&quot;&gt;{field.type}&lt;/span&gt;&lt;/div&gt;
+          &lt;div&gt;Order: {field.order}&lt;/div&gt;
+          {field.formula &amp;&amp; (
+            &lt;div&gt;Formula: &lt;code className=&quot;text-xs bg-gray-100 px-1 rounded&quot;&gt;{field.formula}&lt;/code&gt;&lt;/div&gt;
+          )}
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+    
+    {/* Actions */}
+    &lt;div className=&quot;flex gap-1&quot;&gt;
+      &lt;Button variant=&quot;ghost&quot; size=&quot;sm&quot; onClick={() =&gt; moveUp(field.id)}&gt;
+        &lt;ArrowUp className=&quot;w-4 h-4&quot; /&gt;
+      &lt;/Button&gt;
+      &lt;Button variant=&quot;ghost&quot; size=&quot;sm&quot; onClick={() =&gt; moveDown(field.id)}&gt;
+        &lt;ArrowDown className=&quot;w-4 h-4&quot; /&gt;
+      &lt;/Button&gt;
+      &lt;Button variant=&quot;ghost&quot; size=&quot;sm&quot; onClick={() =&gt; editField(field)}&gt;
+        &lt;Edit className=&quot;w-4 h-4&quot; /&gt;
+      &lt;/Button&gt;
+      &lt;Button variant=&quot;ghost&quot; size=&quot;sm&quot; onClick={() =&gt; deleteField(field.id)}&gt;
+        &lt;Trash2 className=&quot;w-4 h-4 text-red-600&quot; /&gt;
+      &lt;/Button&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/Card&gt;
+</code></pre>
+<h3>Add/Edit Field Modal</h3>
+<pre><code class="language-typescript">
+&lt;div className=&quot;fixed inset-0 bg-black/50 flex items-center justify-center z-50&quot;&gt;
+  &lt;Card className=&quot;w-full max-w-2xl max-h-[90vh] overflow-auto bg-white p-6&quot;&gt;
+    &lt;h2 className=&quot;text-xl font-bold mb-4&quot;&gt;
+      {editingField ? &#x27;Edit Field&#x27; : &#x27;Add New Field&#x27;}
+    &lt;/h2&gt;
+    
+    &lt;div className=&quot;space-y-4&quot;&gt;
+      {/* Field Name */}
+      &lt;div&gt;
+        &lt;Label&gt;Field Name (Internal)&lt;/Label&gt;
+        &lt;Input 
+          placeholder=&quot;e.g., discount_percent&quot;
+          pattern=&quot;[a-z_][a-z0-9_]*&quot;
+        /&gt;
+        &lt;p className=&quot;text-xs text-gray-500 mt-1&quot;&gt;
+          Lowercase letters, numbers, underscores only. No spaces.
+        &lt;/p&gt;
+      &lt;/div&gt;
+      
+      {/* Display Name */}
+      &lt;div&gt;
+        &lt;Label&gt;Display Name&lt;/Label&gt;
+        &lt;Input placeholder=&quot;e.g., Discount Percentage&quot; /&gt;
+      &lt;/div&gt;
+      
+      {/* Field Type */}
+      &lt;div&gt;
+        &lt;Label&gt;Field Type&lt;/Label&gt;
+        &lt;Select&gt;
+          &lt;SelectTrigger&gt;
+            &lt;SelectValue /&gt;
+          &lt;/SelectTrigger&gt;
+          &lt;SelectContent&gt;
+            {FIELD_TYPES.map(type =&gt; (
+              &lt;SelectItem key={type.value} value={type.value}&gt;
+                {type.label}
+              &lt;/SelectItem&gt;
+            ))}
+          &lt;/SelectContent&gt;
+        &lt;/Select&gt;
+      &lt;/div&gt;
+      
+      {/* Checkboxes */}
+      &lt;div className=&quot;flex gap-4&quot;&gt;
+        &lt;div className=&quot;flex items-center gap-2&quot;&gt;
+          &lt;Checkbox id=&quot;required&quot; /&gt;
+          &lt;Label htmlFor=&quot;required&quot;&gt;Required&lt;/Label&gt;
+        &lt;/div&gt;
+        &lt;div className=&quot;flex items-center gap-2&quot;&gt;
+          &lt;Checkbox id=&quot;editable&quot; /&gt;
+          &lt;Label htmlFor=&quot;editable&quot;&gt;Editable&lt;/Label&gt;
+        &lt;/div&gt;
+        &lt;div className=&quot;flex items-center gap-2&quot;&gt;
+          &lt;Checkbox id=&quot;calculated&quot; /&gt;
+          &lt;Label htmlFor=&quot;calculated&quot;&gt;Calculated&lt;/Label&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+      
+      {/* Conditional: Formula (if calculated) */}
+      {isCalculated &amp;&amp; (
+        &lt;div&gt;
+          &lt;Label&gt;Formula&lt;/Label&gt;
+          &lt;Input placeholder=&quot;e.g., quantity * unit_price&quot; /&gt;
+          &lt;p className=&quot;text-xs text-gray-500 mt-1&quot;&gt;
+            Use field names and math operators: +, -, *, /, %
+          &lt;/p&gt;
+        &lt;/div&gt;
+      )}
+      
+      {/* Conditional: Options (if select) */}
+      {type === &#x27;select&#x27; &amp;&amp; (
+        &lt;div&gt;
+          &lt;Label&gt;Options (one per line)&lt;/Label&gt;
+          &lt;textarea className=&quot;w-full border rounded p-2&quot; rows={4} /&gt;
+        &lt;/div&gt;
+      )}
+      
+      {/* Default Value */}
+      &lt;div&gt;
+        &lt;Label&gt;Default Value (Optional)&lt;/Label&gt;
+        &lt;Input /&gt;
+      &lt;/div&gt;
+      
+      {/* Description */}
+      &lt;div&gt;
+        &lt;Label&gt;Description (Optional)&lt;/Label&gt;
+        &lt;Input placeholder=&quot;Help text for users&quot; /&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+    
+    {/* Actions */}
+    &lt;div className=&quot;flex justify-end gap-2 mt-6&quot;&gt;
+      &lt;Button variant=&quot;outline&quot; onClick={onCancel}&gt;Cancel&lt;/Button&gt;
+      &lt;Button onClick={saveField}&gt;
+        {editingField ? &#x27;Update Field&#x27; : &#x27;Add Field&#x27;}
+      &lt;/Button&gt;
+    &lt;/div&gt;
+  &lt;/Card&gt;
+&lt;/div&gt;
+</code></pre>
+<p>---</p>
+<h2>Backend API Endpoints</h2>
+<h3>1. Get Line Item Configuration</h3>
+<pre><code class="language-typescript">
+GET /make-server-acb28b15/config/line-item-fields
+
+Response:
+{
+  success: true,
+  data: LineItemField[]
+}
+</code></pre>
+<h3>2. Save Line Item Configuration</h3>
+<pre><code class="language-typescript">
+POST /make-server-acb28b15/config/line-item-fields
+
+Request Body:
+{
+  fields: LineItemField[]
+}
+
+Response:
+{
+  success: true,
+  message: &quot;Configuration saved successfully&quot;
+}
+</code></pre>
+<h3>3. Add Single Field</h3>
+<pre><code class="language-typescript">
+POST /make-server-acb28b15/config/line-item-fields/add
+
+Request Body:
+{
+  field: LineItemField
+}
+
+Response:
+{
+  success: true,
+  data: LineItemField
+}
+</code></pre>
+<h3>4. Update Single Field</h3>
+<pre><code class="language-typescript">
+PUT /make-server-acb28b15/config/line-item-fields/:fieldId
+
+Request Body:
+{
+  field: Partial&lt;LineItemField&gt;
+}
+
+Response:
+{
+  success: true,
+  data: LineItemField
+}
+</code></pre>
+<h3>5. Delete Field</h3>
+<pre><code class="language-typescript">
+DELETE /make-server-acb28b15/config/line-item-fields/:fieldId
+
+Response:
+{
+  success: true,
+  message: &quot;Field deleted successfully&quot;
+}
+</code></pre>
+<h3>6. Reorder Fields</h3>
+<pre><code class="language-typescript">
+POST /make-server-acb28b15/config/line-item-fields/reorder
+
+Request Body:
+{
+  fieldIds: string[]  // Ordered array of field IDs
+}
+
+Response:
+{
+  success: true,
+  data: LineItemField[]
+}
+</code></pre>
+<p>---</p>
+<h2>Backend Implementation (Supabase KV)</h2>
+<pre><code class="language-typescript">
+// In /supabase/functions/server/index.tsx
+
+// Get configuration
+app.get(&quot;/make-server-acb28b15/config/line-item-fields&quot;, async (c) =&gt; {
+  try {
+    let fields = await kv.get(&quot;config:line_item_fields&quot;);
+    
+    // Initialize with defaults if not exists
+    if (!fields || fields.length === 0) {
+      fields = DEFAULT_LINE_ITEM_FIELDS;
+      await kv.set(&quot;config:line_item_fields&quot;, fields);
+    }
+    
+    return c.json({ success: true, data: fields });
+  } catch (error) {
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// Save configuration
+app.post(&quot;/make-server-acb28b15/config/line-item-fields&quot;, async (c) =&gt; {
+  try {
+    const { fields } = await c.req.json();
+    
+    // Validate fields
+    if (!Array.isArray(fields)) {
+      return c.json({ success: false, error: &quot;Invalid fields data&quot; }, 400);
+    }
+    
+    // Save to KV store
+    await kv.set(&quot;config:line_item_fields&quot;, fields);
+    
+    console.log(`Saved ${fields.length} line item fields`);
+    
+    return c.json({ 
+      success: true, 
+      message: &quot;Configuration saved successfully&quot; 
+    });
+  } catch (error) {
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// Add field
+app.post(&quot;/make-server-acb28b15/config/line-item-fields/add&quot;, async (c) =&gt; {
+  try {
+    const { field } = await c.req.json();
+    
+    // Get existing fields
+    const fields = await kv.get(&quot;config:line_item_fields&quot;) || [];
+    
+    // Check for duplicate name
+    const exists = fields.find((f: LineItemField) =&gt; f.name === field.name);
+    if (exists) {
+      return c.json({ 
+        success: false, 
+        error: &quot;Field name already exists&quot; 
+      }, 400);
+    }
+    
+    // Generate ID if not provided
+    if (!field.id) {
+      field.id = `field_${Date.now()}`;
+    }
+    
+    // Set order to end if not provided
+    if (field.order === undefined) {
+      field.order = fields.length;
+    }
+    
+    // Add field
+    fields.push(field);
+    
+    // Save
+    await kv.set(&quot;config:line_item_fields&quot;, fields);
+    
+    return c.json({ success: true, data: field });
+  } catch (error) {
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// Update field
+app.put(&quot;/make-server-acb28b15/config/line-item-fields/:fieldId&quot;, async (c) =&gt; {
+  try {
+    const { fieldId } = c.req.param();
+    const { field: updates } = await c.req.json();
+    
+    // Get existing fields
+    const fields = await kv.get(&quot;config:line_item_fields&quot;) || [];
+    
+    // Find field
+    const index = fields.findIndex((f: LineItemField) =&gt; f.id === fieldId);
+    if (index === -1) {
+      return c.json({ success: false, error: &quot;Field not found&quot; }, 404);
+    }
+    
+    // Update field
+    fields[index] = { ...fields[index], ...updates };
+    
+    // Save
+    await kv.set(&quot;config:line_item_fields&quot;, fields);
+    
+    return c.json({ success: true, data: fields[index] });
+  } catch (error) {
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// Delete field
+app.delete(&quot;/make-server-acb28b15/config/line-item-fields/:fieldId&quot;, async (c) =&gt; {
+  try {
+    const { fieldId } = c.req.param();
+    
+    // Get existing fields
+    let fields = await kv.get(&quot;config:line_item_fields&quot;) || [];
+    
+    // Remove field
+    fields = fields.filter((f: LineItemField) =&gt; f.id !== fieldId);
+    
+    // Reorder remaining fields
+    fields = fields.map((f: LineItemField, idx: number) =&gt; ({
+      ...f,
+      order: idx
+    }));
+    
+    // Save
+    await kv.set(&quot;config:line_item_fields&quot;, fields);
+    
+    return c.json({ success: true, message: &quot;Field deleted successfully&quot; });
+  } catch (error) {
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// Reorder fields
+app.post(&quot;/make-server-acb28b15/config/line-item-fields/reorder&quot;, async (c) =&gt; {
+  try {
+    const { fieldIds } = await c.req.json();
+    
+    // Get existing fields
+    const fields = await kv.get(&quot;config:line_item_fields&quot;) || [];
+    
+    // Create map for quick lookup
+    const fieldMap = new Map(fields.map((f: LineItemField) =&gt; [f.id, f]));
+    
+    // Reorder based on fieldIds array
+    const reordered = fieldIds.map((id: string, idx: number) =&gt; {
+      const field = fieldMap.get(id);
+      if (field) {
+        return { ...field, order: idx };
+      }
+      return null;
+    }).filter(Boolean);
+    
+    // Save
+    await kv.set(&quot;config:line_item_fields&quot;, reordered);
+    
+    return c.json({ success: true, data: reordered });
+  } catch (error) {
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+</code></pre>
+<p>---</p>
+<h2>Integration with PricingTable</h2>
+<h3>Dynamic Column Generation</h3>
+<p>In `PricingTable.tsx`, load configuration and generate columns:</p>
+<pre><code class="language-typescript">
+const [lineItemFields, setLineItemFields] = useState&lt;LineItemField[]&gt;([]);
+
+useEffect(() =&gt; {
+  loadLineItemConfiguration();
+}, []);
+
+const loadLineItemConfiguration = async () =&gt; {
+  try {
+    const response = await fetch(
+      `https://${projectId}.supabase.co/functions/v1/make-server-acb28b15/config/line-item-fields`,
+      {
+        headers: {
+          &#x27;Authorization&#x27;: `Bearer ${publicAnonKey}`,
+        },
+      }
+    );
+    const data = await response.json();
+    if (data.success) {
+      setLineItemFields(data.data.sort((a, b) =&gt; a.order - b.order));
+    }
+  } catch (error) {
+    console.error(&#x27;Error loading line item configuration:&#x27;, error);
+  }
+};
+
+// Generate columns from configuration
+const columns = lineItemFields
+  .filter(field =&gt; field.visible)
+  .map(field =&gt; ({
+    id: field.name,
+    header: field.displayName,
+    width: field.width,
+    editable: field.editable,
+    type: field.type,
+    required: field.required,
+    calculated: field.calculated,
+    formula: field.formula,
+  }));
+</code></pre>
+<h3>Dynamic Cell Rendering</h3>
+<pre><code class="language-typescript">
+const renderCell = (field: LineItemField, value: any, rowData: any) =&gt; {
+  // If calculated, compute value
+  if (field.calculated &amp;&amp; field.formula) {
+    value = evaluateFormula(field.formula, rowData);
+  }
+  
+  // Render based on type
+  switch (field.type) {
+    case &#x27;currency&#x27;:
+      return formatCurrency(value);
+    case &#x27;percent&#x27;:
+      return `${value}%`;
+    case &#x27;date&#x27;:
+      return formatDate(value);
+    case &#x27;checkbox&#x27;:
+      return &lt;Checkbox checked={value} /&gt;;
+    case &#x27;select&#x27;:
+      return (
+        &lt;Select value={value}&gt;
+          {field.options?.map(opt =&gt; (
+            &lt;SelectItem key={opt} value={opt}&gt;{opt}&lt;/SelectItem&gt;
+          ))}
+        &lt;/Select&gt;
+      );
+    default:
+      return field.editable ? (
+        &lt;Input 
+          type={field.type === &#x27;number&#x27; ? &#x27;number&#x27; : &#x27;text&#x27;}
+          value={value}
+          onChange={(e) =&gt; updateCell(rowData.id, field.name, e.target.value)}
+        /&gt;
+      ) : (
+        &lt;span&gt;{value}&lt;/span&gt;
+      );
+  }
+};
+</code></pre>
+<p>---</p>
+<h2>Validation Logic</h2>
+<h3>Field Name Validation</h3>
+<pre><code class="language-typescript">
+const validateFieldName = (name: string): boolean =&gt; {
+  // Must start with letter or underscore
+  // Can contain letters, numbers, underscores
+  // No spaces or special characters
+  const regex = /^[a-z_][a-z0-9_]*$/;
+  return regex.test(name);
+};
+</code></pre>
+<h3>Formula Validation</h3>
+<pre><code class="language-typescript">
+const validateFormula = (formula: string, fields: LineItemField[]): {
+  valid: boolean;
+  error?: string;
+} =&gt; {
+  try {
+    // Check if formula uses only existing fields
+    const fieldNames = fields.map(f =&gt; f.name);
+    const usedFields = formula.match(/[a-z_][a-z0-9_]*/g) || [];
+    
+    for (const used of usedFields) {
+      if (!fieldNames.includes(used) &amp;&amp; !Math[used]) {
+        return {
+          valid: false,
+          error: `Field &quot;${used}&quot; not found`
+        };
+      }
+    }
+    
+    // Try to evaluate with dummy data
+    const context = {};
+    fieldNames.forEach(name =&gt; context[name] = 1);
+    new Function(&#x27;context&#x27;, `with(context) { return ${formula} }`)(context);
+    
+    return { valid: true };
+  } catch (error) {
+    return {
+      valid: false,
+      error: `Invalid formula: ${error.message}`
+    };
+  }
+};
+</code></pre>
+<h3>Circular Dependency Detection</h3>
+<pre><code class="language-typescript">
+const detectCircularDependency = (
+  field: LineItemField,
+  allFields: LineItemField[]
+): boolean =&gt; {
+  if (!field.calculated || !field.formula) return false;
+  
+  const visited = new Set&lt;string&gt;();
+  const stack = new Set&lt;string&gt;();
+  
+  const hasCycle = (fieldName: string): boolean =&gt; {
+    if (stack.has(fieldName)) return true;
+    if (visited.has(fieldName)) return false;
+    
+    visited.add(fieldName);
+    stack.add(fieldName);
+    
+    const currentField = allFields.find(f =&gt; f.name === fieldName);
+    if (currentField?.calculated &amp;&amp; currentField.formula) {
+      const dependencies = currentField.formula.match(/[a-z_][a-z0-9_]*/g) || [];
+      for (const dep of dependencies) {
+        if (hasCycle(dep)) return true;
+      }
+    }
+    
+    stack.delete(fieldName);
+    return false;
+  };
+  
+  return hasCycle(field.name);
+};
+</code></pre>
+<p>---</p>
+<h2>Testing Scenarios</h2>
+<h3>Test 1: Add New Field</h3>
+<ol>
+<li>Click &quot;+ Add Field&quot;</li>
+<li>Enter name: `discount_percent`</li>
+<li>Enter display: `Discount %`</li>
+<li>Select type: `percent`</li>
+<li>Check `Editable`</li>
+<li>Click &quot;Add Field&quot;</li>
+<li>**Verify**: Field appears in list</li>
+<li>**Verify**: Field appears in quote line items</li>
+</ol>
+<h3>Test 2: Edit Existing Field</h3>
+<ol>
+<li>Click &quot;Edit&quot; on `unit_price`</li>
+<li>Change display name to `List Price`</li>
+<li>Change width to `150`</li>
+<li>Click &quot;Update Field&quot;</li>
+<li>**Verify**: Changes reflected in configurator</li>
+<li>**Verify**: Changes reflected in quote table</li>
+</ol>
+<h3>Test 3: Delete Field</h3>
+<ol>
+<li>Click &quot;Delete&quot; on a field</li>
+<li>Confirm deletion</li>
+<li>**Verify**: Field removed from list</li>
+<li>**Verify**: Field removed from quote table</li>
+<li>**Verify**: Order numbers updated</li>
+</ol>
+<h3>Test 4: Reorder Fields</h3>
+<ol>
+<li>Click &quot;↑&quot; on `quantity` field</li>
+<li>**Verify**: Quantity moves above previous field</li>
+<li>**Verify**: Order in quote table updates</li>
+<li>**Verify**: Order numbers correct</li>
+</ol>
+<h3>Test 5: Add Calculated Field</h3>
+<ol>
+<li>Add field: `line_margin`</li>
+<li>Display: `Line Margin`</li>
+<li>Type: `currency`</li>
+<li>Check `Calculated`</li>
+<li>Formula: `extended_price - (cost * quantity)`</li>
+<li>**Verify**: Formula validates</li>
+<li>**Verify**: Field calculates correctly</li>
+</ol>
+<h3>Test 6: Validation</h3>
+<ol>
+<li>Try to add field with spaces in name</li>
+<li>**Verify**: Error message shown</li>
+<li>Try to add duplicate field name</li>
+<li>**Verify**: Error message shown</li>
+<li>Try invalid formula</li>
+<li>**Verify**: Formula error shown</li>
+</ol>
+<p>---</p>
+<h2>Error Handling</h2>
+<h3>Display User-Friendly Errors</h3>
+<pre><code class="language-typescript">
+const [error, setError] = useState&lt;string | null&gt;(null);
+
+// Show error alert
+{error &amp;&amp; (
+  &lt;Alert variant=&quot;destructive&quot; className=&quot;mb-4&quot;&gt;
+    &lt;AlertCircle className=&quot;h-4 w-4&quot; /&gt;
+    &lt;AlertDescription&gt;{error}&lt;/AlertDescription&gt;
+  &lt;/Alert&gt;
+)}
+
+// Clear error after 5 seconds
+useEffect(() =&gt; {
+  if (error) {
+    const timer = setTimeout(() =&gt; setError(null), 5000);
+    return () =&gt; clearTimeout(timer);
+  }
+}, [error]);
+</code></pre>
+<h3>Handle API Errors</h3>
+<pre><code class="language-typescript">
+const saveField = async () =&gt; {
+  try {
+    const response = await fetch(endpoint, {
+      method: &#x27;POST&#x27;,
+      headers: {
+        &#x27;Content-Type&#x27;: &#x27;application/json&#x27;,
+        &#x27;Authorization&#x27;: `Bearer ${publicAnonKey}`,
+      },
+      body: JSON.stringify({ field: newField }),
+    });
+    
+    const data = await response.json();
+    
+    if (!data.success) {
+      setError(data.error || &#x27;Failed to save field&#x27;);
+      return;
+    }
+    
+    // Success
+    await loadFields();
+    closeModal();
+  } catch (error) {
+    setError(&#x27;Network error. Please try again.&#x27;);
+    console.error(&#x27;Error saving field:&#x27;, error);
+  }
+};
+</code></pre>
+<p>---</p>
+<h2>Success Criteria</h2>
+<h3>✅ Functional Requirements</h3>
+<ul>
+<li>Users can add new fields dynamically</li>
+<li>Users can edit field properties</li>
+<li>Users can delete fields with confirmation</li>
+<li>Users can reorder fields</li>
+<li>Changes persist across sessions</li>
+<li>Changes reflect immediately in quote screen</li>
+</ul>
+<h3>✅ Technical Requirements</h3>
+<ul>
+<li>TypeScript with proper types</li>
+<li>React functional components with hooks</li>
+<li>Supabase backend integration</li>
+<li>KV store for persistence</li>
+<li>Error handling and validation</li>
+<li>Responsive design</li>
+</ul>
+<h3>✅ User Experience</h3>
+<ul>
+<li>Intuitive interface</li>
+<li>Clear visual feedback</li>
+<li>Confirmation dialogs for destructive actions</li>
+<li>Loading states during API calls</li>
+<li>Error messages with recovery options</li>
+<li>Help text and tooltips</li>
+</ul>
+<p>---</p>
+<h2>Additional Features (Optional)</h2>
+<h3>1. Field Templates</h3>
+<p>Pre-configured sets of fields for different industries:</p>
+<ul>
+<li>Manufacturing</li>
+<li>Software/SaaS</li>
+<li>Services</li>
+<li>Retail</li>
+</ul>
+<h3>2. Import/Export</h3>
+<ul>
+<li>Export configuration as JSON</li>
+<li>Import configuration from JSON</li>
+<li>Backup and restore</li>
+</ul>
+<h3>3. Field Groups</h3>
+<p>Organize fields into collapsible sections:</p>
+<ul>
+<li>Product Information</li>
+<li>Pricing</li>
+<li>Discounts</li>
+<li>Calculations</li>
+</ul>
+<h3>4. Advanced Formula Builder</h3>
+<ul>
+<li>Visual formula builder</li>
+<li>Function selector</li>
+<li>Field picker</li>
+<li>Formula testing with sample data</li>
+</ul>
+<h3>5. Field History</h3>
+<ul>
+<li>Track all changes to fields</li>
+<li>See who made changes and when</li>
+<li>Rollback to previous configuration</li>
+</ul>
+<h3>6. Field Usage Analytics</h3>
+<ul>
+<li>Show which fields are most used</li>
+<li>Identify unused fields</li>
+<li>Track calculation performance</li>
+</ul>
+<p>---</p>
+<h2>Code Generation Prompt</h2>
+<p>To regenerate this component, use:</p>
+<pre><code>
+Create a Line Item Configurator component based on the technical specification in LineItemConfiguration.md. 
+
+Requirements:
+1. Create LineItemConfigurator.tsx component
+2. Implement all CRUD operations (Create, Read, Update, Delete)
+3. Add reorder functionality with up/down buttons
+4. Include add/edit modal with all field properties
+5. Validate field names and formulas
+6. Integrate with backend API endpoints
+7. Use the exact data structures and interfaces specified
+8. Include proper error handling and loading states
+9. Make it responsive and match the existing UI design
+10. Add all backend endpoints to /supabase/functions/server/index.tsx
+
+Follow the UI/UX specifications exactly, including:
+- Card-based field display
+- Modal form for add/edit
+- Confirmation dialogs for delete
+- Visual indicators for field types
+- Icon usage as specified
+
+Ensure integration with PricingTable so changes reflect immediately.
+</code></pre>
+<p>---</p>
+<h2>Summary</h2>
+<p>This specification provides a complete blueprint for creating a dynamic Line Item Configurator that allows business users to customize quote line items without code changes. The system supports multiple field types, calculated fields, validation, reordering, and full CRUD operations with backend persistence via Supabase KV store.</p>
+<p>**All technical details, data structures, UI designs, backend APIs, and integration points are fully specified for error-free generation.**</p>
+    </div>
+  </div>
+</body>
+</html>

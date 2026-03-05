@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Table Manager Screen Implementation Plan</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f6f8fb; color:#1f2937; }
+    .wrap { max-width: 980px; margin: 20px auto; padding: 0 16px; }
+    .card { background:#fff; border:1px solid #d7dee7; border-radius:10px; padding:20px; }
+    h1, h2, h3 { color:#0f766e; }
+    pre { background:#0f172a; color:#f8fafc; padding:12px; border-radius:8px; overflow:auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    ul, ol { padding-left: 20px; }
+    a { color:#0b63ce; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Table Manager Screen Implementation Plan</h1>
+<h2>Scope</h2>
+<p>Implement only the `Admin -&gt; Table Manager` screen in the existing React + FastAPI app, without changing other modules.</p>
+<h2>Skill Use</h2>
+<p>Using `figma` skill for design-to-code workflow.</p>
+<p>Required design input to start implementation: exact Figma frame URL (or `fileKey + nodeId`) for `Enterprise Pricing System -&gt; Admin -&gt; Table Manager`.</p>
+<h2>Assumptions</h2>
+<ol>
+<li>Table Manager is a UI for managing master tables (Products, Customers, Sellers) and their rows.</li>
+<li>Existing backend `/master/*` CRUD APIs remain the source of truth.</li>
+<li>Screen is added under existing Admin view and follows current app style tokens in `frontend/src/styles/app.css`.</li>
+</ol>
+<h2>Deliverables</h2>
+<ol>
+<li>New screen component focused on Table Manager only.</li>
+<li>Admin navigation update to expose Table Manager.</li>
+<li>API client typing cleanup for table records used by this screen.</li>
+<li>Loading, empty, save, error, and delete-confirm UX states.</li>
+<li>Basic test coverage for screen behavior and API interaction boundaries.</li>
+</ol>
+<h2>Implementation Steps</h2>
+<h3>Phase 1: Figma Extraction and Mapping</h3>
+<ol>
+<li>Fetch design context from Figma MCP:</li>
+</ol>
+<ul>
+<li>`get_design_context` for target node.</li>
+<li>`get_screenshot` for visual parity.</li>
+<li>`get_metadata` only if node tree is too large.</li>
+</ul>
+<ol>
+<li>Extract exact UI contract:</li>
+</ol>
+<ul>
+<li>Header/title/subtitle.</li>
+<li>Table tabs or selector behavior.</li>
+<li>Grid columns per entity.</li>
+<li>Search/filter/sort/pagination controls (if present).</li>
+<li>Row actions and form/drawer/modal interactions.</li>
+</ul>
+<ol>
+<li>Map design controls to existing data model:</li>
+</ol>
+<ul>
+<li>Products -&gt; `/master/products`</li>
+<li>Customers -&gt; `/master/customers`</li>
+<li>Sellers -&gt; `/master/sellers`</li>
+</ul>
+<h3>Phase 2: Frontend Structure</h3>
+<ol>
+<li>Create `frontend/src/components/TableManagerScreen.tsx`.</li>
+<li>Split reusable internal blocks if needed:</li>
+</ol>
+<ul>
+<li>`TableManagerTabs`</li>
+<li>`TableManagerGrid`</li>
+<li>`TableManagerForm`</li>
+</ul>
+<ol>
+<li>Add Admin tab switch entry in `frontend/src/components/AdminScreen.tsx` (or replace current master-data section if design requires one screen only).</li>
+<li>Keep component state local with `useState/useEffect/useMemo`; avoid introducing new state libraries.</li>
+</ol>
+<h3>Phase 3: Data + Interaction Layer</h3>
+<ol>
+<li>Use existing `apiFetch` with typed responses for list/create/update/delete per selected entity.</li>
+<li>Normalize form handling:</li>
+</ol>
+<ul>
+<li>Create mode vs edit mode.</li>
+<li>Boolean, number, text field handling.</li>
+<li>Reset/clear behavior.</li>
+</ul>
+<ol>
+<li>Add robust UX states:</li>
+</ol>
+<ul>
+<li>Initial loading.</li>
+<li>Inline API error messages.</li>
+<li>Disabled actions during save/delete.</li>
+<li>Empty table state.</li>
+</ul>
+<ol>
+<li>Preserve optimistic clarity (refresh after mutation for correctness-first behavior).</li>
+</ol>
+<h3>Phase 4: Styling and Figma Parity</h3>
+<ol>
+<li>Reuse existing CSS variables (`--surface`, `--line`, `--muted`, etc.).</li>
+<li>Add targeted classes in `frontend/src/styles/app.css` for:</li>
+</ol>
+<ul>
+<li>Table Manager layout shell.</li>
+<li>Toolbar controls.</li>
+<li>Data grid density and row actions.</li>
+<li>Form panel/modal.</li>
+</ul>
+<ol>
+<li>Match spacing/typography/borders from Figma screenshot as close as possible without breaking existing app patterns.</li>
+</ol>
+<h3>Phase 5: Validation and Regression Checks</h3>
+<ol>
+<li>Functional checks:</li>
+</ol>
+<ul>
+<li>Switch entity.</li>
+<li>Create/edit/delete rows.</li>
+<li>Error handling on failed API calls.</li>
+</ul>
+<ol>
+<li>Visual checks:</li>
+</ol>
+<ul>
+<li>Compare implemented screen with Figma screenshot.</li>
+<li>Desktop + tablet-width behavior.</li>
+</ul>
+<ol>
+<li>Regression checks:</li>
+</ol>
+<ul>
+<li>Admin Formula screen still works.</li>
+<li>Existing Data Management features remain unaffected.</li>
+</ul>
+<h2>File-Level Change Plan</h2>
+<ol>
+<li>`frontend/src/components/AdminScreen.tsx`</li>
+</ol>
+<ul>
+<li>Add/select `tableManager` tab and mount new screen.</li>
+</ul>
+<ol>
+<li>`frontend/src/components/TableManagerScreen.tsx` (new)</li>
+</ol>
+<ul>
+<li>Core UI + entity-based CRUD behavior.</li>
+</ul>
+<ol>
+<li>`frontend/src/api/types.ts`</li>
+</ol>
+<ul>
+<li>Add/expand strongly typed table row models as needed.</li>
+</ul>
+<ol>
+<li>`frontend/src/styles/app.css`</li>
+</ol>
+<ul>
+<li>Add Table Manager-specific classes.</li>
+</ul>
+<ol>
+<li>Optional tests:</li>
+</ol>
+<ul>
+<li>`frontend/src/components/__tests__/TableManagerScreen.test.tsx`</li>
+</ul>
+<h2>Acceptance Criteria</h2>
+<ol>
+<li>Table Manager screen is reachable from Admin and isolated to its own UI surface.</li>
+<li>Products/Customers/Sellers can be listed, created, updated, and deleted from this screen.</li>
+<li>All main states (loading, empty, error, saving) are handled visibly.</li>
+<li>Final UI matches Figma layout/spacing/controls for the target node with no major visual drift.</li>
+<li>No regressions in other Admin tabs.</li>
+</ol>
+<h2>Risks and Mitigations</h2>
+<ol>
+<li>Risk: Figma node ambiguity (wrong variant/state selected).</li>
+</ol>
+<p>Mitigation: lock implementation to a single provided node URL and screenshot before coding.</p>
+<ol>
+<li>Risk: UX mismatch vs existing backend payload shapes.</li>
+</ol>
+<p>Mitigation: strict field mapping per entity and type guards.</p>
+<ol>
+<li>Risk: scope creep into unrelated Admin modules.</li>
+</ol>
+<p>Mitigation: keep all changes confined to Table Manager tab and shared style additions only.</p>
+<h2>Execution Order</h2>
+<ol>
+<li>Confirm Figma target node URL.</li>
+<li>Implement `TableManagerScreen.tsx`.</li>
+<li>Wire Admin tab.</li>
+<li>Apply styling.</li>
+<li>Validate behavior and parity.</li>
+<li>Run tests/build and finalize.</li>
+</ol>
+    </div>
+  </div>
+</body>
+</html>

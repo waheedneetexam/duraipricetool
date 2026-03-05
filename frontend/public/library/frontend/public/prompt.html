@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Master Prompt: Build, Setup, and Deploy DuraiPricingTool End-to-End</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f6f8fb; color:#1f2937; }
+    .wrap { max-width: 980px; margin: 20px auto; padding: 0 16px; }
+    .card { background:#fff; border:1px solid #d7dee7; border-radius:10px; padding:20px; }
+    h1, h2, h3 { color:#0f766e; }
+    pre { background:#0f172a; color:#f8fafc; padding:12px; border-radius:8px; overflow:auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    ul, ol { padding-left: 20px; }
+    a { color:#0b63ce; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Master Prompt: Build, Setup, and Deploy DuraiPricingTool End-to-End</h1>
+<p>Use this prompt with an engineering assistant to execute a complete setup from scratch through production deployment.</p>
+<p>---</p>
+<p>You are a senior DevOps + full-stack engineer.</p>
+<p>Set up and deploy **DuraiPricingTool** end-to-end, with production-grade practices.</p>
+<h2>Project Context</h2>
+<ul>
+<li>Backend: FastAPI (`app.main:app`)</li>
+<li>Frontend: React + Vite (`frontend/`)</li>
+<li>Analytics DB: DuckDB</li>
+<li>Optional hybrid mode: PostgreSQL for transactional APIs + DuckDB for analytics</li>
+<li>Repo root: `/home/waheed/DuraiPricingTool`</li>
+</ul>
+<h2>Requirements (must satisfy all)</h2>
+<ol>
+<li>Environment + dependencies</li>
+</ol>
+<ul>
+<li>OS: Linux (Ubuntu preferred)</li>
+<li>Python: 3.11+ (venv-based)</li>
+<li>Node.js: 20+ and npm</li>
+<li>Install backend dependencies from `requirements.txt`:</li>
+<li>`fastapi==0.116.1`</li>
+<li>`uvicorn==0.35.0`</li>
+<li>`duckdb==1.3.2`</li>
+<li>`pandas==2.3.2`</li>
+<li>`pydantic==2.11.7`</li>
+<li>`python-multipart==0.0.20`</li>
+<li>`numpy==2.3.2`</li>
+<li>`httpx==0.28.1`</li>
+<li>`psycopg[binary]==3.2.9`</li>
+<li>Install frontend dependencies from `frontend/package.json`</li>
+</ul>
+<ol>
+<li>Local development setup</li>
+</ol>
+<ul>
+<li>Create and activate virtualenv at `.venv`</li>
+<li>Install Python deps</li>
+<li>Install frontend deps in `frontend/`</li>
+<li>Start backend on `0.0.0.0:9000`</li>
+<li>Start frontend on `0.0.0.0:5173`</li>
+<li>If backend is remote/non-default, set `VITE_API_BASE_URL`</li>
+</ul>
+<ol>
+<li>Functional validation</li>
+</ol>
+<ul>
+<li>Verify backend health endpoint: `GET /health`</li>
+<li>Verify frontend URL loads on `5173`</li>
+<li>Seed sample data:</li>
+<li>`POST /admin/seed/sample-data?row_count=10000`</li>
+<li>`POST /admin/seed/workflow-rules`</li>
+<li>Validate key flows:</li>
+<li>`GET /analytics/waterfall`</li>
+<li>`POST /quotes/calculate`</li>
+<li>`POST /chatbot/ask`</li>
+<li>Provide exact curl commands and expected success signals</li>
+</ul>
+<ol>
+<li>Production deployment</li>
+</ol>
+<ul>
+<li>Build frontend (`npm run build`)</li>
+<li>Serve frontend through Nginx (static files)</li>
+<li>Run backend with systemd service using uvicorn</li>
+<li>Configure reverse proxy:</li>
+<li>`/api` -&gt; FastAPI backend (`127.0.0.1:9000`)</li>
+<li>`/` -&gt; frontend static app</li>
+<li>Open firewall for HTTP/HTTPS only</li>
+<li>Enable HTTPS with Let’s Encrypt (certbot)</li>
+<li>Enable service auto-start on reboot</li>
+</ul>
+<ol>
+<li>Optional hybrid DB mode</li>
+</ol>
+<ul>
+<li>Support env vars:</li>
+<li>`DB_ENGINE=hybrid`</li>
+<li>`PG_DSN=postgresql://postgres:postgres@127.0.0.1:5432/duraipricing`</li>
+<li>Run sync job once: `python -m app.workers.pg_to_duck_sync --once`</li>
+<li>Continuous sync: `python -m app.workers.pg_to_duck_sync --interval 30`</li>
+<li>Validate admin sync endpoint: `POST /admin/sync/run-once`</li>
+</ul>
+<ol>
+<li>Reliability and operations</li>
+</ol>
+<ul>
+<li>Log file paths for backend and frontend</li>
+<li>Restart policies in systemd</li>
+<li>Include troubleshooting for:</li>
+<li>Port conflicts (`9000`, `5173`)</li>
+<li>CORS/API base URL mismatch</li>
+<li>service starts but endpoint not reachable</li>
+<li>Include rollback steps for bad deploy</li>
+</ul>
+<h2>Deliverables Format</h2>
+<p>Return your answer in these sections:</p>
+<ol>
+<li>`Prerequisites`</li>
+<li>`Install and Local Setup`</li>
+<li>`Run Commands`</li>
+<li>`Validation Checklist`</li>
+<li>`Production Deployment (Nginx + systemd + SSL)`</li>
+<li>`Hybrid PostgreSQL + DuckDB Setup (Optional)`</li>
+<li>`Ops Runbook (logs, restart, health checks, rollback)`</li>
+<li>`Final Acceptance Criteria`</li>
+</ol>
+<h2>Execution Rules</h2>
+<ul>
+<li>Use concrete commands, not placeholders unless unavoidable.</li>
+<li>Prefer idempotent steps.</li>
+<li>Show commands in copy-paste-ready blocks.</li>
+<li>Explain any assumption explicitly.</li>
+<li>At the end, provide:</li>
+<li>active URLs</li>
+<li>active services</li>
+<li>exact commands to verify system health after reboot.</li>
+</ul>
+    </div>
+  </div>
+</body>
+</html>

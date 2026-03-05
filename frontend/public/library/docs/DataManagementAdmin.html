@@ -1,0 +1,1923 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Data Management Admin - Technical Specification</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f6f8fb; color:#1f2937; }
+    .wrap { max-width: 980px; margin: 20px auto; padding: 0 16px; }
+    .card { background:#fff; border:1px solid #d7dee7; border-radius:10px; padding:20px; }
+    h1, h2, h3 { color:#0f766e; }
+    pre { background:#0f172a; color:#f8fafc; padding:12px; border-radius:8px; overflow:auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    ul, ol { padding-left: 20px; }
+    a { color:#0b63ce; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Data Management Admin - Technical Specification</h1>
+<h2>Overview</h2>
+<p>Create a **Data Management Admin** system that allows administrators to manage 9 master data tables through CSV import, browse/edit data in a table manager interface, and maintain referential integrity across the pricing application.</p>
+<h2>Purpose</h2>
+<p>Enable business users to import, view, edit, and manage master data without database access or SQL knowledge, supporting enterprise pricing operations with product catalogs, customer data, and configuration tables.</p>
+<p>---</p>
+<h2>Technical Requirements</h2>
+<h3>Component Location</h3>
+<ul>
+<li>**Main Component**: `/src/app/components/AdminScreen.tsx`</li>
+<li>**Sub-components**:</li>
+<li>CSV Import Manager (embedded in AdminScreen)</li>
+<li>`/src/app/components/TableManager.tsx`</li>
+<li>Data validation utilities</li>
+<li>**Backend**: `/supabase/functions/server/index.tsx` (data management endpoints)</li>
+</ul>
+<h3>Dependencies</h3>
+<pre><code class="language-typescript">
+import React, { useState, useEffect } from &#x27;react&#x27;;
+import { 
+  Upload, Database, FileText, Download, CheckCircle, 
+  AlertCircle, Trash2, Edit, Save, X, Search, Filter,
+  RefreshCw, Eye, Plus, Table as TableIcon
+} from &#x27;lucide-react&#x27;;
+import { Button } from &#x27;./ui/button&#x27;;
+import { Card } from &#x27;./ui/card&#x27;;
+import { Tabs, TabsContent, TabsList, TabsTrigger } from &#x27;./ui/tabs&#x27;;
+import { Input } from &#x27;./ui/input&#x27;;
+import { Label } from &#x27;./ui/label&#x27;;
+import { Alert, AlertDescription } from &#x27;./ui/alert&#x27;;
+import { projectId, publicAnonKey } from &#x27;/utils/supabase/info&#x27;;
+</code></pre>
+<p>---</p>
+<h2>Master Data Tables</h2>
+<h3>Complete Table Definitions</h3>
+<pre><code class="language-typescript">
+interface MasterDataTable {
+  id: string;
+  name: string;
+  displayName: string;
+  endpoint: string;
+  description: string;
+  fields: FieldDefinition[];
+  sampleCsv: string;
+  primaryKey: string;
+  requiresValidation: boolean;
+  parentTables?: string[];  // For referential integrity
+}
+
+interface FieldDefinition {
+  name: string;
+  displayName: string;
+  type: &#x27;text&#x27; | &#x27;number&#x27; | &#x27;currency&#x27; | &#x27;date&#x27; | &#x27;email&#x27; | &#x27;phone&#x27; | &#x27;boolean&#x27;;
+  required: boolean;
+  unique?: boolean;
+  validation?: ValidationRule;
+  description?: string;
+}
+
+interface ValidationRule {
+  min?: number;
+  max?: number;
+  pattern?: RegExp;
+  enum?: string[];
+  errorMessage?: string;
+}
+
+const MASTER_DATA_TABLES: MasterDataTable[] = [
+  {
+    id: &#x27;product-hierarchies&#x27;,
+    name: &#x27;product_hierarchies&#x27;,
+    displayName: &#x27;Product Hierarchies&#x27;,
+    endpoint: &#x27;product-hierarchies&#x27;,
+    description: &#x27;Product categorization and hierarchy structure&#x27;,
+    primaryKey: &#x27;id&#x27;,
+    requiresValidation: false,
+    fields: [
+      {
+        name: &#x27;id&#x27;,
+        displayName: &#x27;Hierarchy ID&#x27;,
+        type: &#x27;text&#x27;,
+        required: true,
+        unique: true,
+        description: &#x27;Unique identifier for hierarchy level&#x27;
+      },
+      {
+        name: &#x27;name&#x27;,
+        displayName: &#x27;Name&#x27;,
+        type: &#x27;text&#x27;,
+        required: true,
+        description: &#x27;Hierarchy level name&#x27;
+      },
+      {
+        name: &#x27;description&#x27;,
+        displayName: &#x27;Description&#x27;,
+        type: &#x27;text&#x27;,
+        required: false,
+        description: &#x27;Detailed description&#x27;
+      },
+      {
+        name: &#x27;parent_id&#x27;,
+        displayName: &#x27;Parent ID&#x27;,
+        type: &#x27;text&#x27;,
+        required: false,
+        description: &#x27;Parent hierarchy level&#x27;
+      },
+      {
+        name: &#x27;level&#x27;,
+        displayName: &#x27;Level&#x27;,
+        type: &#x27;number&#x27;,
+        required: false,
+        description: &#x27;Hierarchy level (1=top, 2=sub, etc.)&#x27;
+      }
+    ],
+    sampleCsv: `id,name,description,parent_id,level
+software,Software Solutions,Enterprise software products,,1
+hardware,Hardware Products,Physical hardware devices,,1
+cloud-services,Cloud Services,SaaS and cloud offerings,software,2`
+  },
+  {
+    id: &#x27;customers&#x27;,
+    name: &#x27;customers&#x27;,
+    displayName: &#x27;Customers&#x27;,
+    endpoint: &#x27;customers&#x27;,
+    description: &#x27;Customer master data with segmentation&#x27;,
+    primaryKey: &#x27;id&#x27;,
+    requiresValidation: true,
+    fields: [
+      {
+        name: &#x27;id&#x27;,
+        displayName: &#x27;Customer ID&#x27;,
+        type: &#x27;text&#x27;,
+        required: true,
+        unique: true,
+        description: &#x27;Unique customer identifier&#x27;
+      },
+      {
+        name: &#x27;name&#x27;,
+        displayName: &#x27;Customer Name&#x27;,
+        type: &#x27;text&#x27;,
+        required: true,
+        description: &#x27;Legal business name&#x27;
+      },
+      {
+        name: &#x27;type&#x27;,
+        displayName: &#x27;Customer Type&#x27;,
+        type: &#x27;text&#x27;,
+        required: true,
+        validation: {
+          enum: [&#x27;Enterprise&#x27;, &#x27;Mid-Market&#x27;, &#x27;SMB&#x27;, &#x27;Startup&#x27;],
+          errorMessage: &#x27;Must be Enterprise, Mid-Market, SMB, or Startup&#x27;
+        },
+        description: &#x27;Customer segment&#x27;
+      },
+      {
+        name: &#x27;region&#x27;,
+        displayName: &#x27;Region&#x27;,
+        type: &#x27;text&#x27;,
+        required: true,
+        description: &#x27;Geographic region&#x27;
+      },
+      {
+        name: &#x27;country&#x27;,
+        displayName: &#x27;Country&#x27;,
+        type: &#x27;text&#x27;,
+        required: true,
+        description: &#x27;Country code or name&#x27;
+      },
+      {
+        name: &#x27;email&#x27;,
+        displayName: &#x27;Email&#x27;,
+        type: &#x27;email&#x27;,
+        required: false,
+        validation: {
+          pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+          errorMessage: &#x27;Invalid email format&#x27;
+        },
+        description: &#x27;Primary contact email&#x27;
+      },
+      {
+        name: &#x27;credit_limit&#x27;,
+        displayName: &#x27;Credit Limit&#x27;,
+        type: &#x27;currency&#x27;,
+        required: false,
+        description: &#x27;Maximum credit allowed&#x27;
+      }
+    ],
+    sampleCsv: `id,name,type,region,country,email,credit_limit
+acme-corp,Acme Corporation,Enterprise,North America,US,contact@acme.com,1000000
+techstart-inc,TechStart Inc.,Mid-Market,North America,US,info@techstart.com,250000
+global-solutions,Global Solutions Ltd,Enterprise,EMEA,UK,sales@global.co.uk,500000`
+  },
+  {
+    id: &#x27;sales-orgs&#x27;,
+    name: &#x27;sales_orgs&#x27;,
+    displayName: &#x27;Sales Organizations&#x27;,
+    endpoint: &#x27;sales-orgs&#x27;,
+    description: &#x27;Sales organization structure and territories&#x27;,
+    primaryKey: &#x27;id&#x27;,
+    requiresValidation: false,
+    fields: [
+      {
+        name: &#x27;id&#x27;,
+        displayName: &#x27;Org ID&#x27;,
+        type: &#x27;text&#x27;,
+        required: true,
+        unique: true
+      },
+      {
+        name: &#x27;name&#x27;,
+        displayName: &#x27;Organization Name&#x27;,
+        type: &#x27;text&#x27;,
+        required: true
+      },
+      {
+        name: &#x27;region&#x27;,
+        displayName: &#x27;Region&#x27;,
+        type: &#x27;text&#x27;,
+        required: true
+      },
+      {
+        name: &#x27;manager&#x27;,
+        displayName: &#x27;Manager Name&#x27;,
+        type: &#x27;text&#x27;,
+        required: false
+      },
+      {
+        name: &#x27;manager_email&#x27;,
+        displayName: &#x27;Manager Email&#x27;,
+        type: &#x27;email&#x27;,
+        required: false
+      }
+    ],
+    sampleCsv: `id,name,region,manager,manager_email
+us-east,US East Sales,North America,John Smith,john.smith@company.com
+us-west,US West Sales,North America,Jane Doe,jane.doe@company.com
+emea,EMEA Sales,Europe,Peter Jones,peter.jones@company.com`
+  },
+  {
+    id: &#x27;regions&#x27;,
+    name: &#x27;regions&#x27;,
+    displayName: &#x27;Regions&#x27;,
+    endpoint: &#x27;regions&#x27;,
+    description: &#x27;Geographic regions and territories&#x27;,
+    primaryKey: &#x27;id&#x27;,
+    requiresValidation: false,
+    fields: [
+      {
+        name: &#x27;id&#x27;,
+        displayName: &#x27;Region ID&#x27;,
+        type: &#x27;text&#x27;,
+        required: true,
+        unique: true
+      },
+      {
+        name: &#x27;name&#x27;,
+        displayName: &#x27;Region Name&#x27;,
+        type: &#x27;text&#x27;,
+        required: true
+      },
+      {
+        name: &#x27;countries&#x27;,
+        displayName: &#x27;Countries&#x27;,
+        type: &#x27;text&#x27;,
+        required: false,
+        description: &#x27;Comma-separated country codes&#x27;
+      },
+      {
+        name: &#x27;currency&#x27;,
+        displayName: &#x27;Currency&#x27;,
+        type: &#x27;text&#x27;,
+        required: false,
+        description: &#x27;Default currency (USD, EUR, GBP, etc.)&#x27;
+      },
+      {
+        name: &#x27;timezone&#x27;,
+        displayName: &#x27;Timezone&#x27;,
+        type: &#x27;text&#x27;,
+        required: false
+      }
+    ],
+    sampleCsv: `id,name,countries,currency,timezone
+north-america,North America,&quot;US,CA,MX&quot;,USD,America/New_York
+emea,EMEA,&quot;UK,DE,FR,IT,ES&quot;,EUR,Europe/London
+apac,Asia Pacific,&quot;JP,CN,AU,SG&quot;,USD,Asia/Singapore`
+  },
+  {
+    id: &#x27;currencies&#x27;,
+    name: &#x27;currencies&#x27;,
+    displayName: &#x27;Currencies&#x27;,
+    endpoint: &#x27;currencies&#x27;,
+    description: &#x27;Currency codes and exchange rates&#x27;,
+    primaryKey: &#x27;code&#x27;,
+    requiresValidation: false,
+    fields: [
+      {
+        name: &#x27;code&#x27;,
+        displayName: &#x27;Currency Code&#x27;,
+        type: &#x27;text&#x27;,
+        required: true,
+        unique: true,
+        description: &#x27;ISO 4217 code (USD, EUR, etc.)&#x27;
+      },
+      {
+        name: &#x27;name&#x27;,
+        displayName: &#x27;Currency Name&#x27;,
+        type: &#x27;text&#x27;,
+        required: true
+      },
+      {
+        name: &#x27;symbol&#x27;,
+        displayName: &#x27;Symbol&#x27;,
+        type: &#x27;text&#x27;,
+        required: true,
+        description: &#x27;$, €, £, etc.&#x27;
+      },
+      {
+        name: &#x27;exchange_rate&#x27;,
+        displayName: &#x27;Exchange Rate&#x27;,
+        type: &#x27;number&#x27;,
+        required: true,
+        description: &#x27;Rate to USD (1 USD = X currency)&#x27;
+      },
+      {
+        name: &#x27;decimal_places&#x27;,
+        displayName: &#x27;Decimal Places&#x27;,
+        type: &#x27;number&#x27;,
+        required: false,
+        description: &#x27;Number of decimal places (usually 2)&#x27;
+      }
+    ],
+    sampleCsv: `code,name,symbol,exchange_rate,decimal_places
+USD,US Dollar,$,1.00,2
+EUR,Euro,€,0.85,2
+GBP,British Pound,£,0.73,2
+JPY,Japanese Yen,¥,110.00,0`
+  },
+  {
+    id: &#x27;products&#x27;,
+    name: &#x27;products&#x27;,
+    displayName: &#x27;Products&#x27;,
+    endpoint: &#x27;products&#x27;,
+    description: &#x27;Complete product catalog&#x27;,
+    primaryKey: &#x27;product_sku&#x27;,
+    requiresValidation: true,
+    parentTables: [&#x27;product_hierarchies&#x27;],
+    fields: [
+      {
+        name: &#x27;product_sku&#x27;,
+        displayName: &#x27;Product SKU&#x27;,
+        type: &#x27;text&#x27;,
+        required: true,
+        unique: true,
+        description: &#x27;Unique product identifier&#x27;
+      },
+      {
+        name: &#x27;product_name&#x27;,
+        displayName: &#x27;Product Name&#x27;,
+        type: &#x27;text&#x27;,
+        required: true
+      },
+      {
+        name: &#x27;description&#x27;,
+        displayName: &#x27;Description&#x27;,
+        type: &#x27;text&#x27;,
+        required: false
+      },
+      {
+        name: &#x27;category&#x27;,
+        displayName: &#x27;Category&#x27;,
+        type: &#x27;text&#x27;,
+        required: true,
+        description: &#x27;Product category (links to product_hierarchies)&#x27;
+      },
+      {
+        name: &#x27;list_price&#x27;,
+        displayName: &#x27;List Price&#x27;,
+        type: &#x27;currency&#x27;,
+        required: true,
+        validation: {
+          min: 0,
+          errorMessage: &#x27;Price must be non-negative&#x27;
+        }
+      },
+      {
+        name: &#x27;cost&#x27;,
+        displayName: &#x27;Cost&#x27;,
+        type: &#x27;currency&#x27;,
+        required: false,
+        validation: {
+          min: 0,
+          errorMessage: &#x27;Cost must be non-negative&#x27;
+        }
+      },
+      {
+        name: &#x27;unit_of_measure&#x27;,
+        displayName: &#x27;Unit&#x27;,
+        type: &#x27;text&#x27;,
+        required: false,
+        description: &#x27;EA, LB, KG, etc.&#x27;
+      },
+      {
+        name: &#x27;active&#x27;,
+        displayName: &#x27;Active&#x27;,
+        type: &#x27;boolean&#x27;,
+        required: false,
+        description: &#x27;Is product available for sale&#x27;
+      }
+    ],
+    sampleCsv: `product_sku,product_name,description,category,list_price,cost,unit_of_measure,active
+SW-001,Enterprise Software Suite,Complete business software package,software,50000,25000,EA,true
+HW-001,Server Rack Unit,42U server rack with cooling,hardware,15000,8000,EA,true
+CS-001,Cloud Storage Pro,1TB cloud storage service,cloud-services,999,400,EA,true`
+  },
+  {
+    id: &#x27;product-costs&#x27;,
+    name: &#x27;product_costs&#x27;,
+    displayName: &#x27;Product Costs&#x27;,
+    endpoint: &#x27;product-costs&#x27;,
+    description: &#x27;Product cost data by region and time period&#x27;,
+    primaryKey: &#x27;id&#x27;,
+    requiresValidation: true,
+    parentTables: [&#x27;products&#x27;, &#x27;regions&#x27;],
+    fields: [
+      {
+        name: &#x27;id&#x27;,
+        displayName: &#x27;Cost ID&#x27;,
+        type: &#x27;text&#x27;,
+        required: true,
+        unique: true
+      },
+      {
+        name: &#x27;product_sku&#x27;,
+        displayName: &#x27;Product SKU&#x27;,
+        type: &#x27;text&#x27;,
+        required: true,
+        description: &#x27;Links to products table&#x27;
+      },
+      {
+        name: &#x27;region_id&#x27;,
+        displayName: &#x27;Region&#x27;,
+        type: &#x27;text&#x27;,
+        required: true,
+        description: &#x27;Links to regions table&#x27;
+      },
+      {
+        name: &#x27;cost&#x27;,
+        displayName: &#x27;Cost&#x27;,
+        type: &#x27;currency&#x27;,
+        required: true,
+        validation: {
+          min: 0
+        }
+      },
+      {
+        name: &#x27;effective_date&#x27;,
+        displayName: &#x27;Effective Date&#x27;,
+        type: &#x27;date&#x27;,
+        required: true,
+        description: &#x27;When this cost takes effect&#x27;
+      },
+      {
+        name: &#x27;end_date&#x27;,
+        displayName: &#x27;End Date&#x27;,
+        type: &#x27;date&#x27;,
+        required: false,
+        description: &#x27;When this cost expires&#x27;
+      }
+    ],
+    sampleCsv: `id,product_sku,region_id,cost,effective_date,end_date
+cost-001,SW-001,north-america,25000,2024-01-01,
+cost-002,SW-001,emea,28000,2024-01-01,
+cost-003,HW-001,north-america,8000,2024-01-01,`
+  },
+  {
+    id: &#x27;discount-tiers&#x27;,
+    name: &#x27;discount_tiers&#x27;,
+    displayName: &#x27;Discount Tiers&#x27;,
+    endpoint: &#x27;discount-tiers&#x27;,
+    description: &#x27;Volume discount tier definitions&#x27;,
+    primaryKey: &#x27;id&#x27;,
+    requiresValidation: false,
+    fields: [
+      {
+        name: &#x27;id&#x27;,
+        displayName: &#x27;Tier ID&#x27;,
+        type: &#x27;text&#x27;,
+        required: true,
+        unique: true
+      },
+      {
+        name: &#x27;tier_name&#x27;,
+        displayName: &#x27;Tier Name&#x27;,
+        type: &#x27;text&#x27;,
+        required: true
+      },
+      {
+        name: &#x27;min_quantity&#x27;,
+        displayName: &#x27;Min Quantity&#x27;,
+        type: &#x27;number&#x27;,
+        required: true,
+        validation: {
+          min: 0
+        }
+      },
+      {
+        name: &#x27;max_quantity&#x27;,
+        displayName: &#x27;Max Quantity&#x27;,
+        type: &#x27;number&#x27;,
+        required: false,
+        description: &#x27;Leave empty for no upper limit&#x27;
+      },
+      {
+        name: &#x27;discount_percent&#x27;,
+        displayName: &#x27;Discount %&#x27;,
+        type: &#x27;number&#x27;,
+        required: true,
+        validation: {
+          min: 0,
+          max: 100
+        }
+      },
+      {
+        name: &#x27;product_category&#x27;,
+        displayName: &#x27;Product Category&#x27;,
+        type: &#x27;text&#x27;,
+        required: false,
+        description: &#x27;Apply to specific category only&#x27;
+      }
+    ],
+    sampleCsv: `id,tier_name,min_quantity,max_quantity,discount_percent,product_category
+tier-1,Bronze,1,9,0,
+tier-2,Silver,10,49,5,
+tier-3,Gold,50,99,10,
+tier-4,Platinum,100,,15,`
+  },
+  {
+    id: &#x27;pricing-rules&#x27;,
+    name: &#x27;pricing_rules&#x27;,
+    displayName: &#x27;Pricing Rules&#x27;,
+    endpoint: &#x27;pricing-rules&#x27;,
+    description: &#x27;Custom pricing rules and exceptions&#x27;,
+    primaryKey: &#x27;id&#x27;,
+    requiresValidation: true,
+    fields: [
+      {
+        name: &#x27;id&#x27;,
+        displayName: &#x27;Rule ID&#x27;,
+        type: &#x27;text&#x27;,
+        required: true,
+        unique: true
+      },
+      {
+        name: &#x27;rule_name&#x27;,
+        displayName: &#x27;Rule Name&#x27;,
+        type: &#x27;text&#x27;,
+        required: true
+      },
+      {
+        name: &#x27;description&#x27;,
+        displayName: &#x27;Description&#x27;,
+        type: &#x27;text&#x27;,
+        required: false
+      },
+      {
+        name: &#x27;customer_type&#x27;,
+        displayName: &#x27;Customer Type&#x27;,
+        type: &#x27;text&#x27;,
+        required: false,
+        description: &#x27;Enterprise, Mid-Market, SMB, or blank for all&#x27;
+      },
+      {
+        name: &#x27;product_category&#x27;,
+        displayName: &#x27;Product Category&#x27;,
+        type: &#x27;text&#x27;,
+        required: false
+      },
+      {
+        name: &#x27;discount_percent&#x27;,
+        displayName: &#x27;Discount %&#x27;,
+        type: &#x27;number&#x27;,
+        required: false
+      },
+      {
+        name: &#x27;price_multiplier&#x27;,
+        displayName: &#x27;Price Multiplier&#x27;,
+        type: &#x27;number&#x27;,
+        required: false,
+        description: &#x27;1.0 = no change, 0.9 = 10% off, 1.1 = 10% markup&#x27;
+      },
+      {
+        name: &#x27;priority&#x27;,
+        displayName: &#x27;Priority&#x27;,
+        type: &#x27;number&#x27;,
+        required: false,
+        description: &#x27;Lower number = higher priority&#x27;
+      },
+      {
+        name: &#x27;active&#x27;,
+        displayName: &#x27;Active&#x27;,
+        type: &#x27;boolean&#x27;,
+        required: false
+      }
+    ],
+    sampleCsv: `id,rule_name,description,customer_type,product_category,discount_percent,price_multiplier,priority,active
+rule-001,Enterprise Discount,Standard enterprise discount,Enterprise,,15,,1,true
+rule-002,Software Bundle,Discount for software bundles,,software,10,,2,true
+rule-003,New Customer Promo,First-time customer promotion,,,20,,3,true`
+  }
+];
+</code></pre>
+<p>---</p>
+<h2>Component Structure</h2>
+<h3>AdminScreen Layout</h3>
+<pre><code>
+┌──────────────────────────────────────────────────────────────┐
+│ Admin Dashboard                                              │
+├──────────────────────────────────────────────────────────────┤
+│                                                               │
+│  [CSV Import] [Table Manager] [Line Item Config] [AI Engine] │
+│                                                               │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │ CSV Import Manager                                     │  │
+│  │                                                         │  │
+│  │  Select Table: [Dropdown: Products ▼]                 │  │
+│  │                                                         │  │
+│  │  ┌─────────────────────────────────────────────────┐  │  │
+│  │  │ 📄 Drag &amp; Drop CSV File Here                    │  │  │
+│  │  │                                                   │  │  │
+│  │  │        or click to browse                        │  │  │
+│  │  └─────────────────────────────────────────────────┘  │  │
+│  │                                                         │  │
+│  │  Expected Format:                                      │  │
+│  │  ┌─────────────────────────────────────────────────┐  │  │
+│  │  │ product_sku,product_name,category,list_price    │  │  │
+│  │  │ SW-001,Enterprise Suite,software,50000          │  │  │
+│  │  │ HW-001,Server Rack,hardware,15000               │  │  │
+│  │  └─────────────────────────────────────────────────┘  │  │
+│  │                                                         │  │
+│  │  [📥 Download Sample CSV]                              │  │
+│  │                                                         │  │
+│  │  Import Results:                                       │  │
+│  │  ✅ Successfully imported 47 records                   │  │
+│  │  ⚠️  2 warnings (duplicate SKUs updated)               │  │
+│  │  ❌ 1 error (invalid price format on row 15)          │  │
+│  │                                                         │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                               │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │ Quick Actions                                          │  │
+│  │                                                         │  │
+│  │  📊 Products (145 records)      [Import] [View]       │  │
+│  │  👥 Customers (89 records)      [Import] [View]       │  │
+│  │  🏢 Sales Orgs (12 records)     [Import] [View]       │  │
+│  │  🌍 Regions (8 records)         [Import] [View]       │  │
+│  │  💰 Discount Tiers (15 records) [Import] [View]       │  │
+│  │                                                         │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                               │
+└──────────────────────────────────────────────────────────────┘
+</code></pre>
+<p>---</p>
+<h2>CSV Import Features</h2>
+<h3>1. File Upload Interface</h3>
+<pre><code class="language-typescript">
+interface CSVImportState {
+  selectedTable: string;
+  file: File | null;
+  uploading: boolean;
+  results: ImportResult | null;
+  errors: ImportError[];
+  warnings: ImportWarning[];
+}
+
+interface ImportResult {
+  success: boolean;
+  recordsProcessed: number;
+  recordsImported: number;
+  recordsUpdated: number;
+  recordsSkipped: number;
+  errors: ImportError[];
+  warnings: ImportWarning[];
+  processingTime: number;
+}
+
+interface ImportError {
+  row: number;
+  field?: string;
+  value?: any;
+  message: string;
+  severity: &#x27;error&#x27; | &#x27;warning&#x27;;
+}
+
+interface ImportWarning {
+  row: number;
+  field?: string;
+  message: string;
+}
+</code></pre>
+<h3>2. CSV Parsing &amp; Validation</h3>
+<pre><code class="language-typescript">
+const parseCSV = (fileContent: string): ParsedCSV =&gt; {
+  const lines = fileContent.split(&#x27;\n&#x27;).filter(line =&gt; line.trim());
+  const headers = lines[0].split(&#x27;,&#x27;).map(h =&gt; h.trim());
+  
+  const rows = lines.slice(1).map((line, index) =&gt; {
+    const values = parseCSVLine(line);
+    const row: any = { _rowNumber: index + 2 };  // +2 for 1-based and header
+    
+    headers.forEach((header, i) =&gt; {
+      row[header] = values[i]?.trim() || &#x27;&#x27;;
+    });
+    
+    return row;
+  });
+  
+  return { headers, rows };
+};
+
+const validateRow = (
+  row: any, 
+  table: MasterDataTable
+): ValidationResult =&gt; {
+  const errors: ImportError[] = [];
+  
+  // Check required fields
+  for (const field of table.fields) {
+    if (field.required &amp;&amp; !row[field.name]) {
+      errors.push({
+        row: row._rowNumber,
+        field: field.name,
+        message: `${field.displayName} is required`,
+        severity: &#x27;error&#x27;
+      });
+    }
+    
+    // Type validation
+    if (row[field.name]) {
+      const typeError = validateFieldType(row[field.name], field);
+      if (typeError) {
+        errors.push({
+          row: row._rowNumber,
+          field: field.name,
+          value: row[field.name],
+          message: typeError,
+          severity: &#x27;error&#x27;
+        });
+      }
+    }
+    
+    // Custom validation rules
+    if (field.validation &amp;&amp; row[field.name]) {
+      const validationError = validateFieldValue(row[field.name], field.validation);
+      if (validationError) {
+        errors.push({
+          row: row._rowNumber,
+          field: field.name,
+          value: row[field.name],
+          message: validationError,
+          severity: &#x27;error&#x27;
+        });
+      }
+    }
+  }
+  
+  return { valid: errors.length === 0, errors };
+};
+</code></pre>
+<h3>3. Import Process Flow</h3>
+<pre><code>
+1. User selects table
+         ↓
+2. User uploads CSV file
+         ↓
+3. Frontend parses CSV
+         ↓
+4. Validate headers match expected
+         ↓
+5. Validate each row:
+   - Required fields present
+   - Data types correct
+   - Values within valid ranges
+   - Unique constraints satisfied
+         ↓
+6. Show validation results
+         ↓
+7. User confirms import
+         ↓
+8. Send to backend API
+         ↓
+9. Backend stores data in KV store
+         ↓
+10. Return success/error counts
+         ↓
+11. Display results to user
+</code></pre>
+<h3>4. Duplicate Handling</h3>
+<pre><code class="language-typescript">
+const handleDuplicates = (
+  newRecords: any[],
+  existingRecords: any[],
+  primaryKey: string
+): DuplicateResolution =&gt; {
+  const duplicates: any[] = [];
+  const newUnique: any[] = [];
+  
+  for (const record of newRecords) {
+    const existing = existingRecords.find(
+      e =&gt; e[primaryKey] === record[primaryKey]
+    );
+    
+    if (existing) {
+      duplicates.push({
+        existing,
+        new: record,
+        action: &#x27;update&#x27;  // or &#x27;skip&#x27; based on user preference
+      });
+    } else {
+      newUnique.push(record);
+    }
+  }
+  
+  return { duplicates, newUnique };
+};
+</code></pre>
+<p>---</p>
+<h2>Table Manager Component</h2>
+<h3>Component Structure</h3>
+<pre><code class="language-typescript">
+interface TableManagerProps {
+  tableName?: string;
+  onBack: () =&gt; void;
+}
+
+interface TableManagerState {
+  tables: MasterDataTable[];
+  selectedTable: MasterDataTable | null;
+  data: any[];
+  loading: boolean;
+  editingRow: any | null;
+  searchQuery: string;
+  filterColumn: string | null;
+  sortColumn: string | null;
+  sortDirection: &#x27;asc&#x27; | &#x27;desc&#x27;;
+  currentPage: number;
+  pageSize: number;
+}
+</code></pre>
+<h3>UI Layout</h3>
+<pre><code>
+┌──────────────────────────────────────────────────────────────┐
+│ Table Manager                                    [← Back]    │
+├──────────────────────────────────────────────────────────────┤
+│                                                               │
+│  Table: [Products ▼]                                         │
+│                                                               │
+│  [🔍 Search...]  [Filter ▼]  [+ Add New]  [🗑️ Delete (3)]   │
+│                                                               │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │ ✓ │ SKU ↑ │ Name      │ Category  │ Price    │ Active │  │
+│  ├───┼───────┼───────────┼───────────┼──────────┼────────┤  │
+│  │ ☐ │ SW-001│ Ent Suite │ Software  │ $50,000  │   ✓   │  │
+│  │ ☐ │ SW-002│ Pro Suite │ Software  │ $25,000  │   ✓   │  │
+│  │ ☑ │ HW-001│ Server    │ Hardware  │ $15,000  │   ✓   │  │
+│  │ ☑ │ HW-002│ Rack      │ Hardware  │ $8,000   │   ✓   │  │
+│  │ ☑ │ CS-001│ Cloud Pro │ Services  │ $999     │   ✓   │  │
+│  │ ☐ │ CS-002│ Cloud Ent │ Services  │ $1,999   │   ✓   │  │
+│  │   │       │           │           │          │       │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                               │
+│  Showing 1-20 of 145 records      [&lt; Prev] [1] [2] [Next &gt;] │
+│                                                               │
+│  [Export CSV]  [Import CSV]  [Refresh]                       │
+│                                                               │
+└──────────────────────────────────────────────────────────────┘
+</code></pre>
+<h3>Table Manager Features</h3>
+<h4>1. Data Grid</h4>
+<pre><code class="language-typescript">
+const renderDataGrid = () =&gt; {
+  const sortedData = sortData(filteredData, sortColumn, sortDirection);
+  const paginatedData = paginate(sortedData, currentPage, pageSize);
+  
+  return (
+    &lt;table className=&quot;w-full border-collapse&quot;&gt;
+      &lt;thead&gt;
+        &lt;tr&gt;
+          &lt;th className=&quot;w-10&quot;&gt;
+            &lt;Checkbox 
+              checked={allSelected}
+              onChange={toggleSelectAll}
+            /&gt;
+          &lt;/th&gt;
+          {table.fields.map(field =&gt; (
+            &lt;th 
+              key={field.name}
+              onClick={() =&gt; handleSort(field.name)}
+              className=&quot;cursor-pointer hover:bg-gray-100&quot;
+            &gt;
+              &lt;div className=&quot;flex items-center gap-1&quot;&gt;
+                {field.displayName}
+                {sortColumn === field.name &amp;&amp; (
+                  sortDirection === &#x27;asc&#x27; ? &lt;ArrowUp /&gt; : &lt;ArrowDown /&gt;
+                )}
+              &lt;/div&gt;
+            &lt;/th&gt;
+          ))}
+          &lt;th className=&quot;w-32&quot;&gt;Actions&lt;/th&gt;
+        &lt;/tr&gt;
+      &lt;/thead&gt;
+      &lt;tbody&gt;
+        {paginatedData.map(row =&gt; (
+          &lt;tr key={row[table.primaryKey]}&gt;
+            &lt;td&gt;
+              &lt;Checkbox 
+                checked={selectedRows.includes(row[table.primaryKey])}
+                onChange={() =&gt; toggleRow(row[table.primaryKey])}
+              /&gt;
+            &lt;/td&gt;
+            {table.fields.map(field =&gt; (
+              &lt;td key={field.name}&gt;
+                {editingRow?.id === row.id ? (
+                  &lt;Input 
+                    value={row[field.name]}
+                    onChange={(e) =&gt; updateField(field.name, e.target.value)}
+                  /&gt;
+                ) : (
+                  formatCellValue(row[field.name], field.type)
+                )}
+              &lt;/td&gt;
+            ))}
+            &lt;td&gt;
+              &lt;div className=&quot;flex gap-1&quot;&gt;
+                &lt;Button 
+                  variant=&quot;ghost&quot; 
+                  size=&quot;sm&quot;
+                  onClick={() =&gt; editRow(row)}
+                &gt;
+                  &lt;Edit className=&quot;w-4 h-4&quot; /&gt;
+                &lt;/Button&gt;
+                &lt;Button 
+                  variant=&quot;ghost&quot; 
+                  size=&quot;sm&quot;
+                  onClick={() =&gt; deleteRow(row)}
+                &gt;
+                  &lt;Trash2 className=&quot;w-4 h-4 text-red-600&quot; /&gt;
+                &lt;/Button&gt;
+              &lt;/div&gt;
+            &lt;/td&gt;
+          &lt;/tr&gt;
+        ))}
+      &lt;/tbody&gt;
+    &lt;/table&gt;
+  );
+};
+</code></pre>
+<h4>2. Search &amp; Filter</h4>
+<pre><code class="language-typescript">
+const searchData = (data: any[], query: string): any[] =&gt; {
+  if (!query) return data;
+  
+  const lowerQuery = query.toLowerCase();
+  
+  return data.filter(row =&gt; {
+    return Object.values(row).some(value =&gt; 
+      String(value).toLowerCase().includes(lowerQuery)
+    );
+  });
+};
+
+const filterData = (data: any[], column: string, value: any): any[] =&gt; {
+  if (!column || !value) return data;
+  
+  return data.filter(row =&gt; row[column] === value);
+};
+</code></pre>
+<h4>3. Inline Editing</h4>
+<pre><code class="language-typescript">
+const startEdit = (row: any) =&gt; {
+  setEditingRow({ ...row, _original: row });
+};
+
+const saveEdit = async () =&gt; {
+  try {
+    const response = await fetch(
+      `https://${projectId}.supabase.co/functions/v1/make-server-acb28b15/table/${selectedTable.name}/${editingRow[table.primaryKey]}`,
+      {
+        method: &#x27;PUT&#x27;,
+        headers: {
+          &#x27;Content-Type&#x27;: &#x27;application/json&#x27;,
+          &#x27;Authorization&#x27;: `Bearer ${publicAnonKey}`,
+        },
+        body: JSON.stringify(editingRow),
+      }
+    );
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      // Update local state
+      setData(prev =&gt; prev.map(row =&gt; 
+        row[table.primaryKey] === editingRow[table.primaryKey] 
+          ? editingRow 
+          : row
+      ));
+      setEditingRow(null);
+    } else {
+      alert(`Error: ${result.error}`);
+    }
+  } catch (error) {
+    console.error(&#x27;Error saving row:&#x27;, error);
+    alert(&#x27;Failed to save changes&#x27;);
+  }
+};
+
+const cancelEdit = () =&gt; {
+  if (editingRow._original) {
+    // Restore original values
+    setData(prev =&gt; prev.map(row =&gt; 
+      row[table.primaryKey] === editingRow[table.primaryKey]
+        ? editingRow._original
+        : row
+    ));
+  }
+  setEditingRow(null);
+};
+</code></pre>
+<h4>4. Bulk Operations</h4>
+<pre><code class="language-typescript">
+const deleteBulk = async () =&gt; {
+  if (selectedRows.length === 0) return;
+  
+  if (!confirm(`Delete ${selectedRows.length} selected records?`)) return;
+  
+  try {
+    const response = await fetch(
+      `https://${projectId}.supabase.co/functions/v1/make-server-acb28b15/table/${selectedTable.name}/bulk-delete`,
+      {
+        method: &#x27;DELETE&#x27;,
+        headers: {
+          &#x27;Content-Type&#x27;: &#x27;application/json&#x27;,
+          &#x27;Authorization&#x27;: `Bearer ${publicAnonKey}`,
+        },
+        body: JSON.stringify({ ids: selectedRows }),
+      }
+    );
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      // Remove from local state
+      setData(prev =&gt; prev.filter(row =&gt; 
+        !selectedRows.includes(row[table.primaryKey])
+      ));
+      setSelectedRows([]);
+    }
+  } catch (error) {
+    console.error(&#x27;Error deleting rows:&#x27;, error);
+    alert(&#x27;Failed to delete records&#x27;);
+  }
+};
+</code></pre>
+<h4>5. Export Functionality</h4>
+<pre><code class="language-typescript">
+const exportToCSV = () =&gt; {
+  const headers = table.fields.map(f =&gt; f.name).join(&#x27;,&#x27;);
+  const rows = data.map(row =&gt; 
+    table.fields.map(f =&gt; {
+      const value = row[f.name];
+      // Escape values containing commas or quotes
+      if (String(value).includes(&#x27;,&#x27;) || String(value).includes(&#x27;&quot;&#x27;)) {
+        return `&quot;${String(value).replace(/&quot;/g, &#x27;&quot;&quot;&#x27;)}&quot;`;
+      }
+      return value;
+    }).join(&#x27;,&#x27;)
+  ).join(&#x27;\n&#x27;);
+  
+  const csv = `${headers}\n${rows}`;
+  
+  const blob = new Blob([csv], { type: &#x27;text/csv&#x27; });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement(&#x27;a&#x27;);
+  link.href = url;
+  link.download = `${selectedTable.name}_${Date.now()}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+</code></pre>
+<p>---</p>
+<h2>Backend API Endpoints</h2>
+<h3>1. CSV Import Endpoint</h3>
+<pre><code class="language-typescript">
+app.post(&quot;/make-server-acb28b15/import/:tableName&quot;, async (c) =&gt; {
+  try {
+    const tableName = c.req.param(&#x27;tableName&#x27;);
+    const { data, updateDuplicates = true } = await c.req.json();
+    
+    console.log(`Importing ${data.length} records to ${tableName}...`);
+    
+    const startTime = Date.now();
+    let imported = 0;
+    let updated = 0;
+    let skipped = 0;
+    const errors: ImportError[] = [];
+    
+    // Get table definition
+    const tableConfig = MASTER_DATA_TABLES.find(t =&gt; t.name === tableName);
+    if (!tableConfig) {
+      return c.json({
+        success: false,
+        error: `Table ${tableName} not found`
+      }, 404);
+    }
+    
+    // Get existing data
+    const existingData = await kv.getByPrefix(`table:${tableName}:`);
+    const existingMap = new Map(
+      existingData.map(item =&gt; [item[tableConfig.primaryKey], item])
+    );
+    
+    // Process each record
+    for (let i = 0; i &lt; data.length; i++) {
+      const record = data[i];
+      const primaryKeyValue = record[tableConfig.primaryKey];
+      
+      // Validate record
+      const validation = validateRecord(record, tableConfig);
+      if (!validation.valid) {
+        errors.push(...validation.errors);
+        skipped++;
+        continue;
+      }
+      
+      // Check for duplicate
+      const exists = existingMap.has(primaryKeyValue);
+      
+      if (exists &amp;&amp; !updateDuplicates) {
+        skipped++;
+        continue;
+      }
+      
+      // Store record
+      const key = `table:${tableName}:${primaryKeyValue}`;
+      await kv.set(key, {
+        ...record,
+        _imported_at: new Date().toISOString(),
+        _updated_at: new Date().toISOString()
+      });
+      
+      if (exists) {
+        updated++;
+      } else {
+        imported++;
+      }
+    }
+    
+    const processingTime = Date.now() - startTime;
+    
+    console.log(`Import complete: ${imported} new, ${updated} updated, ${skipped} skipped, ${errors.length} errors (${processingTime}ms)`);
+    
+    return c.json({
+      success: true,
+      data: {
+        recordsProcessed: data.length,
+        recordsImported: imported,
+        recordsUpdated: updated,
+        recordsSkipped: skipped,
+        errors: errors,
+        processingTime
+      }
+    });
+    
+  } catch (error) {
+    console.error(&quot;Error importing data:&quot;, error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    }, 500);
+  }
+});
+</code></pre>
+<h3>2. Get Table Data</h3>
+<pre><code class="language-typescript">
+app.get(&quot;/make-server-acb28b15/table/:tableName&quot;, async (c) =&gt; {
+  try {
+    const tableName = c.req.param(&#x27;tableName&#x27;);
+    const { page = 1, pageSize = 50, search, sortBy, sortDir = &#x27;asc&#x27; } = c.req.query();
+    
+    // Get all data for this table
+    const data = await kv.getByPrefix(`table:${tableName}:`);
+    
+    // Apply search filter
+    let filtered = data;
+    if (search) {
+      filtered = data.filter(record =&gt; 
+        Object.values(record).some(value =&gt;
+          String(value).toLowerCase().includes(search.toLowerCase())
+        )
+      );
+    }
+    
+    // Apply sorting
+    if (sortBy) {
+      filtered.sort((a, b) =&gt; {
+        const aVal = a[sortBy];
+        const bVal = b[sortBy];
+        
+        if (sortDir === &#x27;asc&#x27;) {
+          return aVal &gt; bVal ? 1 : -1;
+        } else {
+          return aVal &lt; bVal ? 1 : -1;
+        }
+      });
+    }
+    
+    // Pagination
+    const startIndex = (Number(page) - 1) * Number(pageSize);
+    const endIndex = startIndex + Number(pageSize);
+    const paginated = filtered.slice(startIndex, endIndex);
+    
+    return c.json({
+      success: true,
+      data: paginated,
+      pagination: {
+        page: Number(page),
+        pageSize: Number(pageSize),
+        total: filtered.length,
+        totalPages: Math.ceil(filtered.length / Number(pageSize))
+      }
+    });
+    
+  } catch (error) {
+    console.error(&quot;Error getting table data:&quot;, error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    }, 500);
+  }
+});
+</code></pre>
+<h3>3. Update Single Record</h3>
+<pre><code class="language-typescript">
+app.put(&quot;/make-server-acb28b15/table/:tableName/:id&quot;, async (c) =&gt; {
+  try {
+    const tableName = c.req.param(&#x27;tableName&#x27;);
+    const id = c.req.param(&#x27;id&#x27;);
+    const updates = await c.req.json();
+    
+    // Get existing record
+    const key = `table:${tableName}:${id}`;
+    const existing = await kv.get(key);
+    
+    if (!existing) {
+      return c.json({
+        success: false,
+        error: &#x27;Record not found&#x27;
+      }, 404);
+    }
+    
+    // Merge updates
+    const updated = {
+      ...existing,
+      ...updates,
+      _updated_at: new Date().toISOString()
+    };
+    
+    // Validate
+    const tableConfig = MASTER_DATA_TABLES.find(t =&gt; t.name === tableName);
+    if (tableConfig) {
+      const validation = validateRecord(updated, tableConfig);
+      if (!validation.valid) {
+        return c.json({
+          success: false,
+          error: &#x27;Validation failed&#x27;,
+          errors: validation.errors
+        }, 400);
+      }
+    }
+    
+    // Save
+    await kv.set(key, updated);
+    
+    return c.json({
+      success: true,
+      data: updated
+    });
+    
+  } catch (error) {
+    console.error(&quot;Error updating record:&quot;, error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    }, 500);
+  }
+});
+</code></pre>
+<h3>4. Delete Single Record</h3>
+<pre><code class="language-typescript">
+app.delete(&quot;/make-server-acb28b15/table/:tableName/:id&quot;, async (c) =&gt; {
+  try {
+    const tableName = c.req.param(&#x27;tableName&#x27;);
+    const id = c.req.param(&#x27;id&#x27;);
+    
+    const key = `table:${tableName}:${id}`;
+    
+    // Check if exists
+    const existing = await kv.get(key);
+    if (!existing) {
+      return c.json({
+        success: false,
+        error: &#x27;Record not found&#x27;
+      }, 404);
+    }
+    
+    // Delete
+    await kv.delete(key);
+    
+    console.log(`Deleted ${tableName} record: ${id}`);
+    
+    return c.json({
+      success: true,
+      message: &#x27;Record deleted successfully&#x27;
+    });
+    
+  } catch (error) {
+    console.error(&quot;Error deleting record:&quot;, error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    }, 500);
+  }
+});
+</code></pre>
+<h3>5. Bulk Delete</h3>
+<pre><code class="language-typescript">
+app.delete(&quot;/make-server-acb28b15/table/:tableName/bulk-delete&quot;, async (c) =&gt; {
+  try {
+    const tableName = c.req.param(&#x27;tableName&#x27;);
+    const { ids } = await c.req.json();
+    
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return c.json({
+        success: false,
+        error: &#x27;No IDs provided&#x27;
+      }, 400);
+    }
+    
+    let deleted = 0;
+    const errors: string[] = [];
+    
+    for (const id of ids) {
+      try {
+        const key = `table:${tableName}:${id}`;
+        await kv.delete(key);
+        deleted++;
+      } catch (error) {
+        errors.push(`Failed to delete ${id}: ${error.message}`);
+      }
+    }
+    
+    console.log(`Bulk delete: ${deleted} deleted, ${errors.length} errors`);
+    
+    return c.json({
+      success: true,
+      data: {
+        deleted,
+        errors: errors.length &gt; 0 ? errors : undefined
+      }
+    });
+    
+  } catch (error) {
+    console.error(&quot;Error in bulk delete:&quot;, error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    }, 500);
+  }
+});
+</code></pre>
+<h3>6. Get Table Schema</h3>
+<pre><code class="language-typescript">
+app.get(&quot;/make-server-acb28b15/table-schemas&quot;, async (c) =&gt; {
+  try {
+    const schemas = {};
+    
+    for (const table of MASTER_DATA_TABLES) {
+      schemas[table.name] = {
+        displayName: table.displayName,
+        primaryKey: table.primaryKey,
+        fields: table.fields,
+        sampleCsv: table.sampleCsv,
+        description: table.description
+      };
+    }
+    
+    return c.json({
+      success: true,
+      data: schemas
+    });
+    
+  } catch (error) {
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    }, 500);
+  }
+});
+</code></pre>
+<h3>7. Get Table Stats</h3>
+<pre><code class="language-typescript">
+app.get(&quot;/make-server-acb28b15/table/:tableName/stats&quot;, async (c) =&gt; {
+  try {
+    const tableName = c.req.param(&#x27;tableName&#x27;);
+    
+    const data = await kv.getByPrefix(`table:${tableName}:`);
+    
+    const stats = {
+      totalRecords: data.length,
+      lastUpdated: data.length &gt; 0 
+        ? Math.max(...data.map(r =&gt; new Date(r._updated_at || r._imported_at).getTime()))
+        : null,
+      fieldStats: {}
+    };
+    
+    // Calculate field statistics
+    const tableConfig = MASTER_DATA_TABLES.find(t =&gt; t.name === tableName);
+    if (tableConfig &amp;&amp; data.length &gt; 0) {
+      for (const field of tableConfig.fields) {
+        const values = data.map(r =&gt; r[field.name]).filter(v =&gt; v != null);
+        
+        stats.fieldStats[field.name] = {
+          populated: values.length,
+          populatedPercent: (values.length / data.length * 100).toFixed(1),
+          unique: new Set(values).size
+        };
+        
+        if (field.type === &#x27;number&#x27; || field.type === &#x27;currency&#x27;) {
+          const numbers = values.map(v =&gt; Number(v)).filter(n =&gt; !isNaN(n));
+          if (numbers.length &gt; 0) {
+            stats.fieldStats[field.name].min = Math.min(...numbers);
+            stats.fieldStats[field.name].max = Math.max(...numbers);
+            stats.fieldStats[field.name].avg = numbers.reduce((a, b) =&gt; a + b, 0) / numbers.length;
+          }
+        }
+      }
+    }
+    
+    return c.json({
+      success: true,
+      data: stats
+    });
+    
+  } catch (error) {
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    }, 500);
+  }
+});
+</code></pre>
+<p>---</p>
+<h2>Validation Utilities</h2>
+<h3>Field Type Validation</h3>
+<pre><code class="language-typescript">
+const validateFieldType = (value: any, field: FieldDefinition): string | null =&gt; {
+  if (!value) return null;
+  
+  switch (field.type) {
+    case &#x27;number&#x27;:
+    case &#x27;currency&#x27;:
+      if (isNaN(Number(value))) {
+        return `${field.displayName} must be a valid number`;
+      }
+      break;
+      
+    case &#x27;email&#x27;:
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(value)) {
+        return `${field.displayName} must be a valid email address`;
+      }
+      break;
+      
+    case &#x27;date&#x27;:
+      const date = new Date(value);
+      if (isNaN(date.getTime())) {
+        return `${field.displayName} must be a valid date`;
+      }
+      break;
+      
+    case &#x27;boolean&#x27;:
+      const validBooleans = [&#x27;true&#x27;, &#x27;false&#x27;, &#x27;1&#x27;, &#x27;0&#x27;, &#x27;yes&#x27;, &#x27;no&#x27;];
+      if (!validBooleans.includes(String(value).toLowerCase())) {
+        return `${field.displayName} must be true/false or yes/no`;
+      }
+      break;
+  }
+  
+  return null;
+};
+
+const validateFieldValue = (value: any, validation: ValidationRule): string | null =&gt; {
+  if (validation.min !== undefined &amp;&amp; Number(value) &lt; validation.min) {
+    return validation.errorMessage || `Value must be at least ${validation.min}`;
+  }
+  
+  if (validation.max !== undefined &amp;&amp; Number(value) &gt; validation.max) {
+    return validation.errorMessage || `Value must be at most ${validation.max}`;
+  }
+  
+  if (validation.pattern &amp;&amp; !validation.pattern.test(String(value))) {
+    return validation.errorMessage || `Value does not match required pattern`;
+  }
+  
+  if (validation.enum &amp;&amp; !validation.enum.includes(String(value))) {
+    return validation.errorMessage || `Value must be one of: ${validation.enum.join(&#x27;, &#x27;)}`;
+  }
+  
+  return null;
+};
+</code></pre>
+<h3>Referential Integrity Check</h3>
+<pre><code class="language-typescript">
+const validateReferentialIntegrity = async (
+  record: any,
+  table: MasterDataTable
+): Promise&lt;ValidationError[]&gt; =&gt; {
+  const errors: ValidationError[] = [];
+  
+  if (!table.parentTables) return errors;
+  
+  for (const parentTable of table.parentTables) {
+    // Find fields that reference this parent table
+    const refFields = table.fields.filter(f =&gt; 
+      f.description?.includes(`links to ${parentTable}`) ||
+      f.name.includes(parentTable.replace(&#x27;_&#x27;, &#x27;&#x27;))
+    );
+    
+    for (const field of refFields) {
+      const value = record[field.name];
+      if (value) {
+        // Check if referenced record exists
+        const key = `table:${parentTable}:${value}`;
+        const exists = await kv.get(key);
+        
+        if (!exists) {
+          errors.push({
+            row: record._rowNumber,
+            field: field.name,
+            value,
+            message: `Referenced ${parentTable} record &quot;${value}&quot; does not exist`,
+            severity: &#x27;error&#x27;
+          });
+        }
+      }
+    }
+  }
+  
+  return errors;
+};
+</code></pre>
+<p>---</p>
+<h2>CSV Format Examples</h2>
+<h3>Products CSV</h3>
+<pre><code class="language-csv">
+product_sku,product_name,description,category,list_price,cost,unit_of_measure,active
+SW-001,Enterprise Software Suite,Complete business software package,software,50000,25000,EA,true
+SW-002,Professional Suite,Professional edition software,software,25000,12000,EA,true
+HW-001,Server Rack Unit,42U server rack with cooling,hardware,15000,8000,EA,true
+HW-002,Network Switch,48-port managed switch,hardware,5000,2500,EA,true
+CS-001,Cloud Storage Pro,1TB cloud storage service,cloud-services,999,400,EA,true
+</code></pre>
+<h3>Customers CSV</h3>
+<pre><code class="language-csv">
+id,name,type,region,country,email,credit_limit
+acme-corp,Acme Corporation,Enterprise,North America,US,contact@acme.com,1000000
+techstart-inc,TechStart Inc.,Mid-Market,North America,US,info@techstart.com,250000
+global-solutions,Global Solutions Ltd,Enterprise,EMEA,UK,sales@global.co.uk,500000
+startup-co,Startup Co,Startup,North America,US,hello@startup.co,50000
+</code></pre>
+<h3>Discount Tiers CSV</h3>
+<pre><code class="language-csv">
+id,tier_name,min_quantity,max_quantity,discount_percent,product_category
+tier-1,Bronze,1,9,0,
+tier-2,Silver,10,49,5,
+tier-3,Gold,50,99,10,
+tier-4,Platinum,100,199,15,
+tier-5,Diamond,200,,20,
+</code></pre>
+<p>---</p>
+<h2>Error Handling</h2>
+<h3>User-Friendly Error Messages</h3>
+<pre><code class="language-typescript">
+const ERROR_MESSAGES = {
+  INVALID_CSV: &#x27;The CSV file format is invalid. Please check that it matches the expected format.&#x27;,
+  MISSING_REQUIRED: &#x27;Required field &quot;{field}&quot; is missing in row {row}.&#x27;,
+  INVALID_TYPE: &#x27;Field &quot;{field}&quot; in row {row} has invalid type. Expected {expected}, got {actual}.&#x27;,
+  DUPLICATE_KEY: &#x27;Record with {key}=&quot;{value}&quot; already exists. Use update mode to overwrite.&#x27;,
+  REFERENCE_NOT_FOUND: &#x27;Referenced record &quot;{value}&quot; in field &quot;{field}&quot; does not exist in {table}.&#x27;,
+  VALIDATION_FAILED: &#x27;Value &quot;{value}&quot; for field &quot;{field}&quot; failed validation: {reason}&#x27;,
+  NETWORK_ERROR: &#x27;Network error. Please check your connection and try again.&#x27;,
+  SERVER_ERROR: &#x27;Server error occurred. Please try again or contact support.&#x27;
+};
+
+const formatError = (error: ImportError): string =&gt; {
+  let message = ERROR_MESSAGES[error.type] || error.message;
+  
+  // Replace placeholders
+  message = message.replace(&#x27;{field}&#x27;, error.field || &#x27;&#x27;);
+  message = message.replace(&#x27;{row}&#x27;, String(error.row || &#x27;&#x27;));
+  message = message.replace(&#x27;{value}&#x27;, String(error.value || &#x27;&#x27;));
+  
+  return message;
+};
+</code></pre>
+<h3>Error Display Component</h3>
+<pre><code class="language-typescript">
+const ErrorDisplay = ({ errors }: { errors: ImportError[] }) =&gt; {
+  if (errors.length === 0) return null;
+  
+  const errorsByRow = groupBy(errors, &#x27;row&#x27;);
+  
+  return (
+    &lt;Alert variant=&quot;destructive&quot; className=&quot;mt-4&quot;&gt;
+      &lt;AlertCircle className=&quot;h-4 w-4&quot; /&gt;
+      &lt;AlertDescription&gt;
+        &lt;div className=&quot;font-semibold mb-2&quot;&gt;
+          Found {errors.length} error{errors.length !== 1 ? &#x27;s&#x27; : &#x27;&#x27;} in {Object.keys(errorsByRow).length} row{Object.keys(errorsByRow).length !== 1 ? &#x27;s&#x27; : &#x27;&#x27;}
+        &lt;/div&gt;
+        &lt;div className=&quot;max-h-60 overflow-auto space-y-2&quot;&gt;
+          {Object.entries(errorsByRow).map(([row, rowErrors]) =&gt; (
+            &lt;div key={row} className=&quot;text-sm&quot;&gt;
+              &lt;strong&gt;Row {row}:&lt;/strong&gt;
+              &lt;ul className=&quot;list-disc list-inside ml-4&quot;&gt;
+                {(rowErrors as ImportError[]).map((error, idx) =&gt; (
+                  &lt;li key={idx}&gt;{formatError(error)}&lt;/li&gt;
+                ))}
+              &lt;/ul&gt;
+            &lt;/div&gt;
+          ))}
+        &lt;/div&gt;
+      &lt;/AlertDescription&gt;
+    &lt;/Alert&gt;
+  );
+};
+</code></pre>
+<p>---</p>
+<h2>Testing Scenarios</h2>
+<h3>Test 1: Valid CSV Import</h3>
+<ol>
+<li>Select &quot;Products&quot; table</li>
+<li>Upload valid products.csv</li>
+<li>**Verify**: All records imported successfully</li>
+<li>**Verify**: Success message with count displayed</li>
+<li>**Verify**: Records visible in Table Manager</li>
+</ol>
+<h3>Test 2: CSV with Validation Errors</h3>
+<ol>
+<li>Upload CSV with:</li>
+</ol>
+<ul>
+<li>Missing required field</li>
+<li>Invalid email format</li>
+<li>Negative price</li>
+</ul>
+<ol>
+<li>**Verify**: Import blocked</li>
+<li>**Verify**: Specific errors shown for each row</li>
+<li>**Verify**: No data imported</li>
+</ol>
+<h3>Test 3: Duplicate Handling</h3>
+<ol>
+<li>Import CSV with 10 products</li>
+<li>Import same CSV again</li>
+<li>**Verify**: Option to update or skip</li>
+<li>**Verify**: If update: records updated</li>
+<li>**Verify**: If skip: no changes made</li>
+</ol>
+<h3>Test 4: Referential Integrity</h3>
+<ol>
+<li>Import products with category &quot;electronics&quot;</li>
+<li>Category doesn&#x27;t exist in product_hierarchies</li>
+<li>**Verify**: Warning or error shown</li>
+<li>**Verify**: Suggestion to import category first</li>
+</ol>
+<h3>Test 5: Table Manager CRUD</h3>
+<ol>
+<li>Open Table Manager</li>
+<li>Search for &quot;Software&quot;</li>
+<li>**Verify**: Filtered results shown</li>
+<li>Edit a record</li>
+<li>**Verify**: Changes saved</li>
+<li>Delete a record</li>
+<li>**Verify**: Record removed</li>
+</ol>
+<h3>Test 6: Bulk Operations</h3>
+<ol>
+<li>Select 5 records</li>
+<li>Click &quot;Delete Selected&quot;</li>
+<li>Confirm deletion</li>
+<li>**Verify**: All 5 records deleted</li>
+<li>**Verify**: Table refreshed</li>
+</ol>
+<h3>Test 7: Export CSV</h3>
+<ol>
+<li>Filter data in Table Manager</li>
+<li>Click &quot;Export CSV&quot;</li>
+<li>**Verify**: File downloads</li>
+<li>**Verify**: Contains filtered data only</li>
+<li>**Verify**: Format matches import format</li>
+</ol>
+<h3>Test 8: Pagination</h3>
+<ol>
+<li>Import 100 records</li>
+<li>Navigate through pages</li>
+<li>**Verify**: 50 records per page</li>
+<li>**Verify**: Page numbers correct</li>
+<li>**Verify**: Total count accurate</li>
+</ol>
+<p>---</p>
+<h2>UI Components</h2>
+<h3>CSV Upload Dropzone</h3>
+<pre><code class="language-typescript">
+const CSVDropzone = ({ onFileSelect }: { onFileSelect: (file: File) =&gt; void }) =&gt; {
+  const [dragActive, setDragActive] = useState(false);
+  
+  const handleDrop = (e: React.DragEvent) =&gt; {
+    e.preventDefault();
+    setDragActive(false);
+    
+    const file = e.dataTransfer.files[0];
+    if (file &amp;&amp; file.type === &#x27;text/csv&#x27;) {
+      onFileSelect(file);
+    } else {
+      alert(&#x27;Please upload a CSV file&#x27;);
+    }
+  };
+  
+  const handleFileInput = (e: React.ChangeEvent&lt;HTMLInputElement&gt;) =&gt; {
+    const file = e.target.files?.[0];
+    if (file) {
+      onFileSelect(file);
+    }
+  };
+  
+  return (
+    &lt;div
+      className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
+        dragActive ? &#x27;border-blue-500 bg-blue-50&#x27; : &#x27;border-gray-300&#x27;
+      }`}
+      onDragEnter={() =&gt; setDragActive(true)}
+      onDragLeave={() =&gt; setDragActive(false)}
+      onDragOver={(e) =&gt; e.preventDefault()}
+      onDrop={handleDrop}
+    &gt;
+      &lt;Upload className=&quot;w-12 h-12 mx-auto mb-4 text-gray-400&quot; /&gt;
+      &lt;p className=&quot;text-lg font-medium text-gray-700 mb-2&quot;&gt;
+        Drag &amp; Drop CSV File Here
+      &lt;/p&gt;
+      &lt;p className=&quot;text-sm text-gray-500 mb-4&quot;&gt;
+        or click to browse
+      &lt;/p&gt;
+      &lt;input
+        type=&quot;file&quot;
+        accept=&quot;.csv&quot;
+        onChange={handleFileInput}
+        className=&quot;hidden&quot;
+        id=&quot;csv-upload&quot;
+      /&gt;
+      &lt;label htmlFor=&quot;csv-upload&quot;&gt;
+        &lt;Button variant=&quot;outline&quot; as=&quot;span&quot;&gt;
+          Browse Files
+        &lt;/Button&gt;
+      &lt;/label&gt;
+    &lt;/div&gt;
+  );
+};
+</code></pre>
+<h3>Import Progress Indicator</h3>
+<pre><code class="language-typescript">
+const ImportProgress = ({ 
+  status, 
+  progress 
+}: { 
+  status: string; 
+  progress: number;
+}) =&gt; {
+  return (
+    &lt;Card className=&quot;p-4&quot;&gt;
+      &lt;div className=&quot;flex items-center gap-3 mb-2&quot;&gt;
+        &lt;RefreshCw className=&quot;w-5 h-5 animate-spin text-blue-600&quot; /&gt;
+        &lt;span className=&quot;font-medium&quot;&gt;{status}&lt;/span&gt;
+      &lt;/div&gt;
+      &lt;div className=&quot;w-full bg-gray-200 rounded-full h-2&quot;&gt;
+        &lt;div 
+          className=&quot;bg-blue-600 h-2 rounded-full transition-all&quot;
+          style={{ width: `${progress}%` }}
+        /&gt;
+      &lt;/div&gt;
+      &lt;p className=&quot;text-xs text-gray-500 mt-1&quot;&gt;{progress}% complete&lt;/p&gt;
+    &lt;/Card&gt;
+  );
+};
+</code></pre>
+<h3>Table Stats Display</h3>
+<pre><code class="language-typescript">
+const TableStatsCard = ({ tableName, stats }: { tableName: string; stats: any }) =&gt; {
+  return (
+    &lt;Card className=&quot;p-4&quot;&gt;
+      &lt;div className=&quot;flex items-center justify-between mb-2&quot;&gt;
+        &lt;h3 className=&quot;font-semibold&quot;&gt;{tableName}&lt;/h3&gt;
+        &lt;Database className=&quot;w-5 h-5 text-blue-600&quot; /&gt;
+      &lt;/div&gt;
+      &lt;div className=&quot;space-y-1 text-sm&quot;&gt;
+        &lt;div className=&quot;flex justify-between&quot;&gt;
+          &lt;span className=&quot;text-gray-600&quot;&gt;Total Records:&lt;/span&gt;
+          &lt;span className=&quot;font-medium&quot;&gt;{stats.totalRecords}&lt;/span&gt;
+        &lt;/div&gt;
+        {stats.lastUpdated &amp;&amp; (
+          &lt;div className=&quot;flex justify-between&quot;&gt;
+            &lt;span className=&quot;text-gray-600&quot;&gt;Last Updated:&lt;/span&gt;
+            &lt;span className=&quot;font-medium&quot;&gt;
+              {new Date(stats.lastUpdated).toLocaleDateString()}
+            &lt;/span&gt;
+          &lt;/div&gt;
+        )}
+      &lt;/div&gt;
+      &lt;div className=&quot;mt-3 flex gap-2&quot;&gt;
+        &lt;Button variant=&quot;outline&quot; size=&quot;sm&quot; className=&quot;flex-1&quot;&gt;
+          &lt;Eye className=&quot;w-4 h-4 mr-1&quot; /&gt;
+          View
+        &lt;/Button&gt;
+        &lt;Button variant=&quot;outline&quot; size=&quot;sm&quot; className=&quot;flex-1&quot;&gt;
+          &lt;Upload className=&quot;w-4 h-4 mr-1&quot; /&gt;
+          Import
+        &lt;/Button&gt;
+      &lt;/div&gt;
+    &lt;/Card&gt;
+  );
+};
+</code></pre>
+<p>---</p>
+<h2>Success Criteria</h2>
+<h3>✅ Functional Requirements</h3>
+<ul>
+<li>Users can import CSV files for all 9 tables</li>
+<li>Validation errors prevent invalid data import</li>
+<li>Duplicate records handled appropriately</li>
+<li>Table Manager displays all table data</li>
+<li>Users can search, filter, and sort data</li>
+<li>Inline editing works for all field types</li>
+<li>Bulk operations (delete) work correctly</li>
+<li>CSV export generates valid files</li>
+<li>Referential integrity maintained</li>
+</ul>
+<h3>✅ Technical Requirements</h3>
+<ul>
+<li>TypeScript with proper types</li>
+<li>React functional components</li>
+<li>Supabase KV store integration</li>
+<li>Error handling and validation</li>
+<li>Loading states during operations</li>
+<li>Responsive design</li>
+<li>Performance optimized for large datasets</li>
+</ul>
+<h3>✅ User Experience</h3>
+<ul>
+<li>Clear upload interface</li>
+<li>Real-time validation feedback</li>
+<li>Detailed error messages</li>
+<li>Progress indicators</li>
+<li>Confirmation dialogs</li>
+<li>Sample CSV downloads</li>
+<li>Intuitive table navigation</li>
+<li>Fast data operations</li>
+</ul>
+<p>---</p>
+<h2>Code Generation Prompt</h2>
+<p>To regenerate this component, use:</p>
+<pre><code>
+Create a Data Management Admin system based on the technical specification in DataManagementAdmin.md.
+
+Requirements:
+1. Create AdminScreen.tsx with CSV import functionality for 9 tables
+2. Create TableManager.tsx with full CRUD operations
+3. Implement CSV parsing and validation
+4. Add all backend API endpoints to /supabase/functions/server/index.tsx
+5. Include referential integrity validation
+6. Support search, filter, sort, and pagination
+7. Add inline editing with validation
+8. Implement bulk operations (delete, export)
+9. Include error handling with user-friendly messages
+10. Add sample CSV generation
+
+Follow all data structures, table definitions, validation rules, and UI specifications exactly as documented. Include all 9 master data tables with their complete field definitions.
+</code></pre>
+<p>---</p>
+<h2>Summary</h2>
+<p>This specification provides a complete blueprint for creating a comprehensive Data Management Admin system with CSV import, table manager, and full CRUD operations for 9 master data tables. The system includes validation, error handling, referential integrity checks, and a user-friendly interface for business users to manage pricing application data without technical knowledge.</p>
+<p>**All technical details, data structures, API endpoints, validation logic, and UI components are fully specified for error-free generation.**</p>
+    </div>
+  </div>
+</body>
+</html>

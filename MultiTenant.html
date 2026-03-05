@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multi-Tenant Login and Roles Plan</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f6f8fb; color: #1f2937; }
+    .wrap { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    .card { background: #fff; border: 1px solid #d7dee7; border-radius: 10px; padding: 20px; }
+    h1 { margin-top: 0; }
+    h2 { color: #0f766e; margin-top: 20px; }
+    ol { padding-left: 20px; }
+    code { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 1px 5px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Multi-Tenant Login and Role-Based Access Plan</h1>
+      <p>
+        You can implement multi-tenant login and role-based access in DuraiPricingTool.
+        Plan below is structured for your current FastAPI + React stack.
+      </p>
+
+      <h2>1. Target Model</h2>
+      <ol>
+        <li>Tenant is isolated business context (data + users + policies).</li>
+        <li>User can belong to one or more tenants.</li>
+        <li>Roles are tenant-scoped.</li>
+        <li>Every request resolves <code>tenant_id</code> and enforces permissions.</li>
+      </ol>
+
+      <h2>2. Data Model Plan</h2>
+      <ol>
+        <li>Add tables: <code>tenants</code>, <code>users</code>, <code>roles</code>, <code>permissions</code>, <code>user_tenant_roles</code>, <code>refresh_tokens</code>.</li>
+        <li>Add <code>tenant_id</code> to business tables (<code>quotes</code>, <code>quote_line_items</code>, <code>workflow_rules</code>, master/config tables).</li>
+        <li>Add composite indexes with <code>tenant_id</code>.</li>
+      </ol>
+
+      <h2>3. Authentication Plan</h2>
+      <ol>
+        <li>Use internal JWT login now; keep OIDC/SAML-ready extension path.</li>
+        <li>Add endpoints: <code>/auth/login</code>, <code>/auth/refresh</code>, <code>/auth/logout</code>, <code>/auth/me</code>, <code>/auth/tenants</code>.</li>
+        <li>Token claims include <code>sub</code>, <code>tenant_id</code>, <code>role_ids</code>, <code>permissions</code>, <code>exp</code>.</li>
+      </ol>
+
+      <h2>4. Authorization Plan</h2>
+      <ol>
+        <li>Define roles: <code>SuperAdmin</code>, <code>TenantAdmin</code>, <code>PricingManager</code>, <code>SalesRep</code>, <code>Approver</code>, <code>Analyst</code>, <code>Viewer</code>.</li>
+        <li>Define permissions like <code>quotes.read</code>, <code>quotes.write</code>, <code>quotes.approve</code>, <code>admin.workflow.manage</code>.</li>
+        <li>Implement FastAPI guards: <code>require_auth</code>, <code>require_tenant</code>, <code>require_permission</code>.</li>
+      </ol>
+
+      <h2>5. API Enforcement Plan</h2>
+      <ol>
+        <li>Resolve tenant context from token and reject missing/invalid tenant.</li>
+        <li>Apply tenant filters to all queries.</li>
+        <li>Block cross-tenant reads/writes.</li>
+        <li>Audit privileged actions.</li>
+      </ol>
+
+      <h2>6. Frontend Plan</h2>
+      <ol>
+        <li>Add login page and secure token storage flow.</li>
+        <li>Add tenant switcher UI after login.</li>
+        <li>Add route-level permission guards.</li>
+        <li>Hide/disable unauthorized actions in Admin/Quote screens.</li>
+      </ol>
+
+      <h2>7. Migration Plan</h2>
+      <ol>
+        <li>Create schema migrations for auth and tenant columns.</li>
+        <li>Backfill existing rows to default tenant.</li>
+        <li>Then enforce <code>tenant_id NOT NULL</code> and strict filters.</li>
+      </ol>
+
+      <h2>8. Testing Plan</h2>
+      <ol>
+        <li>Unit tests for token and permission logic.</li>
+        <li>API tests for tenant isolation and role matrix.</li>
+        <li>E2E tests for login, tenant switch, role-based UI behavior.</li>
+      </ol>
+
+      <h2>9. Rollout Plan</h2>
+      <ol>
+        <li>Week 1: schema + auth base.</li>
+        <li>Week 2: backend permission/tenant enforcement.</li>
+        <li>Week 3: frontend login + switcher + guards.</li>
+        <li>Week 4: pilot onboarding + hardening + audit review.</li>
+      </ol>
+    </div>
+  </div>
+</body>
+</html>

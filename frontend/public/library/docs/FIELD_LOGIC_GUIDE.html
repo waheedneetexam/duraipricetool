@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Field Logic Manager - Complete Guide</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f6f8fb; color:#1f2937; }
+    .wrap { max-width: 980px; margin: 20px auto; padding: 0 16px; }
+    .card { background:#fff; border:1px solid #d7dee7; border-radius:10px; padding:20px; }
+    h1, h2, h3 { color:#0f766e; }
+    pre { background:#0f172a; color:#f8fafc; padding:12px; border-radius:8px; overflow:auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    ul, ol { padding-left: 20px; }
+    a { color:#0b63ce; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Field Logic Manager - Complete Guide</h1>
+<h2>Overview</h2>
+<p>The **Field Logic Manager** is an advanced AI-powered system that allows you to define detailed pricing logic for individual fields using plain English. The system validates table references, generates executable code, and provides iterative error correction until your logic is perfect.</p>
+<h2>Key Features</h2>
+<h3>🤖 AI-Powered Analysis</h3>
+<ul>
+<li>**GPT-4o** interprets your plain English descriptions</li>
+<li>Understands complex business logic with multiple conditions</li>
+<li>Generates production-ready JavaScript/TypeScript code</li>
+<li>Provides clear explanations of what it understood</li>
+</ul>
+<h3>✅ Comprehensive Validation</h3>
+<ul>
+<li>**Table Validation**: Checks if referenced tables exist in your database</li>
+<li>**Column Validation**: Verifies columns exist in referenced tables</li>
+<li>**Syntax Validation**: Ensures logic can be converted to executable code</li>
+<li>**Dependency Detection**: Identifies circular dependencies</li>
+</ul>
+<h3>🔄 Iterative Error Correction</h3>
+<ul>
+<li>**Detailed Error Messages**: Clear descriptions of what went wrong</li>
+<li>**Actionable Suggestions**: Specific guidance on how to fix issues</li>
+<li>**Multiple Error Types**: Missing tables, missing columns, syntax errors, circular dependencies</li>
+<li>**Severity Levels**: Errors block saving, warnings allow saving</li>
+</ul>
+<h3>💾 Permanent Logic Storage</h3>
+<ul>
+<li>**Version Control**: Each change creates a new version</li>
+<li>**Logic History**: Track changes over time</li>
+<li>**Reusable Logic**: Apply the same logic across multiple fields</li>
+<li>**Atomic Updates**: Logic only saves when fully validated</li>
+</ul>
+<h2>How It Works</h2>
+<h3>Workflow</h3>
+<pre><code>
+1. Select Field → 2. Write Logic → 3. AI Validates → 4. Fix Errors (if any) → 5. Save
+                                           ↓                  ↑
+                                      Errors Found? ────────┘
+                                           ↓ No
+                                    Logic Saved ✓
+</code></pre>
+<h3>1. Select a Field</h3>
+<p>Navigate to **Admin → Field Logic Manager** and choose:</p>
+<ul>
+<li>**Header Fields**: Deal-level calculations (total price, overall discount, etc.)</li>
+<li>**Line Item Fields**: Line-level calculations (unit price, extended price, margin, etc.)</li>
+</ul>
+<h3>2. Write Logic in Plain English</h3>
+<p>Describe exactly what you want to calculate using natural language.</p>
+<p>**Example:**</p>
+<pre><code>
+Look up the &quot;discount_percent&quot; from the &quot;volume_discounts&quot; table 
+where the &quot;quantity&quot; is between &quot;min_qty&quot; and &quot;max_qty&quot;. 
+Then calculate: final_price = list_price * (1 - discount_percent / 100) * quantity.
+</code></pre>
+<h3>3. AI Validation</h3>
+<p>Click **&quot;Validate &amp; Generate Code&quot;** and the AI will:</p>
+<ul>
+<li>Parse your logic</li>
+<li>Identify all table and column references</li>
+<li>Check if they exist in your database</li>
+<li>Generate executable code</li>
+<li>Report any errors with suggestions</li>
+</ul>
+<h3>4. Review Results</h3>
+<p>**If Valid:**</p>
+<ul>
+<li>✅ Green success message</li>
+<li>📊 AI explanation of what it understood</li>
+<li>📁 List of table dependencies</li>
+<li>💻 Generated executable code</li>
+<li>💾 &quot;Save Logic&quot; button enabled</li>
+</ul>
+<p>**If Errors:**</p>
+<ul>
+<li>❌ Red error message</li>
+<li>📋 List of all issues found</li>
+<li>💡 Suggestions for each error</li>
+<li>⚠️ Severity indicators (error/warning)</li>
+</ul>
+<h3>5. Fix Errors and Retry</h3>
+<p>Read the suggestions and update your logic accordingly, then validate again. Repeat until all errors are fixed.</p>
+<h3>6. Save Permanent Logic</h3>
+<p>Once validated, click **&quot;Save Logic&quot;** to permanently store the logic. It will now execute automatically when calculating that field.</p>
+<h2>Writing Effective Logic</h2>
+<h3>Table Lookups</h3>
+<h4>Simple Lookup</h4>
+<pre><code>
+Look up &quot;standard_price&quot; from the &quot;products&quot; table where &quot;product_sku&quot; matches this line item&#x27;s SKU.
+</code></pre>
+<h4>Conditional Lookup</h4>
+<pre><code>
+Look up &quot;discount_percent&quot; from &quot;segment_discounts&quot; table 
+where &quot;segment&quot; equals header.customer_segment.
+</code></pre>
+<h4>Range-Based Lookup</h4>
+<pre><code>
+Find the tier in &quot;volume_discounts&quot; table where quantity 
+is between &quot;min_quantity&quot; and &quot;max_quantity&quot;, then use the &quot;discount_percent&quot;.
+</code></pre>
+<h3>Multiple Table Lookups</h3>
+<pre><code>
+First, look up &quot;customer_tier&quot; from the &quot;customers&quot; table 
+where &quot;customer_id&quot; matches header.customer_id.
+
+Then, look up &quot;tier_discount&quot; from the &quot;discount_tiers&quot; table 
+where &quot;tier&quot; equals the customer_tier found in step 1.
+
+Finally, calculate: discounted_price = list_price * (1 - tier_discount / 100).
+</code></pre>
+<h3>Formulas</h3>
+<h4>Basic Arithmetic</h4>
+<pre><code>
+Calculate extended_price = unit_price * quantity
+</code></pre>
+<h4>Percentage Calculations</h4>
+<pre><code>
+Calculate: margin_percent = ((price - cost) / price) * 100
+</code></pre>
+<h4>Conditional Formulas</h4>
+<pre><code>
+If quantity &gt; 100, apply 15% discount.
+If quantity &gt; 50, apply 10% discount.
+If quantity &gt; 10, apply 5% discount.
+Otherwise, no discount.
+
+Calculate: final_price = list_price * (1 - discount / 100) * quantity
+</code></pre>
+<h3>Complex Logic</h3>
+<pre><code>
+1. Look up &quot;base_cost&quot; from &quot;product_costs&quot; table by product_sku
+2. Look up &quot;freight_rate&quot; from &quot;freight_rates&quot; table by shipping_region
+3. Look up &quot;handling_fee&quot; from &quot;handling_fees&quot; table by product_category
+4. Calculate total_cost = (base_cost + handling_fee) * quantity + (freight_rate * weight)
+5. Calculate margin = selling_price - total_cost
+6. Calculate margin_percent = (margin / selling_price) * 100
+7. If margin_percent &lt; 20, set warning flag
+</code></pre>
+<h2>Examples by Use Case</h2>
+<h3>Volume Discount Pricing</h3>
+<p>**Scenario**: Apply tiered discounts based on quantity</p>
+<p>**Logic**:</p>
+<pre><code>
+Look up the discount tier from the &quot;volume_discounts&quot; table where:
+- product_category matches this item&#x27;s category
+- quantity is between tier_min_qty and tier_max_qty
+
+Apply the tier&#x27;s discount_percent to calculate:
+discounted_price = list_price * (1 - discount_percent / 100)
+extended_price = discounted_price * quantity
+</code></pre>
+<p>**Tables Needed**:</p>
+<ul>
+<li>`volume_discounts` with columns: `product_category`, `tier_min_qty`, `tier_max_qty`, `discount_percent`</li>
+</ul>
+<h3>Customer Segment Pricing</h3>
+<p>**Scenario**: Different prices for Enterprise vs SMB customers</p>
+<p>**Logic**:</p>
+<pre><code>
+Look up customer_segment from &quot;customers&quot; table where customer_id = header.customer_id.
+
+If customer_segment = &quot;Enterprise&quot;:
+  Look up enterprise_price from &quot;enterprise_pricing&quot; table by product_sku
+  Use enterprise_price as the unit_price
+Else if customer_segment = &quot;SMB&quot;:
+  Look up smb_price from &quot;smb_pricing&quot; table by product_sku
+  Use smb_price as the unit_price
+Else:
+  Use standard list_price
+
+Calculate extended_price = unit_price * quantity
+</code></pre>
+<p>**Tables Needed**:</p>
+<ul>
+<li>`customers` with columns: `customer_id`, `customer_segment`</li>
+<li>`enterprise_pricing` with columns: `product_sku`, `enterprise_price`</li>
+<li>`smb_pricing` with columns: `product_sku`, `smb_price`</li>
+</ul>
+<h3>Cost-Plus Margin Calculation</h3>
+<p>**Scenario**: Calculate price based on cost + target margin</p>
+<p>**Logic**:</p>
+<pre><code>
+Look up base_cost from &quot;product_costs&quot; table where product_sku matches this item&#x27;s SKU.
+
+Look up target_margin_percent from &quot;margin_targets&quot; table where:
+- product_category matches this item&#x27;s category
+- customer_segment matches header.customer_segment
+
+Calculate required_price = base_cost / (1 - target_margin_percent / 100)
+Calculate extended_price = required_price * quantity
+Calculate actual_margin = extended_price - (base_cost * quantity)
+Calculate actual_margin_percent = (actual_margin / extended_price) * 100
+</code></pre>
+<p>**Tables Needed**:</p>
+<ul>
+<li>`product_costs` with columns: `product_sku`, `base_cost`</li>
+<li>`margin_targets` with columns: `product_category`, `customer_segment`, `target_margin_percent`</li>
+</ul>
+<h3>Regional Pricing</h3>
+<p>**Scenario**: Different prices based on customer location</p>
+<p>**Logic**:</p>
+<pre><code>
+Look up customer region from &quot;customers&quot; table by customer_id.
+Look up regional_multiplier from &quot;regional_pricing&quot; table by region.
+Look up base_price from &quot;products&quot; table by product_sku.
+
+Calculate regional_price = base_price * regional_multiplier
+Calculate extended_price = regional_price * quantity
+</code></pre>
+<p>**Tables Needed**:</p>
+<ul>
+<li>`customers` with columns: `customer_id`, `region`</li>
+<li>`regional_pricing` with columns: `region`, `regional_multiplier`</li>
+<li>`products` with columns: `product_sku`, `base_price`</li>
+</ul>
+<h3>Bundle Pricing</h3>
+<p>**Scenario**: Discount when buying product bundles</p>
+<p>**Logic**:</p>
+<pre><code>
+Look up this product&#x27;s bundle_group from &quot;product_bundles&quot; table.
+
+Count how many line items in this quote have the same bundle_group.
+
+If bundle count &gt;= 3:
+  Apply 20% bundle discount
+Else if bundle count &gt;= 2:
+  Apply 10% bundle discount
+Else:
+  No bundle discount
+
+Calculate: final_price = list_price * (1 - bundle_discount / 100) * quantity
+</code></pre>
+<p>**Tables Needed**:</p>
+<ul>
+<li>`product_bundles` with columns: `product_sku`, `bundle_group`</li>
+</ul>
+<h2>Validation Error Types</h2>
+<h3>Missing Table Error</h3>
+<p>**Example Error**:</p>
+<pre><code>
+❌ MISSING_TABLE
+Table &quot;volume_discounts&quot; does not exist in the database
+
+Suggestion: Available tables are: products, customers, sales_orgs. 
+Please use one of these or create the &quot;volume_discounts&quot; table first.
+</code></pre>
+<p>**How to Fix**:</p>
+<ul>
+<li>Check table name spelling</li>
+<li>Ensure table exists in your database</li>
+<li>Import data for that table via CSV</li>
+<li>Use one of the available tables instead</li>
+</ul>
+<h3>Missing Column Error</h3>
+<p>**Example Error**:</p>
+<pre><code>
+❌ MISSING_COLUMN
+Column &quot;discount_percent&quot; does not exist in table &quot;volume_discounts&quot;
+
+Suggestion: Available columns in &quot;volume_discounts&quot;: id, tier_name, min_qty, max_qty, discount_rate
+</code></pre>
+<p>**How to Fix**:</p>
+<ul>
+<li>Check column name spelling</li>
+<li>Review the table schema to see available columns</li>
+<li>Update your logic to use the correct column name</li>
+<li>If needed, update your CSV data to include the column</li>
+</ul>
+<h3>Syntax Error</h3>
+<p>**Example Error**:</p>
+<pre><code>
+❌ SYNTAX_ERROR
+Cannot parse the calculation formula
+
+Suggestion: Ensure formulas follow the pattern: 
+result = expression (e.g., total = price * quantity)
+</code></pre>
+<p>**How to Fix**:</p>
+<ul>
+<li>Review formula syntax</li>
+<li>Use simple mathematical expressions</li>
+<li>Break complex formulas into multiple steps</li>
+<li>Use clear variable names</li>
+</ul>
+<h3>Circular Dependency</h3>
+<p>**Example Error**:</p>
+<pre><code>
+❌ CIRCULAR_DEPENDENCY
+Field &quot;final_price&quot; depends on &quot;discount_amount&quot; which depends on &quot;final_price&quot;
+
+Suggestion: Reorder your calculations to avoid circular references
+</code></pre>
+<p>**How to Fix**:</p>
+<ul>
+<li>Review the dependency chain</li>
+<li>Reorder calculation steps</li>
+<li>Use intermediate variables</li>
+<li>Break the circular reference</li>
+</ul>
+<h2>Best Practices</h2>
+<h3>1. Be Specific</h3>
+<p>❌ Bad: &quot;Apply discount to price&quot;</p>
+<p>✅ Good: &quot;Look up discount_percent from volume_discounts table where quantity is between min_qty and max_qty, then calculate: final_price = list_price * (1 - discount_percent / 100)&quot;</p>
+<h3>2. Use Exact Names</h3>
+<ul>
+<li>Always use quotes around table and column names</li>
+<li>Match case exactly (though AI is somewhat flexible)</li>
+<li>Use the full table name, not abbreviations</li>
+</ul>
+<h3>3. Break Down Complex Logic</h3>
+<p>Instead of one giant paragraph:</p>
+<pre><code>
+Step 1: Look up customer tier
+Step 2: Look up tier discount
+Step 3: Look up volume discount
+Step 4: Combine discounts
+Step 5: Calculate final price
+</code></pre>
+<h3>4. Reference Other Fields Clearly</h3>
+<ul>
+<li>Header fields: `header.customer_id`</li>
+<li>Current line item fields: `this.product_sku` or just `product_sku`</li>
+<li>Other line items: Specify clearly in logic</li>
+</ul>
+<h3>5. Handle Edge Cases</h3>
+<pre><code>
+If the table lookup returns no results, use default value of 0.
+If quantity is 0 or negative, set price to 0.
+</code></pre>
+<h3>6. Test Iteratively</h3>
+<ul>
+<li>Start with simple logic</li>
+<li>Validate and fix errors</li>
+<li>Add complexity incrementally</li>
+<li>Validate again after each addition</li>
+</ul>
+<h3>7. Document Assumptions</h3>
+<pre><code>
+Assumption: All products in &quot;volume_discounts&quot; table are kept up to date.
+Assumption: freight_rate is per unit of weight.
+</code></pre>
+<h2>Integration with Quotes</h2>
+<h3>How Logic Executes</h3>
+<p>When a quote is created or updated:</p>
+<ol>
+<li>**Field Dependencies Resolved**: System determines calculation order</li>
+<li>**Table Data Loaded**: Required tables are loaded into memory</li>
+<li>**Logic Executed**: Generated code runs for each field</li>
+<li>**Results Cached**: Calculated values stored in quote</li>
+<li>**Validation Run**: Business rules checked</li>
+<li>**Quote Saved**: Final calculated quote persisted</li>
+</ol>
+<h3>Field Dependencies</h3>
+<p>The system automatically manages dependencies:</p>
+<pre><code>
+quantity (user input)
+  ↓
+volume_discount_percent (calculated from quantity)
+  ↓
+discounted_unit_price (calculated from volume_discount_percent)
+  ↓
+extended_price (calculated from discounted_unit_price and quantity)
+</code></pre>
+<h3>Performance Considerations</h3>
+<ul>
+<li>**Table Caching**: Tables loaded once per quote calculation</li>
+<li>**Lazy Evaluation**: Only calculated fields that changed</li>
+<li>**Dependency Optimization**: Minimal recalculation</li>
+<li>**Parallel Processing**: Independent fields calculated in parallel</li>
+</ul>
+<h2>Troubleshooting</h2>
+<h3>Logic Not Executing</h3>
+<p>**Problem**: Saved logic but field still shows old value</p>
+<p>**Solutions**:</p>
+<ol>
+<li>Refresh the quote page</li>
+<li>Check validation status is &quot;valid&quot;</li>
+<li>Review generated code for errors</li>
+<li>Check browser console for execution errors</li>
+</ol>
+<h3>Incorrect Results</h3>
+<p>**Problem**: Logic executes but gives wrong values</p>
+<p>**Solutions**:</p>
+<ol>
+<li>Review the AI-generated code</li>
+<li>Check table data is correct</li>
+<li>Verify column references are accurate</li>
+<li>Test with simple data first</li>
+<li>Add logging to generated code</li>
+</ol>
+<h3>Slow Performance</h3>
+<p>**Problem**: Quote calculations taking too long</p>
+<p>**Solutions**:</p>
+<ol>
+<li>Reduce number of table lookups</li>
+<li>Cache frequently accessed data</li>
+<li>Simplify complex formulas</li>
+<li>Consider precomputing values</li>
+</ol>
+<h3>API Key Issues</h3>
+<p>**Problem**: &quot;API key not configured&quot; error</p>
+<p>**Solutions**:</p>
+<ol>
+<li>Go to AI Pricing Engine → Settings</li>
+<li>Add your OpenAI API key</li>
+<li>Ensure key has valid credits</li>
+<li>Check key hasn&#x27;t been revoked</li>
+</ol>
+<h2>Advanced Features</h2>
+<h3>Version Control</h3>
+<p>Each save creates a new version:</p>
+<ul>
+<li>Version 1: Initial logic</li>
+<li>Version 2: Updated discount calculation</li>
+<li>Version 3: Added edge case handling</li>
+</ul>
+<p>View version history in the field card.</p>
+<h3>Logic Reuse</h3>
+<p>Copy successful logic patterns:</p>
+<ol>
+<li>View existing field logic</li>
+<li>Copy the plain text description</li>
+<li>Adapt for new field</li>
+<li>Validate and save</li>
+</ol>
+<h3>Bulk Operations</h3>
+<p>Apply similar logic to multiple fields:</p>
+<ol>
+<li>Create template logic</li>
+<li>Use variables for field names</li>
+<li>Validate once</li>
+<li>Apply to all relevant fields</li>
+</ol>
+<h3>Testing</h3>
+<p>Test logic before deploying:</p>
+<ol>
+<li>Create test quote</li>
+<li>Add test line items</li>
+<li>Verify calculations</li>
+<li>Fix any issues</li>
+<li>Deploy to production</li>
+</ol>
+<h2>Technical Details</h2>
+<h3>Generated Code Format</h3>
+<p>The AI generates JavaScript functions like:</p>
+<pre><code class="language-javascript">
+// Calculate volume discount percentage
+function calculateVolumeDiscountPercent(context, tableData) {
+  const quantity = context.quantity;
+  const volumeDiscounts = tableData[&#x27;volume_discounts&#x27;];
+  
+  // Find matching tier
+  const tier = volumeDiscounts.find(t =&gt; 
+    quantity &gt;= t.min_qty &amp;&amp; quantity &lt;= t.max_qty
+  );
+  
+  // Return discount or default to 0
+  return tier ? tier.discount_percent : 0;
+}
+</code></pre>
+<h3>Execution Context</h3>
+<p>Available variables in execution context:</p>
+<ul>
+<li>`context`: Current field values</li>
+<li>`tableData`: All referenced table data</li>
+<li>`header`: Header-level fields</li>
+<li>`lineItems`: All line items in quote</li>
+</ul>
+<h3>Security</h3>
+<ul>
+<li>**Sandboxed Execution**: Code runs in isolated environment</li>
+<li>**No External Access**: Cannot access external APIs</li>
+<li>**Read-Only Tables**: Cannot modify table data</li>
+<li>**Timeout Protection**: Long-running code is terminated</li>
+</ul>
+<h2>FAQ</h2>
+<p>**Q: Can I reference fields from other line items?**</p>
+<p>A: Yes, but be careful about circular dependencies. Access via `context.lineItems` array.</p>
+<p>**Q: How many tables can I reference?**</p>
+<p>A: No hard limit, but recommend keeping it under 5 for performance.</p>
+<p>**Q: Can I use custom functions?**</p>
+<p>A: Not directly, but you can describe complex logic and AI will generate appropriate code.</p>
+<p>**Q: What if my table structure changes?**</p>
+<p>A: Re-validate your logic. The system will detect missing columns and prompt for updates.</p>
+<p>**Q: Can I export/import logic?**</p>
+<p>A: Currently logic is stored per field. Feature request for import/export is noted.</p>
+<p>**Q: Does this work offline?**</p>
+<p>A: No, requires OpenAI API connection for validation. Execution works offline.</p>
+<p>**Q: What&#x27;s the cost?**</p>
+<p>A: Based on OpenAI API usage. Validation is approximately $0.01-0.05 per field.</p>
+<p>---</p>
+<p>**Ready to build intelligent pricing logic?** Head to **Admin → Field Logic Manager** and start defining your first field!</p>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DuraiPricingTool Technical Blueprint</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f6f8fb; color:#1f2937; }
+    .wrap { max-width: 980px; margin: 20px auto; padding: 0 16px; }
+    .card { background:#fff; border:1px solid #d7dee7; border-radius:10px; padding:20px; }
+    h1, h2, h3 { color:#0f766e; }
+    pre { background:#0f172a; color:#f8fafc; padding:12px; border-radius:8px; overflow:auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    ul, ol { padding-left: 20px; }
+    a { color:#0b63ce; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>DuraiPricingTool Technical Blueprint</h1>
+<h2>1) Antigravity Architecture</h2>
+<ul>
+<li>Frontend: `React + TypeScript + AG Grid + Apache ECharts`</li>
+<li>Backend: `FastAPI` modular services (`admin`, `analytics`, `quotes`, `workflow`, `chatbot`)</li>
+<li>Database: `DuckDB` for OLAP-style aggregations and fast local analytics</li>
+<li>Processing: server-side chunked CSV ingestion (`pandas chunksize`) to support large files</li>
+<li>Extensibility: formula engine + dynamic schema fields (`JSON` columns for quote header/line custom fields)</li>
+</ul>
+<h2>2) Module Design</h2>
+<ul>
+<li>Admin &amp; Data Integration:</li>
+<li>Secure admin-ready APIs with seed/ingestion endpoints (can be fronted by SSO/auth proxy)</li>
+<li>CSV ingest with flexible column mapping into historical transaction schema</li>
+<li>Synthetic data generator (`&gt;=10,000` rows)</li>
+<li>Analytics:</li>
+<li>Waterfall (price bridge), scatter (price-volume), bar (segment mix), time series</li>
+<li>Drill-down API tied to chart keys</li>
+<li>OOTB NL-&gt;SQL chatbot endpoint with starter intent mappings</li>
+<li>Quoting:</li>
+<li>Dynamic header and line custom fields stored as JSON</li>
+<li>Formula parser for admin-defined formulas</li>
+<li>Embedded analytics in quote response (mini waterfall + historical trend)</li>
+<li>Workflow:</li>
+<li>Configurable state machine (`Draft -&gt; Pending Approval -&gt; Approved/Rejected`)</li>
+<li>Customer-specific thresholds (`Customer A &gt;20%`, `Customer B &gt;10%`)</li>
+</ul>
+<h2>3) Data Schema (SQL)</h2>
+<pre><code class="language-sql">
+-- historical_transactions
+id BIGINT
+transaction_date DATE
+sku VARCHAR
+product_family VARCHAR
+customer_id VARCHAR
+customer_name VARCHAR
+customer_segment VARCHAR
+region VARCHAR
+list_price DOUBLE
+discount_percent DOUBLE
+net_price DOUBLE
+cost DOUBLE
+quantity INTEGER
+revenue DOUBLE
+margin DOUBLE
+quote_id VARCHAR
+sales_rep VARCHAR
+currency VARCHAR
+
+-- quotes
+quote_id VARCHAR PRIMARY KEY
+customer_id VARCHAR
+customer_name VARCHAR
+customer_segment VARCHAR
+status VARCHAR
+header_fields JSON
+total_list_price DOUBLE
+total_net_price DOUBLE
+total_cost DOUBLE
+total_margin DOUBLE
+created_at TIMESTAMP
+updated_at TIMESTAMP
+
+-- quote_line_items
+quote_line_id VARCHAR PRIMARY KEY
+quote_id VARCHAR
+sku VARCHAR
+quantity INTEGER
+list_price DOUBLE
+discount_percent DOUBLE
+net_price DOUBLE
+cost DOUBLE
+margin DOUBLE
+dynamic_fields JSON
+created_at TIMESTAMP
+updated_at TIMESTAMP
+
+-- workflow_rules
+rule_id VARCHAR PRIMARY KEY
+customer_id VARCHAR NULL
+customer_segment VARCHAR NULL
+state_from VARCHAR
+state_to VARCHAR
+metric_name VARCHAR
+comparator VARCHAR
+threshold DOUBLE
+required_approver_role VARCHAR
+active BOOLEAN
+</code></pre>
+<h2>4) JSON Contracts</h2>
+<pre><code class="language-json">
+{
+  &quot;header&quot;: {
+    &quot;quote_id&quot;: &quot;Q-1001&quot;,
+    &quot;customer_id&quot;: &quot;CustomerA&quot;,
+    &quot;customer_name&quot;: &quot;Customer A Holdings&quot;,
+    &quot;customer_segment&quot;: &quot;Enterprise&quot;,
+    &quot;header_fields&quot;: {&quot;deal_type&quot;: &quot;Renewal&quot;, &quot;region_owner&quot;: &quot;NA-East&quot;}
+  },
+  &quot;line_items&quot;: [
+    {
+      &quot;quote_line_id&quot;: &quot;QL-1&quot;,
+      &quot;sku&quot;: &quot;SKU-1001&quot;,
+      &quot;quantity&quot;: 20,
+      &quot;list_price&quot;: 1000,
+      &quot;discount_percent&quot;: 0.18,
+      &quot;cost&quot;: 640,
+      &quot;dynamic_fields&quot;: {&quot;competitor_price&quot;: 790}
+    }
+  ],
+  &quot;formulas&quot;: [
+    {&quot;target_field&quot;: &quot;net_price&quot;, &quot;expression&quot;: &quot;list_price * (1 - discount_percent)&quot;},
+    {&quot;target_field&quot;: &quot;margin&quot;, &quot;expression&quot;: &quot;(net_price - cost) * quantity&quot;}
+  ]
+}
+</code></pre>
+<h2>5) API Specs</h2>
+<ul>
+<li>`POST /admin/ingest/csv`</li>
+<li>multipart:</li>
+<li>`file`: CSV file</li>
+<li>`mapping_json`: JSON mapping from source column -&gt; target schema</li>
+<li>behavior: chunked read (`5000` rows/chunk), transform, bulk insert</li>
+<li>`POST /admin/seed/sample-data?row_count=10000`</li>
+<li>generates synthetic B2B price history</li>
+<li>`POST /quotes/calculate`</li>
+<li>dynamic formula evaluation, stores quote header/lines, returns embedded analytics</li>
+<li>`POST /quotes/workflow/evaluate`</li>
+<li>checks workflow rule thresholds and approval requirements</li>
+<li>`GET /analytics/{waterfall|scatter|bar|time-series}`</li>
+<li>returns chart-ready datasets</li>
+<li>`GET /analytics/drilldown?chart_type=bar&amp;key=Enterprise`</li>
+<li>returns row-level records for chart selection</li>
+<li>`POST /chatbot/ask`</li>
+<li>NL question to SQL + query result payload</li>
+</ul>
+<h2>6) Quote Screen UI Mockup Logic</h2>
+<ul>
+<li>Top strip:</li>
+<li>quote identity, customer, status pill, workflow actions (Submit, Approve, Reject)</li>
+<li>Left pane (60-70%):</li>
+<li>dense editable line-item grid (AG Grid), dynamic columns from metadata</li>
+<li>inline computed fields (`net_price`, `margin`, `effective_discount`)</li>
+<li>Right pane (30-40%):</li>
+<li>header custom fields card (dynamic forms)</li>
+<li>mini waterfall (bridge: list -&gt; discount -&gt; net -&gt; margin)</li>
+<li>6-month historical trend sparkline for customer/SKU context</li>
+<li>Bottom tabbed region:</li>
+<li>approval trail</li>
+<li>drill-down historical transactions</li>
+<li>chatbot panel for natural language pricing questions</li>
+</ul>
+<h2>7) Performance Notes</h2>
+<ul>
+<li>Keep heavy analytics server-side with DuckDB SQL aggregations</li>
+<li>Use paged drill-down responses for large result sets</li>
+<li>Precompute common summary tables if data grows beyond single-node memory budget</li>
+<li>For multi-user production scale, swap/augment storage with `DuckDB + object storage parquet` or distributed OLAP backend</li>
+</ul>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DuraiPricingTool</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f6f8fb; color:#1f2937; }
+    .wrap { max-width: 980px; margin: 20px auto; padding: 0 16px; }
+    .card { background:#fff; border:1px solid #d7dee7; border-radius:10px; padding:20px; }
+    h1, h2, h3 { color:#0f766e; }
+    pre { background:#0f172a; color:#f8fafc; padding:12px; border-radius:8px; overflow:auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    ul, ol { padding-left: 20px; }
+    a { color:#0b63ce; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>DuraiPricingTool</h1>
+<p>Modular enterprise pricing foundation (CPQ/PRO) with DuckDB analytics, chunked CSV ingestion, dynamic quote formulas, and configurable workflows.</p>
+<h2>Project Structure</h2>
+<pre><code class="language-text">
+DuraiPricingTool/
+  app/
+    api/
+    core/
+    db/
+    engines/
+    models/
+    services/
+    main.py
+  docs/TECHNICAL_BLUEPRINT.md
+  frontend/
+  requirements.txt
+</code></pre>
+<h2>Setup</h2>
+<pre><code class="language-bash">
+cd /home/waheed/DuraiPricingTool
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+</code></pre>
+<h2>Run</h2>
+<pre><code class="language-bash">
+source .venv/bin/activate
+uvicorn app.main:app --reload --port 8080
+</code></pre>
+<h2>Frontend Setup (React + AG Grid + ECharts)</h2>
+<pre><code class="language-bash">
+cd /home/waheed/DuraiPricingTool/frontend
+npm install
+</code></pre>
+<h2>Run Frontend</h2>
+<pre><code class="language-bash">
+cd /home/waheed/DuraiPricingTool/frontend
+npm run dev
+</code></pre>
+<p>Frontend URL: `http://&lt;server-ip&gt;:5173`</p>
+<p>If backend is on another host/port, set:</p>
+<pre><code class="language-bash">
+export VITE_API_BASE_URL=&quot;http://&lt;backend-ip&gt;:9000&quot;
+npm run dev
+</code></pre>
+<h2>Quick Start</h2>
+<ol>
+<li>Seed synthetic data (10k rows):</li>
+</ol>
+<pre><code class="language-bash">
+curl -X POST &quot;http://127.0.0.1:8080/admin/seed/sample-data?row_count=10000&quot;
+</code></pre>
+<ol>
+<li>Seed default workflow rules:</li>
+</ol>
+<pre><code class="language-bash">
+curl -X POST &quot;http://127.0.0.1:8080/admin/seed/workflow-rules&quot;
+</code></pre>
+<ol>
+<li>Call analytics:</li>
+</ol>
+<pre><code class="language-bash">
+curl &quot;http://127.0.0.1:8080/analytics/waterfall&quot;
+</code></pre>
+<ol>
+<li>Calculate a quote:</li>
+</ol>
+<pre><code class="language-bash">
+curl -X POST &quot;http://127.0.0.1:8080/quotes/calculate&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d &#x27;{
+    &quot;header&quot;:{
+      &quot;quote_id&quot;:&quot;Q-12345&quot;,
+      &quot;customer_id&quot;:&quot;CustomerA&quot;,
+      &quot;customer_name&quot;:&quot;Customer A Holdings&quot;,
+      &quot;customer_segment&quot;:&quot;Enterprise&quot;,
+      &quot;header_fields&quot;:{&quot;deal_type&quot;:&quot;New&quot;}
+    },
+    &quot;line_items&quot;:[
+      {&quot;quote_line_id&quot;:&quot;QL-1&quot;,&quot;sku&quot;:&quot;SKU-1001&quot;,&quot;quantity&quot;:20,&quot;list_price&quot;:1000,&quot;discount_percent&quot;:0.15,&quot;cost&quot;:600,&quot;dynamic_fields&quot;:{&quot;note&quot;:&quot;priority&quot;}},
+      {&quot;quote_line_id&quot;:&quot;QL-2&quot;,&quot;sku&quot;:&quot;SKU-2001&quot;,&quot;quantity&quot;:5,&quot;list_price&quot;:4000,&quot;discount_percent&quot;:0.10,&quot;cost&quot;:2800,&quot;dynamic_fields&quot;:{&quot;bundle&quot;:&quot;yes&quot;}}
+    ],
+    &quot;formulas&quot;:[
+      {&quot;target_field&quot;:&quot;net_price&quot;,&quot;expression&quot;:&quot;list_price * (1 - discount_percent)&quot;},
+      {&quot;target_field&quot;:&quot;margin&quot;,&quot;expression&quot;:&quot;(net_price - cost) * quantity&quot;}
+    ]
+  }&#x27;
+</code></pre>
+<ol>
+<li>Ask chatbot:</li>
+</ol>
+<pre><code class="language-bash">
+curl -X POST &quot;http://127.0.0.1:8080/chatbot/ask&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d &#x27;{&quot;question&quot;:&quot;What was the margin leak in Q3?&quot;}&#x27;
+</code></pre>
+<h2>Notes</h2>
+<ul>
+<li>CSV upload is chunked (`5000` rows/chunk) to support large files.</li>
+<li>Dynamic quote fields are represented through `header_fields` and `dynamic_fields` JSON payloads.</li>
+</ul>
+<h2>Hybrid PostgreSQL + DuckDB Mode</h2>
+<p>Transactional APIs can run on PostgreSQL while analytics remain on DuckDB.</p>
+<p>Environment variables:</p>
+<pre><code class="language-bash">
+export DB_ENGINE=hybrid
+export PG_DSN=&quot;postgresql://postgres:postgres@127.0.0.1:5432/duraipricing&quot;
+</code></pre>
+<p>Start backend:</p>
+<pre><code class="language-bash">
+cd /home/waheed/DuraiPricingTool
+source .venv/bin/activate
+uvicorn app.main:app --host 0.0.0.0 --port 9000
+</code></pre>
+<p>Run sync once (Postgres -&gt; DuckDB):</p>
+<pre><code class="language-bash">
+python -m app.workers.pg_to_duck_sync --once
+</code></pre>
+<p>Run sync worker continuously:</p>
+<pre><code class="language-bash">
+python -m app.workers.pg_to_duck_sync --interval 30
+</code></pre>
+<p>Admin API trigger for one sync:</p>
+<pre><code class="language-bash">
+curl -X POST &quot;http://127.0.0.1:9000/admin/sync/run-once&quot;
+</code></pre>
+    </div>
+  </div>
+</body>
+</html>

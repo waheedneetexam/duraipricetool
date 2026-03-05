@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Pricing Engine - Complete Guide</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f6f8fb; color:#1f2937; }
+    .wrap { max-width: 980px; margin: 20px auto; padding: 0 16px; }
+    .card { background:#fff; border:1px solid #d7dee7; border-radius:10px; padding:20px; }
+    h1, h2, h3 { color:#0f766e; }
+    pre { background:#0f172a; color:#f8fafc; padding:12px; border-radius:8px; overflow:auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    ul, ol { padding-left: 20px; }
+    a { color:#0b63ce; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>AI Pricing Engine - Complete Guide</h1>
+<h2>Overview</h2>
+<p>The AI Pricing Engine is a next-generation intelligent pricing configuration system that uses advanced AI (GPT-4) to interpret your business requirements and automatically configure your quote management system.</p>
+<h2>How It Works</h2>
+<ol>
+<li>**Fill Out Template** - Describe your pricing logic in a structured YAML template</li>
+<li>**AI Processing** - GPT-4 analyzes and interprets your requirements</li>
+<li>**Review Configuration** - AI generates field configs and calculation rules</li>
+<li>**Apply to System** - One-click deployment to your quote system</li>
+</ol>
+<h2>Features</h2>
+<h3>What the AI Can Configure</h3>
+<ul>
+<li>✅ **Quote Header Fields** - Customer segment, deal size, discount totals, etc.</li>
+<li>✅ **Line Item Fields** - Product SKU, quantity, pricing, discounts, margins</li>
+<li>✅ **Pricing Logic** - Volume discounts, segment pricing, tiered pricing</li>
+<li>✅ **Calculation Rules** - Price formulas, margin calculations, aggregations</li>
+<li>✅ **Validation Rules** - Business constraints, minimum margins, max discounts</li>
+<li>✅ **Approval Workflows** - Conditional approval requirements</li>
+</ul>
+<h3>AI Capabilities</h3>
+<p>The system uses **OpenAI GPT-4o** to:</p>
+<ul>
+<li>Interpret natural language business rules</li>
+<li>Extract field configurations from descriptions</li>
+<li>Convert pricing logic into executable formulas</li>
+<li>Generate validation and approval rules</li>
+<li>Provide explanations of the interpreted logic</li>
+</ul>
+<h2>Template Structure</h2>
+<h3>1. Company Information</h3>
+<pre><code class="language-yaml">
+company_name: &quot;Your Company Name&quot;
+industry: &quot;Your Industry&quot;
+pricing_model: &quot;Your Pricing Model&quot;
+</code></pre>
+<h3>2. Header Fields Configuration</h3>
+<pre><code class="language-yaml">
+header_fields:
+  - name: &quot;field_name&quot;
+    type: &quot;select|currency|percent|number|string|date|boolean&quot;
+    options: [&quot;Option1&quot;, &quot;Option2&quot;]  # For select fields
+    required: true|false
+    calculated: true|false
+    description: &quot;Field description&quot;
+    default: &quot;default value&quot;
+</code></pre>
+<p>**Supported Types:**</p>
+<ul>
+<li>`string` - Text fields</li>
+<li>`number` - Numeric values</li>
+<li>`currency` - Money values (formatted with $)</li>
+<li>`percent` - Percentage values</li>
+<li>`date` - Date fields</li>
+<li>`select` - Dropdown selection</li>
+<li>`boolean` - Yes/No fields</li>
+</ul>
+<h3>3. Line Item Fields Configuration</h3>
+<pre><code class="language-yaml">
+line_item_fields:
+  - name: &quot;field_name&quot;
+    type: &quot;string|number|currency|percent&quot;
+    required: true|false
+    calculated: true|false
+    description: &quot;Field description&quot;
+    min: 1  # For numeric fields
+    max: 100  # For numeric fields
+</code></pre>
+<h3>4. Pricing Logic</h3>
+<h4>Volume Discounts</h4>
+<pre><code class="language-yaml">
+volume_discounts:
+  rule: &quot;Quantity-based tiered discounts&quot;
+  tiers:
+    - quantity_from: 1
+      quantity_to: 10
+      discount: 0
+    - quantity_from: 11
+      quantity_to: 50
+      discount: 5
+    - quantity_from: 51
+      quantity_to: null  # null = infinity
+      discount: 10
+</code></pre>
+<h4>Customer Segment Discounts</h4>
+<pre><code class="language-yaml">
+segment_discounts:
+  rule: &quot;Additional discount based on customer segment&quot;
+  Enterprise: 10
+  Mid-Market: 5
+  SMB: 0
+</code></pre>
+<h4>Price Calculations</h4>
+<pre><code class="language-yaml">
+price_calculation:
+  step_1: &quot;Apply volume discount to list price&quot;
+  formula_1: &quot;discounted_price = list_price * (1 - volume_discount_percent / 100)&quot;
+  
+  step_2: &quot;Apply segment discount&quot;
+  formula_2: &quot;final_unit_price = discounted_price * (1 - segment_discount_percent / 100)&quot;
+  
+  step_3: &quot;Calculate extended price&quot;
+  formula_3: &quot;extended_price = final_unit_price * quantity&quot;
+  
+  step_4: &quot;Calculate margin&quot;
+  formula_4: &quot;total_cost = cost * quantity&quot;
+  formula_5: &quot;margin_amount = extended_price - total_cost&quot;
+  formula_6: &quot;margin_percent = (margin_amount / extended_price) * 100&quot;
+</code></pre>
+<h4>Header Calculations</h4>
+<pre><code class="language-yaml">
+header_calculations:
+  deal_size:
+    description: &quot;Sum of all line item extended prices&quot;
+    formula: &quot;SUM(line_items.extended_price)&quot;
+  
+  total_discount_percent:
+    description: &quot;Weighted average discount&quot;
+    formula: &quot;WEIGHTED_AVG(line_items.discount, line_items.extended_price)&quot;
+</code></pre>
+<h3>5. Validation Rules</h3>
+<pre><code class="language-yaml">
+validation_rules:
+  - rule: &quot;Minimum margin requirement&quot;
+    condition: &quot;margin_percent &gt;= 20&quot;
+    error_message: &quot;Margin must be at least 20%&quot;
+    level: &quot;warning&quot;
+  
+  - rule: &quot;Maximum total discount&quot;
+    condition: &quot;(volume_discount + segment_discount) &lt;= 25&quot;
+    error_message: &quot;Total discount cannot exceed 25%&quot;
+    level: &quot;error&quot;
+</code></pre>
+<p>**Validation Levels:**</p>
+<ul>
+<li>`warning` - Shows warning but allows save</li>
+<li>`error` - Blocks save until fixed</li>
+</ul>
+<h3>6. Approval Workflow Rules</h3>
+<pre><code class="language-yaml">
+approval_rules:
+  - condition: &quot;margin_percent &lt; 25&quot;
+    approver: &quot;Sales Manager&quot;
+    reason: &quot;Low margin approval required&quot;
+  
+  - condition: &quot;deal_size &gt; 100000&quot;
+    approver: &quot;VP of Sales&quot;
+    reason: &quot;Large deal approval required&quot;
+</code></pre>
+<h3>7. Business Context</h3>
+<pre><code class="language-yaml">
+business_context: |
+  Provide context about your business model, pricing strategy,
+  special considerations, and any industry-specific requirements.
+
+special_instructions: |
+  - Specific formatting requirements
+  - Rounding rules
+  - Edge cases to handle
+  - Integration requirements
+</code></pre>
+<h2>Example Use Cases</h2>
+<h3>SaaS Subscription Pricing</h3>
+<pre><code class="language-yaml">
+company_name: &quot;CloudSoft Inc&quot;
+industry: &quot;SaaS&quot;
+pricing_model: &quot;Subscription-based with usage tiers&quot;
+
+header_fields:
+  - name: &quot;contract_term&quot;
+    type: &quot;select&quot;
+    options: [&quot;Monthly&quot;, &quot;Annual&quot;, &quot;Multi-Year&quot;]
+    required: true
+  
+  - name: &quot;mrr&quot;
+    type: &quot;currency&quot;
+    calculated: true
+    description: &quot;Monthly Recurring Revenue&quot;
+
+line_item_fields:
+  - name: &quot;product_tier&quot;
+    type: &quot;select&quot;
+    options: [&quot;Starter&quot;, &quot;Professional&quot;, &quot;Enterprise&quot;]
+  
+  - name: &quot;user_count&quot;
+    type: &quot;number&quot;
+    required: true
+  
+  - name: &quot;per_user_price&quot;
+    type: &quot;currency&quot;
+    calculated: true
+
+price_calculation:
+  step_1: &quot;Determine per-user price based on tier&quot;
+  step_2: &quot;Apply volume discount based on user count&quot;
+  step_3: &quot;Apply annual contract discount if applicable&quot;
+  formula: &quot;monthly_price = per_user_price * user_count * (1 - discount)&quot;
+</code></pre>
+<h3>Manufacturing B2B Pricing</h3>
+<pre><code class="language-yaml">
+company_name: &quot;IndustrialCo&quot;
+industry: &quot;Manufacturing&quot;
+pricing_model: &quot;Tiered volume pricing with rebates&quot;
+
+line_item_fields:
+  - name: &quot;part_number&quot;
+    type: &quot;string&quot;
+    required: true
+  
+  - name: &quot;quantity&quot;
+    type: &quot;number&quot;
+    required: true
+  
+  - name: &quot;list_price&quot;
+    type: &quot;currency&quot;
+  
+  - name: &quot;freight_cost&quot;
+    type: &quot;currency&quot;
+    calculated: true
+  
+  - name: &quot;tooling_charge&quot;
+    type: &quot;currency&quot;
+
+volume_discounts:
+  tiers:
+    - quantity_from: 1
+      quantity_to: 99
+      discount: 0
+    - quantity_from: 100
+      quantity_to: 499
+      discount: 10
+    - quantity_from: 500
+      quantity_to: null
+      discount: 18
+
+validation_rules:
+  - rule: &quot;Minimum order quantity&quot;
+    condition: &quot;quantity &gt;= 10&quot;
+    error_message: &quot;Minimum order is 10 units&quot;
+    level: &quot;error&quot;
+</code></pre>
+<h3>Professional Services Pricing</h3>
+<pre><code class="language-yaml">
+company_name: &quot;ConsultPro&quot;
+industry: &quot;Professional Services&quot;
+pricing_model: &quot;Time &amp; materials with fixed-price projects&quot;
+
+header_fields:
+  - name: &quot;engagement_type&quot;
+    type: &quot;select&quot;
+    options: [&quot;Fixed Price&quot;, &quot;Time &amp; Materials&quot;, &quot;Retainer&quot;]
+  
+  - name: &quot;total_hours&quot;
+    type: &quot;number&quot;
+    calculated: true
+
+line_item_fields:
+  - name: &quot;resource_level&quot;
+    type: &quot;select&quot;
+    options: [&quot;Partner&quot;, &quot;Senior Consultant&quot;, &quot;Consultant&quot;, &quot;Analyst&quot;]
+  
+  - name: &quot;hours&quot;
+    type: &quot;number&quot;
+  
+  - name: &quot;hourly_rate&quot;
+    type: &quot;currency&quot;
+  
+  - name: &quot;blended_rate&quot;
+    type: &quot;currency&quot;
+    calculated: true
+
+price_calculation:
+  step_1: &quot;Calculate line item total&quot;
+  formula_1: &quot;line_total = hours * hourly_rate&quot;
+  
+  step_2: &quot;Apply volume discount for large engagements&quot;
+  condition: &quot;IF total_hours &gt; 500 THEN apply 10% discount&quot;
+  
+  step_3: &quot;Calculate weighted average blended rate&quot;
+  formula_3: &quot;blended_rate = SUM(hours * hourly_rate) / total_hours&quot;
+</code></pre>
+<h2>Setup Instructions</h2>
+<h3>1. Configure OpenAI API Key</h3>
+<ol>
+<li>Go to **Admin** → **AI Pricing Engine**</li>
+<li>Click the **Settings** tab</li>
+<li>Get your API key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys)</li>
+<li>Paste the key and click **Save API Key**</li>
+</ol>
+<h3>2. Prepare Your Requirements</h3>
+<ol>
+<li>Download the template from the **Template** tab</li>
+<li>Fill out each section with your specific pricing logic</li>
+<li>Be as detailed as possible - more context helps the AI</li>
+</ol>
+<h3>3. Process with AI</h3>
+<ol>
+<li>Paste your completed template</li>
+<li>Click **Process with AI**</li>
+<li>Wait for the AI to analyze (typically 10-30 seconds)</li>
+</ol>
+<h3>4. Review Configuration</h3>
+<ol>
+<li>Review the **AI Analysis** explanation</li>
+<li>Check **Header Fields** configuration</li>
+<li>Check **Line Item Fields** configuration</li>
+<li>Review **Calculation Rules**</li>
+</ol>
+<h3>5. Apply to System</h3>
+<ol>
+<li>Click **Apply Configuration to Quote System**</li>
+<li>Your quote system is now configured!</li>
+<li>Go to **Quotes** to start creating quotes with your new pricing logic</li>
+</ol>
+<h2>Tips for Best Results</h2>
+<h3>Be Specific</h3>
+<p>❌ Bad: &quot;Apply discounts based on quantity&quot;</p>
+<p>✅ Good: &quot;Apply 5% discount for 10-50 units, 10% for 51-100 units, 15% for 100+ units&quot;</p>
+<h3>Provide Context</h3>
+<p>Include information about:</p>
+<ul>
+<li>Your industry and business model</li>
+<li>Common deal sizes and patterns</li>
+<li>Strategic pricing objectives</li>
+<li>Competitive positioning</li>
+<li>Margin requirements</li>
+</ul>
+<h3>Define Formulas Clearly</h3>
+<p>❌ Bad: &quot;Calculate the final price&quot;</p>
+<p>✅ Good: &quot;final_price = (list_price - volume_discount) * quantity - rebate&quot;</p>
+<h3>Specify Edge Cases</h3>
+<ul>
+<li>What happens with zero quantity?</li>
+<li>How to handle negative margins?</li>
+<li>Minimum/maximum price thresholds</li>
+<li>Required approvals for exceptions</li>
+</ul>
+<h3>Use Consistent Naming</h3>
+<ul>
+<li>Use underscores for field names: `customer_segment` not `CustomerSegment`</li>
+<li>Be consistent with terminology throughout</li>
+<li>Reference fields by their exact names in formulas</li>
+</ul>
+<h2>Advanced Features</h2>
+<h3>Complex Conditional Logic</h3>
+<pre><code class="language-yaml">
+price_calculation:
+  step_1: &quot;Determine base pricing&quot;
+  formula_1: &quot;base_price = IF product_tier = &#x27;Enterprise&#x27; THEN list_price * 0.85 ELSE list_price&quot;
+  
+  step_2: &quot;Apply conditional volume discount&quot;
+  formula_2: &quot;volume_discount = CASE 
+    WHEN quantity &gt;= 1000 THEN 20
+    WHEN quantity &gt;= 500 AND customer_segment = &#x27;Enterprise&#x27; THEN 15
+    WHEN quantity &gt;= 100 THEN 10
+    ELSE 0&quot;
+</code></pre>
+<h3>Lookup Tables</h3>
+<pre><code class="language-yaml">
+pricing_tables:
+  regional_multipliers:
+    North America: 1.0
+    Europe: 1.15
+    Asia Pacific: 1.25
+  
+  currency_exchange:
+    USD: 1.0
+    EUR: 0.92
+    GBP: 0.79
+
+price_calculation:
+  step_1: &quot;Apply regional pricing&quot;
+  formula_1: &quot;regional_price = base_price * regional_multipliers[region]&quot;
+</code></pre>
+<h3>Multi-tier Discounting</h3>
+<pre><code class="language-yaml">
+discount_logic:
+  tier_1_volume_discount: &quot;Based on quantity&quot;
+  tier_2_segment_discount: &quot;Based on customer segment&quot;
+  tier_3_contract_discount: &quot;Based on contract term&quot;
+  tier_4_payment_discount: &quot;Based on payment terms&quot;
+  
+  total_discount_cap: 30
+  compounding: &quot;multiplicative&quot;  # or &quot;additive&quot;
+  
+  formula: &quot;final_price = list_price * (1 - d1) * (1 - d2) * (1 - d3) * (1 - d4)&quot;
+</code></pre>
+<h2>Troubleshooting</h2>
+<h3>AI Processing Fails</h3>
+<p>**Problem:** Error message when processing requirements</p>
+<p>**Solutions:**</p>
+<ol>
+<li>Check that your OpenAI API key is valid</li>
+<li>Ensure you have API credits available</li>
+<li>Check for YAML syntax errors in your template</li>
+<li>Simplify complex sections and try again</li>
+<li>Check browser console for detailed error messages</li>
+</ol>
+<h3>Configuration Not Applied</h3>
+<p>**Problem:** Changes don&#x27;t appear in quote system</p>
+<p>**Solutions:**</p>
+<ol>
+<li>Verify you clicked &quot;Apply Configuration&quot;</li>
+<li>Refresh the quotes page</li>
+<li>Check browser console for errors</li>
+<li>Try creating a new quote</li>
+</ol>
+<h3>Calculations Not Working</h3>
+<p>**Problem:** Auto-calculated fields showing incorrect values</p>
+<p>**Solutions:**</p>
+<ol>
+<li>Review the generated calculation rules</li>
+<li>Check formula syntax in AI results</li>
+<li>Ensure field names match exactly</li>
+<li>Verify calculation dependencies are in correct order</li>
+</ol>
+<h3>API Key Issues</h3>
+<p>**Problem:** &quot;API key not configured&quot; error</p>
+<p>**Solutions:**</p>
+<ol>
+<li>Go to Settings tab and save API key</li>
+<li>Ensure key starts with &quot;sk-&quot;</li>
+<li>Check key hasn&#x27;t been revoked in OpenAI dashboard</li>
+<li>Try copying key again (no extra spaces)</li>
+</ol>
+<h2>Best Practices</h2>
+<h3>1. Start Simple</h3>
+<p>Begin with basic pricing logic and add complexity incrementally</p>
+<h3>2. Test Thoroughly</h3>
+<p>Create test quotes with edge cases after applying configuration</p>
+<h3>3. Document Your Logic</h3>
+<p>Save your template files for future reference and modifications</p>
+<h3>4. Version Control</h3>
+<p>Keep different versions of your pricing templates as requirements evolve</p>
+<h3>5. Iterate</h3>
+<p>You can reprocess requirements and reapply configurations as needed</p>
+<h3>6. Review AI Output</h3>
+<p>Always review the AI-generated configuration before applying</p>
+<h3>7. Monitor Performance</h3>
+<p>Track how the pricing engine performs with real quotes</p>
+<h2>Security &amp; Privacy</h2>
+<ul>
+<li>**API Keys** are stored securely in your Supabase backend</li>
+<li>**Templates** are processed via OpenAI API (review their data policy)</li>
+<li>**Calculations** run entirely on your infrastructure</li>
+<li>**No data** is stored by OpenAI after processing (per their API terms)</li>
+</ul>
+<h2>Technical Architecture</h2>
+<pre><code>
+User Template → Backend → OpenAI GPT-4o API
+                    ↓
+              AI Analysis
+                    ↓
+         Configuration JSON
+                    ↓
+         Supabase Storage
+                    ↓
+      Quote System (Live Calculations)
+</code></pre>
+<h2>Support &amp; Resources</h2>
+<ul>
+<li>**OpenAI API Documentation**: https://platform.openai.com/docs</li>
+<li>**YAML Syntax Guide**: https://yaml.org/spec/</li>
+<li>**Example Templates**: See built-in template in the UI</li>
+</ul>
+<h2>Future Enhancements</h2>
+<p>Planned features:</p>
+<ul>
+<li>Support for multiple pricing strategies per organization</li>
+<li>A/B testing of different pricing configurations</li>
+<li>Historical pricing analysis and optimization</li>
+<li>Integration with external pricing services</li>
+<li>Machine learning for pricing recommendations</li>
+<li>Automated pricing optimization based on win rates</li>
+</ul>
+<p>---</p>
+<p>**Ready to get started?** Open the AI Pricing Engine and click on the Guide tab for an interactive walkthrough!</p>
+    </div>
+  </div>
+</body>
+</html>

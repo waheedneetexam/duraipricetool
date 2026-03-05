@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Implementation: Formula &amp; Strategy Builder (Admin)</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f6f8fb; color:#1f2937; }
+    .wrap { max-width: 980px; margin: 20px auto; padding: 0 16px; }
+    .card { background:#fff; border:1px solid #d7dee7; border-radius:10px; padding:20px; }
+    h1, h2, h3 { color:#0f766e; }
+    pre { background:#0f172a; color:#f8fafc; padding:12px; border-radius:8px; overflow:auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    ul, ol { padding-left: 20px; }
+    a { color:#0b63ce; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Implementation: Formula &amp; Strategy Builder (Admin)</h1>
+<h2>Objective</h2>
+<p>Implement two Admin modules:</p>
+<ol>
+<li>`Formula`</li>
+<li>`Strategy`</li>
+</ol>
+<p>Use **Google Blockly** as the visual block engine for all block editing and execution graph composition.</p>
+<h2>Technology Decision</h2>
+<ol>
+<li>Block engine: `google-blockly`.</li>
+<li>Serialization: Blockly JSON (`Blockly.serialization.workspaces.save/load`).</li>
+<li>Custom blocks: defined for pricing domain (attributes, parameters, lookups, math, logic, output).</li>
+<li>Validation: Blockly connection checks + custom domain validators.</li>
+<li>Execution output: transform Blockly workspace to evaluable JSON/expression tree for test run and backend execution.</li>
+</ol>
+<h2>Admin Navigation</h2>
+<ol>
+<li>Add `Formula &amp; Strategy Builder` under Admin.</li>
+<li>In builder screen provide module switch:</li>
+</ol>
+<ul>
+<li>`Formula`</li>
+<li>`Strategy`</li>
+</ul>
+<h2>Module 1: Formula (Admin)</h2>
+<h3>Features</h3>
+<ol>
+<li>Formula Type management:</li>
+</ol>
+<ul>
+<li>`Add Type`</li>
+<li>`Import`</li>
+<li>`Duplicate`</li>
+<li>`Edit Types`</li>
+</ul>
+<ol>
+<li>Active Type workflow:</li>
+</ol>
+<ul>
+<li>Active Type selector</li>
+<li>`Add Type` action</li>
+<li>Formula Type preview</li>
+</ul>
+<ol>
+<li>Blockly canvas with category toolbox:</li>
+</ol>
+<ul>
+<li>Product Attributes</li>
+<li>Parameters</li>
+<li>Data Lookups</li>
+<li>Constants</li>
+<li>Math</li>
+<li>Logic</li>
+<li>Functions</li>
+</ul>
+<ol>
+<li>Core sections:</li>
+</ol>
+<ul>
+<li>Formula</li>
+<li>Result</li>
+<li>Formula Detail</li>
+<li>Add variables toggle</li>
+</ul>
+<ol>
+<li>Block operations:</li>
+</ol>
+<ul>
+<li>Add block from toolbox</li>
+<li>Connect compatible blocks</li>
+<li>Delete block</li>
+<li>Nested expressions</li>
+<li>Inline dropdowns/inputs in blocks</li>
+</ul>
+<ol>
+<li>Data lookup blocks:</li>
+</ol>
+<ul>
+<li>`Take [aggregate] [field] from [lookup]`</li>
+<li>Lookup/table selector</li>
+<li>Return type metadata</li>
+</ul>
+<ol>
+<li>Type safety:</li>
+</ol>
+<ul>
+<li>Enforce input/output types</li>
+<li>Reject invalid connections</li>
+<li>Show field-level and workspace-level errors</li>
+</ul>
+<ol>
+<li>Formula status lifecycle:</li>
+</ol>
+<ul>
+<li>Draft</li>
+<li>Saved</li>
+<li>Valid</li>
+<li>Invalid</li>
+</ul>
+<ol>
+<li>Activation flow:</li>
+</ol>
+<ul>
+<li>`Submit`</li>
+<li>`Activate` (only when valid)</li>
+</ul>
+<ol>
+<li>Test run:</li>
+</ol>
+<ul>
+<li>Execute against sample payload</li>
+<li>Show computed result + validation/runtime errors</li>
+</ul>
+<h3>Implementation Steps</h3>
+<ol>
+<li>Install Blockly in frontend.</li>
+<li>Create `BlocklyFormulaCanvas` wrapper component.</li>
+<li>Define custom Formula blocks and generators.</li>
+<li>Map toolbox categories to custom blocks.</li>
+<li>Implement workspace save/load (local + API).</li>
+<li>Add formula validation pipeline:</li>
+</ol>
+<ul>
+<li>Blockly structural checks</li>
+<li>Domain checks (required result block, type checks, lookup config checks)</li>
+</ul>
+<ol>
+<li>Implement test-run adapter to convert workspace -&gt; executable payload.</li>
+<li>Add status transitions (draft/saved/valid/invalid/active).</li>
+</ol>
+<h2>Module 2: Strategy (Admin)</h2>
+<h3>Features</h3>
+<ol>
+<li>Strategy actions:</li>
+</ol>
+<ul>
+<li>New Strategy</li>
+<li>Save Strategy</li>
+<li>Test Run</li>
+<li>Import</li>
+<li>Export</li>
+<li>Duplicate</li>
+<li>Delete</li>
+<li>Activate</li>
+</ul>
+<ol>
+<li>Template-based creation:</li>
+</ol>
+<ul>
+<li>Blank</li>
+<li>Cost Plus</li>
+<li>Competitive Match</li>
+<li>Approval Gate</li>
+</ul>
+<ol>
+<li>Deployment controls:</li>
+</ol>
+<ul>
+<li>Scope (Local/Global)</li>
+<li>Target (tenant/region/BU)</li>
+<li>Priority</li>
+<li>Status (Draft/QA/Production)</li>
+</ul>
+<ol>
+<li>Strategy logic authoring in Blockly:</li>
+</ol>
+<ul>
+<li>Reuse formula block base</li>
+<li>Add strategy-specific blocks (set line item, set quote header, approval flag, lookup compare)</li>
+</ul>
+<ol>
+<li>Validation rules:</li>
+</ol>
+<ul>
+<li>No incompatible block connections</li>
+<li>No missing required outputs</li>
+<li>No invalid deployment promotion (e.g., production with validation errors)</li>
+</ul>
+<ol>
+<li>Test run preview:</li>
+</ol>
+<ul>
+<li>Execute on sample line items</li>
+<li>Show target price/margin/approval outputs</li>
+</ul>
+<h3>Implementation Steps</h3>
+<ol>
+<li>Build `BlocklyStrategyCanvas` using same Blockly core wrapper.</li>
+<li>Add strategy-specific custom blocks and generators.</li>
+<li>Implement strategy document schema:</li>
+</ol>
+<ul>
+<li>metadata</li>
+<li>deployment config</li>
+<li>workspace JSON</li>
+<li>test snapshot</li>
+</ul>
+<ol>
+<li>Add import/export for strategy JSON.</li>
+<li>Add duplicate/delete strategy flows.</li>
+<li>Add activation gate with validation checks.</li>
+</ol>
+<h2>Data Model (Minimum)</h2>
+<h3>FormulaDocument</h3>
+<ol>
+<li>`id`</li>
+<li>`name`</li>
+<li>`description`</li>
+<li>`typeId`</li>
+<li>`status` (`draft|saved|valid|invalid|active`)</li>
+<li>`workspaceJson` (Blockly JSON)</li>
+<li>`resultType`</li>
+<li>`updatedAt`</li>
+<li>`updatedBy`</li>
+</ol>
+<h3>StrategyDocument</h3>
+<ol>
+<li>`id`</li>
+<li>`name`</li>
+<li>`description`</li>
+<li>`templateKey`</li>
+<li>`deployment`:</li>
+</ol>
+<ul>
+<li>`scope`</li>
+<li>`target`</li>
+<li>`priority`</li>
+<li>`status`</li>
+</ul>
+<ol>
+<li>`workspaceJson` (Blockly JSON)</li>
+<li>`validation`</li>
+<li>`updatedAt`</li>
+<li>`updatedBy`</li>
+</ol>
+<h2>API Requirements</h2>
+<ol>
+<li>Formula APIs:</li>
+</ol>
+<ul>
+<li>create/update/get/list</li>
+<li>import/export</li>
+<li>validate</li>
+<li>submit/activate</li>
+</ul>
+<ol>
+<li>Strategy APIs:</li>
+</ol>
+<ul>
+<li>create/update/get/list</li>
+<li>import/export</li>
+<li>duplicate/delete</li>
+<li>validate</li>
+<li>test-run</li>
+<li>activate</li>
+</ul>
+<h2>Acceptance Criteria</h2>
+<ol>
+<li>User can build formula and strategy logic fully via Blockly blocks.</li>
+<li>Invalid block connections are prevented.</li>
+<li>Formula/Strategy can be saved and reloaded without layout loss.</li>
+<li>Import/export reproduces equivalent workspace.</li>
+<li>Test run returns deterministic outputs for provided sample inputs.</li>
+<li>Activate is blocked when validation fails.</li>
+<li>Admin can manage types, strategies, and deployment settings end-to-end.</li>
+</ol>
+<h2>Notes</h2>
+<ol>
+<li>Keep existing Admin visual style, but replace custom ad-hoc block UI with Blockly workspace.</li>
+<li>Persist Blockly JSON as source of truth; optional derived AST can be generated for engine execution.</li>
+<li>Start with local persistence fallback; wire backend persistence behind API client once endpoints are ready.</li>
+</ol>
+    </div>
+  </div>
+</body>
+</html>
