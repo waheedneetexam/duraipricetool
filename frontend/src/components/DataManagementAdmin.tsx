@@ -101,7 +101,7 @@ export function DataManagementAdmin() {
       {/* Main 3-Column Grid */}
       <div className="admin-data-grid" style={{ gridTemplateColumns: '260px 1fr 340px' }}>
         {/* Column 1: Sidebar Navigation */}
-        <aside className="admin-data-sidebar">
+        <aside className="admin-data-sidebar" style={{ overflowY: 'auto' }}>
           <div className="admin-sidebar-head">
             <div style={{ position: 'relative' }}>
               <input
@@ -159,7 +159,7 @@ export function DataManagementAdmin() {
         </div>
 
         {/* Column 4: CSV Import & Validation */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', paddingRight: '4px' }}>
           <CsvUpload
             selectedTableId={selectedTableId}
             onUploadComplete={reloadStats}
