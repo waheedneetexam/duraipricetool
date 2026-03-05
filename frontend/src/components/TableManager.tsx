@@ -6,6 +6,8 @@ import { toCsv } from '../constants/dataManagementTables';
 type Props = {
   table: DataTableDefinition;
   onBack?: () => void;
+  embedded?: boolean;
+  onDataLoad?: () => void;
 };
 
 type TableResponse = {
@@ -14,7 +16,7 @@ type TableResponse = {
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
 };
 
-export function TableManager({ table, onBack }: Props) {
+export function TableManager({ table, onBack, embedded, onDataLoad }: Props) {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [search, setSearch] = useState('');
@@ -45,6 +47,7 @@ export function TableManager({ table, onBack }: Props) {
       if (response.success) {
         setRows(response.data);
         setTotal(response.pagination.total);
+        onDataLoad?.();
       }
     } catch (err) {
       setMessage(String(err));
@@ -169,126 +172,144 @@ export function TableManager({ table, onBack }: Props) {
     URL.revokeObjectURL(url);
   }
 
+  const contentClass = embedded ? "master-data-panel" : "panel-card master-data-panel";
+
   return (
-    <section className="panel-card master-data-panel">
-      <div className="table-manager-head">
-        <h3>{table.displayName} Table Manager</h3>
+    <section className={contentClass} style={{ padding: embedded ? 0 : '12px', border: embedded ? 'none' : undefined, background: embedded ? 'transparent' : undefined }}>
+      <div className="table-manager-head" style={{ marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h3 style={{ fontWeight: 800 }}>{table.displayName} Table Manager</h3>
+        </div>
         <div className="tenant-actions">
-          {onBack && <button className="btn" onClick={onBack} type="button">Back</button>}
-          <button className="btn" onClick={loadData} type="button" disabled={loading}>Refresh</button>
+          <button className="btn" type="button" onClick={createRow} style={{ background: '#059669', color: '#fff', border: 'none' }}>
+            New {table.displayName.replace(/s$/, '')} +
+          </button>
           <button className="btn" onClick={exportCsv} type="button">Export CSV</button>
+          <button className="btn" onClick={loadData} type="button" disabled={loading}>🔄 Refresh</button>
           <button className="btn btn-danger" onClick={deleteSelected} type="button" disabled={selectedIds.length === 0}>
             Delete ({selectedIds.length})
           </button>
         </div>
       </div>
 
-      <div className="tenant-controls">
-        <label>
-          Search
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search in table"
-          />
-        </label>
-        <div className="tenant-actions">
-          <button
-            className="btn"
-            type="button"
-            onClick={() => {
-              setPage(1);
-              void loadData();
-            }}
-          >
-            Apply
-          </button>
-          <label>
-            Page Size
-            <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </label>
+      <div className="panel-card" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div className="tenant-controls" style={{ padding: '12px', borderBottom: '1px solid var(--line)', background: '#f8fafc' }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <input
+              className="btn"
+              placeholder="Search in table"
+              style={{ width: '100%', paddingLeft: '32px' }}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && loadData()}
+            />
+            <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }}>🔍</span>
+          </div>
+          <div className="tenant-actions">
+            <button className="btn" type="button">📑 Clone</button>
+            <button className="btn" type="button" disabled>Bulk Actions ▾</button>
+          </div>
         </div>
-      </div>
 
-      <div className="master-table">
-        <table>
-          <thead>
-            <tr>
-              <th><input type="checkbox" onChange={toggleAll} checked={rows.length > 0 && rows.every((r) => selectedIds.includes(String(r[table.primaryKey] ?? '')))} /></th>
-              {table.fields.map((field) => (
-                <th key={field.name}>
-                  <button className="table-sort-btn" type="button" onClick={() => toggleSort(field.name)}>
-                    {field.displayName} {sortBy === field.name ? (sortDir === 'asc' ? '↑' : '↓') : ''}
-                  </button>
-                </th>
-              ))}
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => {
-              const id = String(row[table.primaryKey] || '');
-              const isEditing = editingId === id;
-              return (
-                <tr key={id}>
-                  <td><input type="checkbox" checked={selectedIds.includes(id)} onChange={() => toggleSelected(id)} /></td>
-                  {table.fields.map((field) => (
-                    <td key={`${id}-${field.name}`}>
-                      {isEditing ? (
-                        <input
-                          value={draft[field.name] ?? ''}
-                          onChange={(e) => setDraft((prev) => ({ ...prev, [field.name]: e.target.value }))}
-                        />
-                      ) : (
-                        String(row[field.name] ?? '')
-                      )}
+        <div className="master-table" style={{ flex: 1 }}>
+          <table className="pricing-table">
+            <thead>
+              <tr>
+                <th style={{ width: '40px' }}><input type="checkbox" onChange={toggleAll} checked={rows.length > 0 && rows.every((r) => selectedIds.includes(String(r[table.primaryKey] ?? '')))} /></th>
+                {table.fields.map((field) => (
+                  <th key={field.name}>
+                    <button className="table-sort-btn" type="button" onClick={() => toggleSort(field.name)} style={{ fontWeight: 700, fontSize: '13px', color: 'var(--ink)' }}>
+                      {field.displayName} {sortBy === field.name ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                    </button>
+                  </th>
+                ))}
+                <th style={{ textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => {
+                const id = String(row[table.primaryKey] || '');
+                const isEditing = editingId === id;
+                return (
+                  <tr key={id}>
+                    <td><input type="checkbox" checked={selectedIds.includes(id)} onChange={() => toggleSelected(id)} /></td>
+                    {table.fields.map((field) => (
+                      <td key={`${id}-${field.name}`}>
+                        {isEditing ? (
+                          <input
+                            className="btn btn-xs"
+                            value={draft[field.name] ?? ''}
+                            onChange={(e) => setDraft((prev) => ({ ...prev, [field.name]: e.target.value }))}
+                          />
+                        ) : (
+                          <span style={{ fontSize: '13px' }}>{String(row[field.name] ?? '')}</span>
+                        )}
+                      </td>
+                    ))}
+                    <td style={{ textAlign: 'right' }}>
+                      <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                        {!isEditing && <button className="btn btn-xs" type="button" onClick={() => startEdit(row)}>📝 Edit</button>}
+                        {isEditing && <button className="btn btn-xs" type="button" onClick={saveEdit}>💾 Save</button>}
+                        {isEditing && <button className="btn btn-xs" type="button" onClick={() => setEditingId(null)}>✕</button>}
+                        {!isEditing && <button className="btn btn-danger btn-xs" type="button" onClick={() => deleteRow(id)}>🗑️</button>}
+                      </div>
                     </td>
-                  ))}
-                  <td>
-                    {!isEditing && <button className="btn btn-xs" type="button" onClick={() => startEdit(row)}>Edit</button>}
-                    {isEditing && <button className="btn btn-xs" type="button" onClick={saveEdit}>Save</button>}
-                    {isEditing && <button className="btn btn-xs" type="button" onClick={() => setEditingId(null)}>Cancel</button>}
-                    {!isEditing && <button className="btn btn-danger btn-xs" type="button" onClick={() => deleteRow(id)}>Delete</button>}
+                  </tr>
+                );
+              })}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={table.fields.length + 2} className="empty" style={{ padding: '40px', textAlign: 'center' }}>
+                    {loading ? 'Loading...' : 'No records found'}
                   </td>
                 </tr>
-              );
-            })}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={table.fields.length + 2} className="empty">{loading ? 'Loading...' : 'No records found'}</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              )}
+            </tbody>
+          </table>
+        </div>
 
-      <div className="tenant-controls">
-        <span className="muted">Showing page {page} of {totalPages} (total {total})</span>
-        <div className="tenant-actions">
-          <button className="btn" type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>Prev</button>
-          <button className="btn" type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>Next</button>
+        <div className="admin-sidebar-head" style={{ borderTop: '1px solid var(--line)', background: '#f8fafc', padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span className="muted" style={{ fontSize: '13px' }}>
+            Showing <strong>{rows.length > 0 ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, total)}</strong> of <strong>{total}</strong>
+          </span>
+          <div className="tenant-actions" style={{ gap: '4px' }}>
+            <button className="btn btn-xs" type="button" onClick={() => setPage(1)} disabled={page <= 1}>«</button>
+            <button className="btn btn-xs" type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>Prev</button>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                const p = i + 1;
+                return (
+                  <button
+                    key={p}
+                    className={`btn btn-xs ${page === p ? 'btn-primary' : ''}`}
+                    onClick={() => setPage(p)}
+                    style={{ minWidth: '28px' }}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
+            </div>
+            <button className="btn btn-xs" type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>Next</button>
+            <button className="btn btn-xs" type="button" onClick={() => setPage(totalPages)} disabled={page >= totalPages}>»</button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+            <span className="muted">Page Size:</span>
+            <select
+              className="btn btn-xs"
+              style={{ width: 'auto', padding: '2px 8px' }}
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      <div className="form-grid">
-        {table.fields.map((field) => (
-          <label key={`new-${field.name}`}>
-            {field.displayName}
-            <input
-              value={draft[field.name] ?? ''}
-              onChange={(e) => setDraft((prev) => ({ ...prev, [field.name]: e.target.value }))}
-            />
-          </label>
-        ))}
-      </div>
-      <div className="form-actions">
-        <button className="btn btn-primary" type="button" onClick={createRow}>Add New</button>
-      </div>
-      {message && <div className="error-box">{message}</div>}
+      {message && <div className="error-box" style={{ marginTop: '12px' }}>{message}</div>}
     </section>
   );
 }

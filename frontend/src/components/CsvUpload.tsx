@@ -6,6 +6,7 @@ import { parseCsv } from '../constants/dataManagementTables';
 type CsvUploadProps = {
     selectedTableId: string;
     onUploadComplete: () => void;
+    embedded?: boolean;
 };
 
 type FieldDef = {
@@ -26,7 +27,7 @@ type ImportResult = {
     warnings: Array<{ row?: number; field?: string; message: string }>;
 };
 
-export function CsvUpload({ selectedTableId, onUploadComplete }: CsvUploadProps) {
+export function CsvUpload({ selectedTableId, onUploadComplete, embedded }: CsvUploadProps) {
     const [columns, setColumns] = useState<FieldDef[]>([]);
     const [loadingColumns, setLoadingColumns] = useState(false);
     const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -36,6 +37,8 @@ export function CsvUpload({ selectedTableId, onUploadComplete }: CsvUploadProps)
     const [result, setResult] = useState<ImportResult | null>(null);
     const [errorMsg, setErrorMsg] = useState('');
     const [updateDuplicates, setUpdateDuplicates] = useState(true);
+    const [isDragging, setIsDragging] = useState(false);
+    const [showValidationRules, setShowValidationRules] = useState(true);
 
     useEffect(() => {
         async function fetchColumns() {
@@ -43,16 +46,17 @@ export function CsvUpload({ selectedTableId, onUploadComplete }: CsvUploadProps)
             setLoadingColumns(true);
             setErrorMsg('');
             setResult(null);
+            setCsvFile(null);
+            setCsvHeaders([]);
             try {
                 const res = await apiFetch<{ success: boolean; data: FieldDef[]; error?: string }>(
                     `/admin/tables/${selectedTableId}/columns`
                 );
                 if (res.success) {
                     setColumns(res.data);
-                    // Reset mapping
                     const newMapping: Record<string, string> = {};
                     res.data.forEach((col) => {
-                        newMapping[col.name] = ''; // Start empty
+                        newMapping[col.name] = '';
                     });
                     setMapping(newMapping);
                 } else {
@@ -67,24 +71,23 @@ export function CsvUpload({ selectedTableId, onUploadComplete }: CsvUploadProps)
         void fetchColumns();
     }, [selectedTableId]);
 
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) {
-            setCsvFile(null);
-            setCsvHeaders([]);
-            return;
-        }
+    const handleFiles = async (files: FileList | null) => {
+        const file = files?.[0];
+        if (!file) return;
         setCsvFile(file);
+        setResult(null);
+        setErrorMsg('');
         try {
             const text = await file.text();
             const parsed = parseCsv(text);
             if (parsed.headers.length > 0) {
                 setCsvHeaders(parsed.headers);
-
-                // Auto-map where possible
                 const newMapping = { ...mapping };
                 columns.forEach((col) => {
-                    const match = parsed.headers.find(h => h.toLowerCase() === col.name.toLowerCase() || h.toLowerCase() === col.displayName.toLowerCase());
+                    const match = parsed.headers.find(h =>
+                        h.toLowerCase() === col.name.toLowerCase() ||
+                        h.toLowerCase() === col.displayName.toLowerCase()
+                    );
                     if (match) {
                         newMapping[col.name] = match;
                     }
@@ -96,14 +99,8 @@ export function CsvUpload({ selectedTableId, onUploadComplete }: CsvUploadProps)
         }
     };
 
-    const handleMappingChange = (columnName: string, headerName: string) => {
-        setMapping((prev) => ({ ...prev, [columnName]: headerName }));
-    };
-
     const handleUpload = async () => {
         if (!csvFile || !selectedTableId) return;
-
-        // Validate required fields are mapped
         const missingRequired = columns.filter(col => col.required && !mapping[col.name]);
         if (missingRequired.length > 0) {
             setErrorMsg(`Please map required column(s): ${missingRequired.map(c => c.displayName).join(', ')}`);
@@ -129,18 +126,10 @@ export function CsvUpload({ selectedTableId, onUploadComplete }: CsvUploadProps)
                 body: formData,
             });
 
-            const resText = await response.text();
-            let data;
-            try {
-                data = JSON.parse(resText);
-            } catch {
-                throw new Error('Invalid JSON response from server');
-            }
-
+            const data = await response.json();
             if (data.success) {
                 setResult(data.data);
                 onUploadComplete();
-                // Clear file after successful upload to prevent double submission
             } else {
                 setErrorMsg(data.error || 'Upload failed');
             }
@@ -151,91 +140,101 @@ export function CsvUpload({ selectedTableId, onUploadComplete }: CsvUploadProps)
         }
     };
 
-    if (loadingColumns) {
-        return <div className="csv-upload-panel panel-card">Loading column mappings...</div>;
-    }
+    const containerClass = embedded ? "" : "panel-card";
 
     return (
-        <div className="csv-upload-panel panel-card">
-            <h3 style={{ marginTop: 0 }}>Advanced CSV Upload</h3>
-            <p className="muted">Upload CSV and map columns to <strong>{selectedTableId}</strong> table.</p>
+        <div className={containerClass} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <h3 style={{ margin: 0, fontWeight: 800 }}>Import & Validate</h3>
 
-            <div style={{ marginBottom: '1rem' }}>
-                <input type="file" accept=".csv,text/csv" onChange={handleFileChange} />
+            <div
+                className={`drag-drop-zone ${isDragging ? 'active' : ''}`}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleFiles(e.dataTransfer.files); }}
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '24px' }}>📄</span>
+                    <strong>{csvFile ? csvFile.name : 'Drag & Drop CSV File'}</strong>
+                    <label className="btn btn-xs" style={{ cursor: 'pointer', background: '#fff' }}>
+                        Choose File
+                        <input type="file" style={{ display: 'none' }} onChange={(e) => handleFiles(e.target.files)} />
+                    </label>
+                    <span className="muted" style={{ fontSize: '11px' }}>(up to 10MB)</span>
+                </div>
             </div>
 
-            {csvFile && csvHeaders.length > 0 && (
-                <div style={{ marginBottom: '1rem' }}>
-                    <h4>Column Mapping</h4>
-                    <table className="data-table" style={{ width: '100%', marginBottom: '1rem' }}>
+            <div className="validation-panel">
+                <div className="validation-head" onClick={() => setShowValidationRules(!showValidationRules)}>
+                    <span>∨ Validation Rules</span>
+                    <span>⚙️</span>
+                </div>
+                {showValidationRules && (
+                    <div className="validation-content">
+                        <div className="metadata-item">
+                            <label>Schema:</label>
+                            <strong>{selectedTableId}_db</strong>
+                        </div>
+                        <div className="metadata-item">
+                            <label>NULL Check:</label>
+                            <span style={{ color: '#22c55e', fontWeight: 600 }}>Enabled</span>
+                        </div>
+                        <div className="metadata-item">
+                            <label>Duplicate Check:</label>
+                            <span style={{ color: '#22c55e', fontWeight: 600 }}>Enabled</span>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <div className="validation-panel">
+                <div className="validation-head">
+                    <span>∨ Column Mapping</span>
+                    <span className="muted" style={{ fontSize: '11px' }}>Auto-detect mapping</span>
+                </div>
+                <div className="validation-content" style={{ padding: '4px' }}>
+                    <table className="mapping-table">
                         <thead>
                             <tr>
-                                <th>Table Column</th>
-                                <th>Required</th>
-                                <th>CSV Header</th>
+                                <th>CSV Column Header</th>
+                                <th>Expected Field</th>
+                                <th>Map To</th>
                             </tr>
                         </thead>
                         <tbody>
                             {columns.map((col) => (
                                 <tr key={col.name}>
-                                    <td><strong>{col.displayName}</strong> <code>{col.name}</code></td>
-                                    <td>{col.required ? <span style={{ color: 'var(--color-danger)' }}>Yes</span> : 'No'}</td>
+                                    <td className="muted">{mapping[col.name] || '—'}</td>
+                                    <td>→ <strong>{col.displayName}</strong></td>
                                     <td>
                                         <select
                                             value={mapping[col.name] || ''}
-                                            onChange={(e) => handleMappingChange(col.name, e.target.value)}
-                                            style={{ width: '100%', padding: '0.25rem' }}
+                                            onChange={(e) => setMapping(prev => ({ ...prev, [col.name]: e.target.value }))}
                                         >
-                                            <option value="">-- Ignore --</option>
-                                            {csvHeaders.map(h => (
-                                                <option key={h} value={h}>{h}</option>
-                                            ))}
+                                            <option value="">Skip Column</option>
+                                            {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
                                         </select>
                                     </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
-
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                            <input
-                                type="checkbox"
-                                checked={updateDuplicates}
-                                onChange={(e) => setUpdateDuplicates(e.target.checked)}
-                            />
-                            Update existing records
-                        </label>
-                        <button
-                            className="btn btn-primary"
-                            onClick={handleUpload}
-                            disabled={uploading}
-                            style={{ flex: 1 }}
-                        >
-                            {uploading ? 'Uploading...' : 'Upload & Sync Data'}
-                        </button>
-                    </div>
                 </div>
-            )}
+            </div>
 
-            {errorMsg && <div className="error-box" style={{ marginTop: '1rem' }}>{errorMsg}</div>}
+            <button
+                className="btn btn-primary"
+                style={{ background: '#065f46', border: 'none', padding: '12px', fontWeight: 700 }}
+                onClick={handleUpload}
+                disabled={uploading || !csvFile}
+            >
+                {uploading ? 'Processing...' : 'Validate and Import'}
+            </button>
 
+            {errorMsg && <div className="error-box">{errorMsg}</div>}
             {result && (
-                <div className={result.errors.length > 0 ? 'error-box' : 'ok-box'} style={{ marginTop: '1rem' }}>
-                    <h4>Upload Complete</h4>
-                    <p>Processed: {result.recordsProcessed}</p>
-                    <p>Imported: {result.recordsImported}</p>
-                    <p>Updated: {result.recordsUpdated}</p>
-                    <p>Skipped: {result.recordsSkipped}</p>
-                    {result.warnings.length > 0 && <p>Warnings: {result.warnings.length}</p>}
-                    {result.errors.length > 0 && (
-                        <div style={{ maxHeight: '150px', overflowY: 'auto', marginTop: '0.5rem', background: 'rgba(0,0,0,0.05)', padding: '0.5rem' }}>
-                            <strong>Errors (first 10):</strong><br />
-                            {result.errors.slice(0, 10).map((err, i) => (
-                                <span key={i}>Row {err.row ?? '?'} {err.field ? `[${err.field}]` : ''}: {err.message}<br /></span>
-                            ))}
-                        </div>
-                    )}
+                <div className={result.errors.length > 0 ? 'error-box' : 'ok-box'} style={{ fontSize: '12px' }}>
+                    <strong>Import Result:</strong> {result.recordsImported} imported, {result.recordsUpdated} updated.
+                    {result.errors.length > 0 && <div style={{ color: 'var(--danger)', marginTop: '4px' }}>Errors identified in {result.errors.length} rows.</div>}
                 </div>
             )}
         </div>
