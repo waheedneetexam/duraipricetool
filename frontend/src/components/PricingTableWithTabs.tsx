@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { apiFetch } from '../api/client';
+import { apiFetch, hasPermission } from '../api/client';
 import type { MasterCustomer, MasterProduct, PricingLineItem, QuoteDetail, TenantLineItemConfig } from '../api/types';
 import { DEFAULT_LINE_ITEM_COLUMNS, type LineItemColumnConfig, type LineItemColumnKey } from '../constants/lineItemColumns';
 import { LineItemAnalytics } from './LineItemAnalytics';
@@ -147,6 +147,7 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
   const [saved, setSaved] = useState(false);
   const [productCatalog, setProductCatalog] = useState<MasterProduct[]>([]);
   const [customerCatalog, setCustomerCatalog] = useState<MasterCustomer[]>([]);
+  const canWriteQuotes = hasPermission('quotes.write');
 
   const tenantId = useMemo(() => {
     const raw = customerId.trim();
@@ -306,6 +307,7 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
   }
 
   function updateLine(id: string, field: LineItemColumnKey, value: string) {
+    if (!canWriteQuotes) return;
     setLineItems((prev) =>
       prev.map((line) => {
         if (line.id !== id) return line;
@@ -315,11 +317,13 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
   }
 
   function addLine() {
+    if (!canWriteQuotes) return;
     setLineItems((prev) => [...prev, emptyLine(prev.length + 1)]);
     setActiveTab('lineitems');
   }
 
   function removeLine(id: string) {
+    if (!canWriteQuotes) return;
     setLineItems((prev) => prev.filter((x) => x.id !== id));
   }
 
@@ -350,6 +354,10 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
   }
 
   async function saveQuote() {
+    if (!canWriteQuotes) {
+      setError('You do not have permission to modify quotes.');
+      return;
+    }
     setSaving(true);
     setSaved(false);
     setError('');
@@ -453,6 +461,7 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
             list={availableProducts.length ? datalistId : undefined}
             value={String(storedValue ?? '')}
             required={column.mandatory}
+            disabled={!canWriteQuotes}
             onChange={(e) => updateLine(line.id, column.key, e.target.value)}
           />
           {availableProducts.length > 0 && (
@@ -473,6 +482,7 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
           type={inputType}
           value={String(storedValue ?? '')}
           required={column.mandatory}
+          disabled={!canWriteQuotes}
           onChange={(e) => updateLine(line.id, column.key, e.target.value)}
         />
       </td>
@@ -490,8 +500,8 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
           </div>
         </div>
         <div className="head-actions">
-          <button className="btn" onClick={addLine}>Add Line Item</button>
-          <button className="btn btn-primary" onClick={saveQuote} disabled={saving}>{saving ? 'Saving...' : saved ? 'Saved!' : 'Save Quote'}</button>
+          <button className="btn" onClick={addLine} disabled={!canWriteQuotes}>Add Line Item</button>
+          <button className="btn btn-primary" onClick={saveQuote} disabled={saving || !canWriteQuotes}>{saving ? 'Saving...' : saved ? 'Saved!' : 'Save Quote'}</button>
         </div>
       </div>
 
@@ -569,7 +579,7 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
                     {visibleColumns.map((column) => (
                       <Fragment key={`${line.id}-${column.key}`}>{renderCell(line, column)}</Fragment>
                     ))}
-                    <td><button className="btn btn-danger btn-xs" onClick={() => removeLine(line.id)}>Delete</button></td>
+                    <td><button className="btn btn-danger btn-xs" disabled={!canWriteQuotes} onClick={() => removeLine(line.id)}>Delete</button></td>
                   </tr>
                   {line.showAnalytics && (
                     <tr key={`${line.id}-analytics`}>

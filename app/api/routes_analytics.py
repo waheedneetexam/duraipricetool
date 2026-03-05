@@ -1,5 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.core.security import require_auth
 from app.services.analytics_service import (
     get_bar_data,
     get_chart_drilldown,
@@ -8,7 +9,7 @@ from app.services.analytics_service import (
     get_waterfall_data,
 )
 
-router = APIRouter(prefix="/analytics", tags=["analytics"])
+router = APIRouter(prefix="/analytics", tags=["analytics"], dependencies=[Depends(require_auth)])
 
 
 @router.get("/waterfall")

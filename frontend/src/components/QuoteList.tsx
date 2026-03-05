@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiFetch } from '../api/client';
+import { apiFetch, hasPermission } from '../api/client';
 import type { QuoteListItem } from '../api/types';
 
 type QuoteListResponse = { success: boolean; data: QuoteListItem[] };
@@ -14,6 +14,7 @@ export function QuoteList({ onCreateNew, onEditQuote }: Props) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
+  const canWriteQuotes = hasPermission('quotes.write');
 
   async function loadQuotes() {
     setLoading(true);
@@ -61,7 +62,7 @@ export function QuoteList({ onCreateNew, onEditQuote }: Props) {
           <h2>All Quotes</h2>
           <p>{quotes.length} total quotes</p>
         </div>
-        <button className="btn btn-primary" onClick={onCreateNew}>Create New Quote</button>
+        <button className="btn btn-primary" onClick={onCreateNew} disabled={!canWriteQuotes}>Create New Quote</button>
       </div>
 
       <div className="toolbar">
@@ -91,8 +92,8 @@ export function QuoteList({ onCreateNew, onEditQuote }: Props) {
               <div className="kv"><span>Total</span><strong>${quote.totalValue.toFixed(2)}</strong></div>
               <div className="kv"><span>Updated</span><strong>{new Date(quote.dateModified).toLocaleDateString()}</strong></div>
               <div className="card-actions">
-                <button className="btn" onClick={(e) => { e.stopPropagation(); onEditQuote(quote.id); }}>Edit</button>
-                <button className="btn btn-danger" onClick={(e) => { e.stopPropagation(); void deleteQuote(quote.id); }}>Delete</button>
+                <button className="btn" disabled={!canWriteQuotes} onClick={(e) => { e.stopPropagation(); onEditQuote(quote.id); }}>Edit</button>
+                <button className="btn btn-danger" disabled={!canWriteQuotes} onClick={(e) => { e.stopPropagation(); void deleteQuote(quote.id); }}>Delete</button>
               </div>
             </article>
           ))}

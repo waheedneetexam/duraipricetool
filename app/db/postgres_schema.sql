@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS historical_transactions (
 
 CREATE TABLE IF NOT EXISTS quotes (
     quote_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL DEFAULT 'default',
     customer_id TEXT,
     customer_name TEXT,
     customer_segment TEXT,
@@ -38,6 +39,7 @@ CREATE TABLE IF NOT EXISTS quotes (
 CREATE TABLE IF NOT EXISTS quote_line_items (
     quote_line_id TEXT PRIMARY KEY,
     quote_id TEXT,
+    tenant_id TEXT NOT NULL DEFAULT 'default',
     sku TEXT,
     quantity INTEGER,
     list_price DOUBLE PRECISION,
@@ -52,6 +54,7 @@ CREATE TABLE IF NOT EXISTS quote_line_items (
 
 CREATE TABLE IF NOT EXISTS workflow_rules (
     rule_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL DEFAULT 'default',
     customer_id TEXT,
     customer_segment TEXT,
     state_from TEXT,
@@ -290,20 +293,89 @@ CREATE TABLE IF NOT EXISTS pricing_rules (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS tenants (
+    tenant_id TEXT PRIMARY KEY,
+    tenant_name TEXT NOT NULL,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS app_users (
+    user_id TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    full_name TEXT,
+    password_hash TEXT NOT NULL,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS roles (
+    role_id TEXT PRIMARY KEY,
+    role_name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS permissions (
+    permission_id TEXT PRIMARY KEY,
+    permission_key TEXT UNIQUE NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS role_permissions (
+    id TEXT PRIMARY KEY,
+    role_id TEXT REFERENCES roles(role_id),
+    permission_id TEXT REFERENCES permissions(permission_id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(role_id, permission_id)
+);
+
+CREATE TABLE IF NOT EXISTS user_tenant_roles (
+    id TEXT PRIMARY KEY,
+    user_id TEXT REFERENCES app_users(user_id),
+    tenant_id TEXT REFERENCES tenants(tenant_id),
+    role_id TEXT REFERENCES roles(role_id),
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, tenant_id, role_id)
+);
+
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    token_id TEXT PRIMARY KEY,
+    user_id TEXT REFERENCES app_users(user_id),
+    tenant_id TEXT REFERENCES tenants(tenant_id),
+    token_hash TEXT UNIQUE NOT NULL,
+    expires_at_epoch BIGINT NOT NULL,
+    revoked BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 ALTER TABLE products ADD COLUMN IF NOT EXISTS cost NUMERIC;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS unit_of_measure TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS country TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS credit_limit NUMERIC;
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
+ALTER TABLE quote_line_items ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
+ALTER TABLE workflow_rules ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
 
 CREATE INDEX IF NOT EXISTS idx_hist_tx_updated_at ON historical_transactions (updated_at);
 CREATE INDEX IF NOT EXISTS idx_hist_tx_date ON historical_transactions (transaction_date);
 CREATE INDEX IF NOT EXISTS idx_hist_tx_quote_id ON historical_transactions (quote_id);
 CREATE INDEX IF NOT EXISTS idx_hist_tx_customer_segment ON historical_transactions (customer_segment);
 CREATE INDEX IF NOT EXISTS idx_quotes_updated_at ON quotes (updated_at);
+CREATE INDEX IF NOT EXISTS idx_quotes_tenant_id ON quotes (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_quote_lines_updated_at ON quote_line_items (updated_at);
+CREATE INDEX IF NOT EXISTS idx_quote_lines_tenant_id ON quote_line_items (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_rules_tenant_id ON workflow_rules (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_line_item_cfg_tenant ON line_item_column_configs (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_field_logic_tenant_field ON field_logic_rules (tenant_id, scope, field_key);
 CREATE INDEX IF NOT EXISTS idx_field_logic_validation_tenant_field ON field_logic_validation_runs (tenant_id, scope, field_key);
 CREATE INDEX IF NOT EXISTS idx_ai_pricing_tenant_status ON ai_pricing_configurations (tenant_id, status);
 CREATE INDEX IF NOT EXISTS idx_product_costs_sku_region ON product_costs (product_sku, region_id);
+CREATE INDEX IF NOT EXISTS idx_app_users_email ON app_users (email);
+CREATE INDEX IF NOT EXISTS idx_user_tenant_roles_user_tenant ON user_tenant_roles (user_id, tenant_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_hash ON refresh_tokens (token_hash);

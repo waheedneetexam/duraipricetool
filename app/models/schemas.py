@@ -169,3 +169,13 @@ class DataManagementRecordPayload(BaseModel):
 
 class DataManagementBulkDeleteRequest(BaseModel):
     ids: list[str] = Field(default_factory=list)
+
+
+class AuthLoginRequest(BaseModel):
+    email: str
+    password: str
+    tenant_id: str = "default"
+
+
+class AuthRefreshRequest(BaseModel):
+    refresh_token: str

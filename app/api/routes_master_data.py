@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Depends, Body, HTTPException
 
+from app.core.security import require_auth
 from app.models.master_data import (
     Customer,
     ExtensionField,
@@ -27,7 +28,7 @@ from app.services.master_data_service import (
     seed_master_data,
 )
 
-router = APIRouter(prefix="/master", tags=["master"])
+router = APIRouter(prefix="/master", tags=["master"], dependencies=[Depends(require_auth)])
 
 
 @router.get("/products")

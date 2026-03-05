@@ -24,7 +24,7 @@ def _tx_on_postgres() -> bool:
     return DB_ENGINE in {"postgres", "hybrid"}
 
 
-def calculate_quote(payload: QuoteCalculationRequest) -> dict:
+def calculate_quote(payload: QuoteCalculationRequest, tenant_id: str = "default") -> dict:
     engine = SafeFormulaEngine()
     formulas = [f.model_dump() for f in payload.formulas] or DEFAULT_LINE_FORMULAS
 
@@ -54,7 +54,7 @@ def calculate_quote(payload: QuoteCalculationRequest) -> dict:
         total_qty += line["quantity"]
 
     status = "Draft"
-    _persist_quote(payload, computed_lines, totals, status)
+    _persist_quote(payload, computed_lines, totals, status, tenant_id=tenant_id)
     return {
         "quote_id": payload.header.quote_id,
         "status": status,
@@ -64,13 +64,14 @@ def calculate_quote(payload: QuoteCalculationRequest) -> dict:
     }
 
 
-def evaluate_workflow(payload: WorkflowEvaluationRequest) -> dict:
+def evaluate_workflow(payload: WorkflowEvaluationRequest, tenant_id: str = "default") -> dict:
     decision = WorkflowEngine().evaluate_transition(
         customer_id=payload.customer_id,
         customer_segment=payload.customer_segment,
         discount_percent=payload.discount_percent,
         current_state=payload.current_state,
         requested_state=payload.requested_state,
+        tenant_id=tenant_id,
     )
     return {
         "allowed": decision.allowed,
@@ -80,7 +81,7 @@ def evaluate_workflow(payload: WorkflowEvaluationRequest) -> dict:
     }
 
 
-def seed_default_workflow_rules() -> dict:
+def seed_default_workflow_rules(tenant_id: str = "default") -> dict:
     defaults = [
         {
             "rule_id": str(uuid4()),
@@ -111,12 +112,13 @@ def seed_default_workflow_rules() -> dict:
             pg_client.execute(
                 """
                 INSERT INTO workflow_rules (
-                    rule_id, customer_id, customer_segment, state_from, state_to,
+                    rule_id, tenant_id, customer_id, customer_segment, state_from, state_to,
                     metric_name, comparator, threshold, required_approver_role, active, updated_at
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, CURRENT_TIMESTAMP)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, CURRENT_TIMESTAMP)
                 """,
                 (
                     rule["rule_id"],
+                    tenant_id,
                     rule["customer_id"],
                     rule["customer_segment"],
                     rule["state_from"],
@@ -131,12 +133,13 @@ def seed_default_workflow_rules() -> dict:
             db_client.execute(
                 """
                 INSERT INTO workflow_rules (
-                    rule_id, customer_id, customer_segment, state_from, state_to,
+                    rule_id, tenant_id, customer_id, customer_segment, state_from, state_to,
                     metric_name, comparator, threshold, required_approver_role, active
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
                 """,
                 (
                     rule["rule_id"],
+                    tenant_id,
                     rule["customer_id"],
                     rule["customer_segment"],
                     rule["state_from"],
@@ -150,15 +153,15 @@ def seed_default_workflow_rules() -> dict:
     return {"seeded_rules": len(defaults)}
 
 
-def _persist_quote(payload: QuoteCalculationRequest, line_items: list[dict], totals: dict, status: str) -> None:
+def _persist_quote(payload: QuoteCalculationRequest, line_items: list[dict], totals: dict, status: str, tenant_id: str = "default") -> None:
     header = payload.header
     if _tx_on_postgres():
         pg_client.execute(
             """
             INSERT INTO quotes (
-                quote_id, customer_id, customer_name, customer_segment, status,
+                quote_id, tenant_id, customer_id, customer_name, customer_segment, status,
                 header_fields, total_list_price, total_net_price, total_cost, total_margin, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, CURRENT_TIMESTAMP)
             ON CONFLICT (quote_id) DO UPDATE SET
                 customer_id = EXCLUDED.customer_id,
                 customer_name = EXCLUDED.customer_name,
@@ -173,6 +176,7 @@ def _persist_quote(payload: QuoteCalculationRequest, line_items: list[dict], tot
             """,
             (
                 header.quote_id,
+                tenant_id,
                 header.customer_id,
                 header.customer_name,
                 header.customer_segment,
@@ -184,18 +188,19 @@ def _persist_quote(payload: QuoteCalculationRequest, line_items: list[dict], tot
                 totals["total_margin"],
             ),
         )
-        pg_client.execute("DELETE FROM quote_line_items WHERE quote_id = %s", (header.quote_id,))
+        pg_client.execute("DELETE FROM quote_line_items WHERE quote_id = %s AND tenant_id = %s", (header.quote_id, tenant_id))
         for item in line_items:
             pg_client.execute(
                 """
                 INSERT INTO quote_line_items (
-                    quote_line_id, quote_id, sku, quantity, list_price,
+                    quote_line_id, quote_id, tenant_id, sku, quantity, list_price,
                     discount_percent, net_price, cost, margin, dynamic_fields, updated_at
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, CURRENT_TIMESTAMP)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, CURRENT_TIMESTAMP)
                 """,
                 (
                     item["quote_line_id"],
                     header.quote_id,
+                    tenant_id,
                     item["sku"],
                     item["quantity"],
                     item["list_price"],
@@ -210,12 +215,13 @@ def _persist_quote(payload: QuoteCalculationRequest, line_items: list[dict], tot
         db_client.execute(
             """
             INSERT OR REPLACE INTO quotes (
-                quote_id, customer_id, customer_name, customer_segment, status,
+                quote_id, tenant_id, customer_id, customer_name, customer_segment, status,
                 header_fields, total_list_price, total_net_price, total_cost, total_margin, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """,
             (
                 header.quote_id,
+                tenant_id,
                 header.customer_id,
                 header.customer_name,
                 header.customer_segment,
@@ -228,18 +234,19 @@ def _persist_quote(payload: QuoteCalculationRequest, line_items: list[dict], tot
             ),
         )
 
-        db_client.execute("DELETE FROM quote_line_items WHERE quote_id = ?", (header.quote_id,))
+        db_client.execute("DELETE FROM quote_line_items WHERE quote_id = ? AND tenant_id = ?", (header.quote_id, tenant_id))
         for item in line_items:
             db_client.execute(
                 """
                 INSERT INTO quote_line_items (
-                    quote_line_id, quote_id, sku, quantity, list_price,
+                    quote_line_id, quote_id, tenant_id, sku, quantity, list_price,
                     discount_percent, net_price, cost, margin, dynamic_fields, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 """,
                 (
                     item["quote_line_id"],
                     header.quote_id,
+                    tenant_id,
                     item["sku"],
                     item["quantity"],
                     item["list_price"],
@@ -288,7 +295,7 @@ def _historical_avg_quantity(customer_id: str) -> float:
     return float(row[0] or 0.0)
 
 
-def list_quotes() -> list[dict]:
+def list_quotes(tenant_id: str = "default") -> list[dict]:
     if _tx_on_postgres():
         rows = pg_client.execute(
             """
@@ -304,7 +311,8 @@ def list_quotes() -> list[dict]:
                 q.updated_at,
                 COUNT(li.quote_line_id) AS line_item_count
             FROM quotes q
-            LEFT JOIN quote_line_items li ON li.quote_id = q.quote_id
+            LEFT JOIN quote_line_items li ON li.quote_id = q.quote_id AND li.tenant_id = q.tenant_id
+            WHERE q.tenant_id = %s
             GROUP BY
                 q.quote_id,
                 q.customer_id,
@@ -316,7 +324,8 @@ def list_quotes() -> list[dict]:
                 q.created_at,
                 q.updated_at
             ORDER BY q.updated_at DESC
-            """
+            """,
+            (tenant_id,),
         )
         df = pd.DataFrame(rows)
     else:
@@ -334,7 +343,8 @@ def list_quotes() -> list[dict]:
                 q.updated_at,
                 COUNT(li.quote_line_id) AS line_item_count
             FROM quotes q
-            LEFT JOIN quote_line_items li ON li.quote_id = q.quote_id
+            LEFT JOIN quote_line_items li ON li.quote_id = q.quote_id AND li.tenant_id = q.tenant_id
+            WHERE q.tenant_id = ?
             GROUP BY
                 q.quote_id,
                 q.customer_id,
@@ -346,7 +356,8 @@ def list_quotes() -> list[dict]:
                 q.created_at,
                 q.updated_at
             ORDER BY q.updated_at DESC
-            """
+            """,
+            (tenant_id,),
         )
     records = []
     for row in df.to_dict(orient="records"):
@@ -366,11 +377,11 @@ def list_quotes() -> list[dict]:
     return records
 
 
-def get_quote(quote_id: str) -> dict | None:
+def get_quote(quote_id: str, tenant_id: str = "default") -> dict | None:
     if _tx_on_postgres():
-        quote_df = pd.DataFrame(pg_client.execute("SELECT * FROM quotes WHERE quote_id = %s", (quote_id,)))
+        quote_df = pd.DataFrame(pg_client.execute("SELECT * FROM quotes WHERE quote_id = %s AND tenant_id = %s", (quote_id, tenant_id)))
     else:
-        quote_df = db_client.fetch_df("SELECT * FROM quotes WHERE quote_id = ?", (quote_id,))
+        quote_df = db_client.fetch_df("SELECT * FROM quotes WHERE quote_id = ? AND tenant_id = ?", (quote_id, tenant_id))
     if quote_df.empty:
         return None
 
@@ -391,10 +402,10 @@ def get_quote(quote_id: str) -> dict | None:
                     margin,
                     dynamic_fields
                 FROM quote_line_items
-                WHERE quote_id = %s
+                WHERE quote_id = %s AND tenant_id = %s
                 ORDER BY created_at
                 """,
-                (quote_id,),
+                (quote_id, tenant_id),
             )
         )
     else:
@@ -411,10 +422,10 @@ def get_quote(quote_id: str) -> dict | None:
                 margin,
                 dynamic_fields
             FROM quote_line_items
-            WHERE quote_id = ?
+            WHERE quote_id = ? AND tenant_id = ?
             ORDER BY created_at
             """,
-            (quote_id,),
+            (quote_id, tenant_id),
         )
 
     line_items = []
@@ -469,7 +480,7 @@ def get_quote(quote_id: str) -> dict | None:
     }
 
 
-def save_quote(payload: QuoteSaveRequest) -> dict:
+def save_quote(payload: QuoteSaveRequest, tenant_id: str = "default") -> dict:
     quote_id = payload.id or f"Q-{str(uuid4())[:8].upper()}"
     line_items, totals = _compute_lines(payload.lineItems)
 
@@ -490,9 +501,9 @@ def save_quote(payload: QuoteSaveRequest) -> dict:
         pg_client.execute(
             """
             INSERT INTO quotes (
-                quote_id, customer_id, customer_name, customer_segment, status,
+                quote_id, tenant_id, customer_id, customer_name, customer_segment, status,
                 header_fields, total_list_price, total_net_price, total_cost, total_margin, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, CURRENT_TIMESTAMP)
             ON CONFLICT (quote_id) DO UPDATE SET
                 customer_id = EXCLUDED.customer_id,
                 customer_name = EXCLUDED.customer_name,
@@ -507,6 +518,7 @@ def save_quote(payload: QuoteSaveRequest) -> dict:
             """,
             (
                 quote_id,
+                tenant_id,
                 payload.customerId or payload.customerName,
                 payload.customerName,
                 payload.customerSegment or "Enterprise",
@@ -518,18 +530,19 @@ def save_quote(payload: QuoteSaveRequest) -> dict:
                 totals["total_margin_amount"],
             ),
         )
-        pg_client.execute("DELETE FROM quote_line_items WHERE quote_id = %s", (quote_id,))
+        pg_client.execute("DELETE FROM quote_line_items WHERE quote_id = %s AND tenant_id = %s", (quote_id, tenant_id))
         for line in line_items:
             pg_client.execute(
                 """
                 INSERT INTO quote_line_items (
-                    quote_line_id, quote_id, sku, quantity, list_price,
+                    quote_line_id, quote_id, tenant_id, sku, quantity, list_price,
                     discount_percent, net_price, cost, margin, dynamic_fields, updated_at
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, CURRENT_TIMESTAMP)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, CURRENT_TIMESTAMP)
                 """,
                 (
                     line["id"],
                     quote_id,
+                    tenant_id,
                     line["sku"],
                     line["quantity"],
                     line["listPrice"],
@@ -552,12 +565,13 @@ def save_quote(payload: QuoteSaveRequest) -> dict:
         db_client.execute(
             """
             INSERT OR REPLACE INTO quotes (
-                quote_id, customer_id, customer_name, customer_segment, status,
+                quote_id, tenant_id, customer_id, customer_name, customer_segment, status,
                 header_fields, total_list_price, total_net_price, total_cost, total_margin, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """,
             (
                 quote_id,
+                tenant_id,
                 payload.customerId or payload.customerName,
                 payload.customerName,
                 payload.customerSegment or "Enterprise",
@@ -570,18 +584,19 @@ def save_quote(payload: QuoteSaveRequest) -> dict:
             ),
         )
 
-        db_client.execute("DELETE FROM quote_line_items WHERE quote_id = ?", (quote_id,))
+        db_client.execute("DELETE FROM quote_line_items WHERE quote_id = ? AND tenant_id = ?", (quote_id, tenant_id))
         for line in line_items:
             db_client.execute(
                 """
                 INSERT INTO quote_line_items (
-                    quote_line_id, quote_id, sku, quantity, list_price,
+                    quote_line_id, quote_id, tenant_id, sku, quantity, list_price,
                     discount_percent, net_price, cost, margin, dynamic_fields, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 """,
                 (
                     line["id"],
                     quote_id,
+                    tenant_id,
                     line["sku"],
                     line["quantity"],
                     line["listPrice"],
@@ -604,13 +619,13 @@ def save_quote(payload: QuoteSaveRequest) -> dict:
     return {"success": True, "data": {"id": quote_id, "totalValue": totals["total_net_price"]}}
 
 
-def delete_quote(quote_id: str) -> dict:
+def delete_quote(quote_id: str, tenant_id: str = "default") -> dict:
     if _tx_on_postgres():
-        pg_client.execute("DELETE FROM quote_line_items WHERE quote_id = %s", (quote_id,))
-        pg_client.execute("DELETE FROM quotes WHERE quote_id = %s", (quote_id,))
+        pg_client.execute("DELETE FROM quote_line_items WHERE quote_id = %s AND tenant_id = %s", (quote_id, tenant_id))
+        pg_client.execute("DELETE FROM quotes WHERE quote_id = %s AND tenant_id = %s", (quote_id, tenant_id))
     else:
-        db_client.execute("DELETE FROM quote_line_items WHERE quote_id = ?", (quote_id,))
-        db_client.execute("DELETE FROM quotes WHERE quote_id = ?", (quote_id,))
+        db_client.execute("DELETE FROM quote_line_items WHERE quote_id = ? AND tenant_id = ?", (quote_id, tenant_id))
+        db_client.execute("DELETE FROM quotes WHERE quote_id = ? AND tenant_id = ?", (quote_id, tenant_id))
     return {"success": True, "deletedQuoteId": quote_id}
 
 

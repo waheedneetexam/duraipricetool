@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { apiFetch, uploadCsv } from '../api/client';
+import { apiFetch, hasPermission, uploadCsv } from '../api/client';
 import { DataManagementAdmin } from './DataManagementAdmin';
 import type {
   AIPricingProcessResult,
@@ -13,6 +13,7 @@ import { FormulaBuilderAdmin } from './FormulaBuilderAdmin';
 
 type ImportResult = { status: 'ok' | 'error'; message: string };
 type AdminTab = 'data' | 'table' | 'logic' | 'ai' | 'formula';
+type Props = { tenantId: string };
 
 const DEFAULT_MAPPING = {
   transaction_date: 'transaction_date',
@@ -34,13 +35,12 @@ const DEFAULT_MAPPING = {
 
 const FIELD_TYPES = ['text', 'number', 'currency', 'percent', 'date', 'select', 'textarea', 'checkbox', 'calculated'];
 
-export function AdminScreen() {
+export function AdminScreen({ tenantId }: Props) {
   const [adminTab, setAdminTab] = useState<AdminTab>('table');
   const [file, setFile] = useState<File | null>(null);
   const [mappingJson, setMappingJson] = useState(JSON.stringify(DEFAULT_MAPPING, null, 2));
   const [result, setResult] = useState<ImportResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [tenantId, setTenantId] = useState('default');
 
   const [lineItemConfig, setLineItemConfig] = useState<ColumnConfig[]>(DEFAULT_LINE_ITEM_COLUMNS);
   const [configValidationSummary, setConfigValidationSummary] = useState('');
@@ -65,11 +65,12 @@ line_item_fields:
     required: true
 pricing_rules: []`);
   const [aiResult, setAiResult] = useState<AIPricingProcessResult | null>(null);
+  const canAdminManage = hasPermission('admin.manage');
 
   useEffect(() => {
     void loadLineItemConfig();
     void loadFieldLogicRules();
-  }, []);
+  }, [tenantId]);
 
   const sampleCsv = useMemo(
     () =>
@@ -83,6 +84,10 @@ pricing_rules: []`);
 
   async function handleUpload(e: FormEvent) {
     e.preventDefault();
+    if (!canAdminManage) {
+      setResult({ status: 'error', message: 'You do not have admin.manage permission.' });
+      return;
+    }
     if (!file) {
       setResult({ status: 'error', message: 'Please choose a CSV file.' });
       return;
@@ -102,6 +107,10 @@ pricing_rules: []`);
   }
 
   async function generateFakeData() {
+    if (!canAdminManage) {
+      setResult({ status: 'error', message: 'You do not have admin.manage permission.' });
+      return;
+    }
     setLoading(true);
     try {
       const response = await apiFetch<{ rows_inserted: number }>('/admin/seed/sample-data?row_count=10000', { method: 'POST' });
@@ -114,6 +123,10 @@ pricing_rules: []`);
   }
 
   async function seedWorkflow() {
+    if (!canAdminManage) {
+      setResult({ status: 'error', message: 'You do not have admin.manage permission.' });
+      return;
+    }
     setLoading(true);
     try {
       const response = await apiFetch<{ seeded_rules: number }>('/admin/seed/workflow-rules', { method: 'POST' });
@@ -126,6 +139,10 @@ pricing_rules: []`);
   }
 
   async function runSyncOnce() {
+    if (!canAdminManage) {
+      setResult({ status: 'error', message: 'You do not have admin.manage permission.' });
+      return;
+    }
     setLoading(true);
     try {
       const response = await apiFetch<{ status: string; total_rows_synced?: number; reason?: string; tables?: Record<string, number> }>(
@@ -153,7 +170,7 @@ pricing_rules: []`);
     setLoading(true);
     try {
       const response = await apiFetch<{ success: boolean; data: TenantLineItemConfig }>(
-        `/admin/line-item-config?tenant_id=${encodeURIComponent(tenantId || 'default')}`
+        '/admin/line-item-config'
       );
       if (response.success) {
         setLineItemConfig(response.data.columns.map((col, idx) => ({ ...col, sortOrder: col.sortOrder ?? idx })));
@@ -167,6 +184,10 @@ pricing_rules: []`);
   }
 
   async function validateLineItemConfig() {
+    if (!canAdminManage) {
+      setConfigValidationSummary('You do not have admin.manage permission.');
+      return;
+    }
     setLoading(true);
     try {
       const payloadColumns = lineItemConfig.map((col) => ({
@@ -206,10 +227,14 @@ pricing_rules: []`);
   }
 
   async function saveLineItemConfig() {
+    if (!canAdminManage) {
+      setResult({ status: 'error', message: 'You do not have admin.manage permission.' });
+      return;
+    }
     setLoading(true);
     try {
       const response = await apiFetch<{ success: boolean; data?: TenantLineItemConfig; error?: string }>(
-        `/admin/line-item-config?tenant_id=${encodeURIComponent(tenantId || 'default')}`,
+        '/admin/line-item-config',
         {
           method: 'PUT',
           body: JSON.stringify({
@@ -315,12 +340,15 @@ pricing_rules: []`);
   }
 
   async function validateFieldLogic() {
+    if (!canAdminManage) {
+      setResult({ status: 'error', message: 'You do not have admin.manage permission.' });
+      return;
+    }
     setLoading(true);
     try {
       const response = await apiFetch<{ success: boolean; data: FieldLogicValidationResult }>('/admin/field-logic/validate', {
         method: 'POST',
         body: JSON.stringify({
-          tenant_id: tenantId || 'default',
           scope: logicScope,
           field_key: logicFieldKey,
           logic_text: logicText
@@ -340,6 +368,10 @@ pricing_rules: []`);
   }
 
   async function saveFieldLogic() {
+    if (!canAdminManage) {
+      setResult({ status: 'error', message: 'You do not have admin.manage permission.' });
+      return;
+    }
     setLoading(true);
     try {
       const response = await apiFetch<{ success: boolean; data?: { logicId: string; version: number }; error?: string }>(
@@ -347,7 +379,6 @@ pricing_rules: []`);
         {
           method: 'POST',
           body: JSON.stringify({
-            tenant_id: tenantId || 'default',
             scope: logicScope,
             field_key: logicFieldKey,
             logic_text: logicText,
@@ -374,7 +405,7 @@ pricing_rules: []`);
     setLoading(true);
     try {
       const response = await apiFetch<{ success: boolean; data: FieldLogicRule[] }>(
-        `/admin/field-logic/list?tenant_id=${encodeURIComponent(tenantId || 'default')}`
+        '/admin/field-logic/list'
       );
       if (response.success) {
         setLogicRules(response.data);
@@ -387,6 +418,10 @@ pricing_rules: []`);
   }
 
   async function processAiTemplate() {
+    if (!canAdminManage) {
+      setResult({ status: 'error', message: 'You do not have admin.manage permission.' });
+      return;
+    }
     setLoading(true);
     try {
       const response = await apiFetch<{ success: boolean; data?: AIPricingProcessResult; error?: string }>(
@@ -394,7 +429,6 @@ pricing_rules: []`);
         {
           method: 'POST',
           body: JSON.stringify({
-            tenant_id: tenantId || 'default',
             template_text: aiTemplate
           })
         }
@@ -431,11 +465,11 @@ pricing_rules: []`);
       <div className="panel-card tenant-controls">
         <label>
           Tenant / Client ID
-          <input value={tenantId} onChange={(e) => setTenantId(e.target.value)} placeholder="default" />
+          <input value={tenantId} readOnly />
         </label>
         <div className="tenant-actions">
-          <button className="btn" type="button" onClick={loadLineItemConfig} disabled={loading}>Load Table Config</button>
-          <button className="btn" type="button" onClick={loadFieldLogicRules} disabled={loading}>Load Logic Rules</button>
+          <button className="btn" type="button" onClick={loadLineItemConfig} disabled={loading || !canAdminManage}>Load Table Config</button>
+          <button className="btn" type="button" onClick={loadFieldLogicRules} disabled={loading || !canAdminManage}>Load Logic Rules</button>
         </div>
       </div>
 
@@ -444,8 +478,8 @@ pricing_rules: []`);
           <div className="table-manager-head">
             <h3>Line Item Table Manager</h3>
             <div className="tenant-actions">
-              <button className="btn" type="button" onClick={validateLineItemConfig} disabled={loading}>Validate</button>
-              <button className="btn btn-primary" type="button" onClick={saveLineItemConfig} disabled={loading}>Save</button>
+              <button className="btn" type="button" onClick={validateLineItemConfig} disabled={loading || !canAdminManage}>Validate</button>
+              <button className="btn btn-primary" type="button" onClick={saveLineItemConfig} disabled={loading || !canAdminManage}>Save</button>
             </div>
           </div>
           {configValidationSummary && <div className="info-box">{configValidationSummary}</div>}
@@ -527,12 +561,12 @@ pricing_rules: []`);
                     </td>
                     <td>
                       <div className="config-row-actions">
-                        <button className="btn btn-xs" type="button" onClick={() => moveColumn(col.key, -1)} disabled={idx === 0}>Up</button>
-                        <button className="btn btn-xs" type="button" onClick={() => moveColumn(col.key, 1)} disabled={idx === lineItemConfig.length - 1}>Down</button>
+                        <button className="btn btn-xs" type="button" onClick={() => moveColumn(col.key, -1)} disabled={idx === 0 || !canAdminManage}>Up</button>
+                        <button className="btn btn-xs" type="button" onClick={() => moveColumn(col.key, 1)} disabled={idx === lineItemConfig.length - 1 || !canAdminManage}>Down</button>
                         {isDefaultColumn ? (
                           <span className="muted">default</span>
                         ) : (
-                          <button className="btn btn-danger btn-xs" type="button" onClick={() => removeColumn(col.key)}>Delete</button>
+                          <button className="btn btn-danger btn-xs" type="button" disabled={!canAdminManage} onClick={() => removeColumn(col.key)}>Delete</button>
                         )}
                       </div>
                     </td>
@@ -566,7 +600,7 @@ pricing_rules: []`);
             <button
               className="btn"
               type="button"
-              disabled={!newColumnKey.trim() || !newColumnLabel.trim()}
+              disabled={!newColumnKey.trim() || !newColumnLabel.trim() || !canAdminManage}
               onClick={() => {
                 const key = newColumnKey.trim();
                 if (lineItemConfig.some((col) => col.key === key)) {
@@ -631,8 +665,8 @@ pricing_rules: []`);
               <textarea rows={3} value={logicExplanation} onChange={(e) => setLogicExplanation(e.target.value)} />
             </label>
             <div className="form-actions">
-              <button className="btn" type="button" onClick={validateFieldLogic} disabled={loading}>Validate & Generate</button>
-              <button className="btn btn-primary" type="button" onClick={saveFieldLogic} disabled={loading || !logicValidation || logicValidation.status !== 'valid'}>
+              <button className="btn" type="button" onClick={validateFieldLogic} disabled={loading || !canAdminManage}>Validate & Generate</button>
+              <button className="btn btn-primary" type="button" onClick={saveFieldLogic} disabled={loading || !logicValidation || logicValidation.status !== 'valid' || !canAdminManage}>
                 Save Logic
               </button>
             </div>
@@ -665,7 +699,7 @@ pricing_rules: []`);
           <p className="muted">Paste YAML pricing requirements. The server performs structured processing and saves artifacts.</p>
           <textarea rows={14} value={aiTemplate} onChange={(e) => setAiTemplate(e.target.value)} />
           <div className="form-actions">
-            <button className="btn btn-primary" type="button" onClick={processAiTemplate} disabled={loading}>Process Template</button>
+            <button className="btn btn-primary" type="button" onClick={processAiTemplate} disabled={loading || !canAdminManage}>Process Template</button>
           </div>
           {aiResult && (
             <div className="ok-box">
@@ -687,15 +721,15 @@ pricing_rules: []`);
             <input type="file" accept=".csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
             <label>Column Mapping JSON</label>
             <textarea value={mappingJson} onChange={(e) => setMappingJson(e.target.value)} rows={14} />
-            <button className="btn btn-primary" type="submit" disabled={loading}>{loading ? 'Importing...' : 'Upload & Import'}</button>
+            <button className="btn btn-primary" type="submit" disabled={loading || !canAdminManage}>{loading ? 'Importing...' : 'Upload & Import'}</button>
           </form>
 
           <div className="panel-card">
             <h3>Utilities</h3>
             <button className="btn" onClick={downloadSampleCsv} type="button">Download Sample CSV Template</button>
-            <button className="btn" onClick={generateFakeData} disabled={loading} type="button">Generate 10,000 Sample Rows</button>
-            <button className="btn" onClick={seedWorkflow} disabled={loading} type="button">Seed Workflow Rules</button>
-            <button className="btn btn-primary" onClick={runSyncOnce} disabled={loading} type="button">Run Sync (Postgres to DuckDB)</button>
+            <button className="btn" onClick={generateFakeData} disabled={loading || !canAdminManage} type="button">Generate 10,000 Sample Rows</button>
+            <button className="btn" onClick={seedWorkflow} disabled={loading || !canAdminManage} type="button">Seed Workflow Rules</button>
+            <button className="btn btn-primary" onClick={runSyncOnce} disabled={loading || !canAdminManage} type="button">Run Sync (Postgres to DuckDB)</button>
           </div>
         </div>
       )}

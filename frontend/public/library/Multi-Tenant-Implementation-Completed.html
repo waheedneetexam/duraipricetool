@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multi-Tenant Implementation Status and Phase-3 Checklist</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f6f8fb; color: #1f2937; }
+    .wrap { max-width: 1020px; margin: 24px auto; padding: 0 16px; }
+    .card { background: #fff; border: 1px solid #d7dee7; border-radius: 10px; padding: 20px; }
+    h1 { margin-top: 0; }
+    h2 { color: #0f766e; margin-top: 22px; }
+    ol { padding-left: 20px; }
+    code { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 1px 5px; }
+    .links a { color: #0b63ce; text-decoration: none; }
+    .links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Multi-Tenant Implementation Status</h1>
+      <p>Current status: foundational backend and frontend multi-tenant authentication has been implemented, with hardening and full isolation tasks pending.</p>
+
+      <h2>Pending from Multi-Tenant Implementation</h2>
+      <ol>
+        <li><strong>Tenant isolation completion:</strong> Apply strict tenant filtering across all remaining master-data and analytics paths.</li>
+        <li><strong>Key model hardening:</strong> Move from global identifiers to tenant-scoped key/index patterns where needed.</li>
+        <li><strong>Finer backend authorization:</strong> Enforce action-level permissions at endpoint/service level, not only route-level groups.</li>
+        <li><strong>Tenant/User/Role administration:</strong> Build APIs and UI for tenant creation, user lifecycle, role assignment, and permission governance.</li>
+        <li><strong>Frontend auth hardening:</strong> Improve refresh-failure flows, forced re-login behavior, and session-expiry UX.</li>
+        <li><strong>Security hardening:</strong> Rotate bootstrap credentials, enforce password policy/reset flow, and strengthen token revocation/rate limits.</li>
+        <li><strong>Migration rollout:</strong> Execute production-safe migration/backfill scripts with rollback and compatibility phases.</li>
+        <li><strong>Automated tests:</strong> Complete unit/integration/E2E coverage for auth, tenant boundaries, and role matrix behavior.</li>
+        <li><strong>Operations:</strong> Complete audit logging, monitoring/alerts, and runbooks for auth/permission incidents.</li>
+      </ol>
+
+      <h2>Phase-3 Implementation Checklist</h2>
+      <ol>
+        <li>Implement tenant filters in all remaining backend services and SQL queries.</li>
+        <li>Add backend permission guards per action (create/update/delete/approve/export).</li>
+        <li>Introduce tenant admin APIs: create/update tenant, assign user to tenant, assign/revoke roles.</li>
+        <li>Add frontend Admin pages for tenant/user/role management.</li>
+        <li>Add session management UX: idle timeout, forced logout on invalid refresh, clear token revocation handling.</li>
+        <li>Enforce production security baselines: secret rotation, password policy, login throttling.</li>
+        <li>Build and run test matrix:
+          <ol>
+            <li>Auth happy/negative paths</li>
+            <li>Cross-tenant access denial</li>
+            <li>Role-permission matrix</li>
+            <li>Regression for quote/admin workflows</li>
+          </ol>
+        </li>
+        <li>Run migration rehearsal in pre-prod with rollback validation.</li>
+        <li>Go-live gate: no critical auth/isolation defects and full audit trace coverage.</li>
+      </ol>
+
+      <h2>Phase Links</h2>
+      <div class="links">
+        <p><a href="/library/Development-Tenant-Phase-1.html" target="_blank" rel="noopener noreferrer">Open Development-Tenant-Phase-1.html</a></p>
+        <p><a href="/library/Development-Tenant-Phase-2.html" target="_blank" rel="noopener noreferrer">Open Development-Tenant-Phase-2.html</a></p>
+        <p><a href="/library/Multi-Tenant-Implementation-Completed.html" target="_blank" rel="noopener noreferrer">Open Multi-Tenant-Implementation-Completed.html</a></p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

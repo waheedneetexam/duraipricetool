@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Development Tenant Phase 2 Progress</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f6f8fb; color: #1f2937; }
+    .wrap { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    .card { background: #fff; border: 1px solid #d7dee7; border-radius: 10px; padding: 20px; }
+    h1 { margin-top: 0; }
+    h2 { color: #0f766e; margin-top: 22px; }
+    ol { padding-left: 20px; }
+    code { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 1px 5px; }
+    .links a { color: #0b63ce; text-decoration: none; }
+    .links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Development Progress: Tenant Phase 2</h1>
+      <p>Scope: frontend login, tenant switcher, token-aware API calls, and role-based access navigation.</p>
+
+      <h2>Progress Completed</h2>
+      <ol>
+        <li>Added frontend auth session handling and header injection to API calls.</li>
+        <li>Added auth response type models for login/me/tenants flows.</li>
+        <li>Added a dedicated login screen with tenant input and error handling.</li>
+        <li>Reworked App shell for authenticated flow and session restore.</li>
+        <li>Added tenant switcher in top navigation and logout behavior.</li>
+        <li>Applied role-gated Admin navigation visibility.</li>
+        <li>Updated Admin screen to use authenticated tenant context (read-only tenant display).</li>
+        <li>Added login/auth control styles and validated frontend build.</li>
+      </ol>
+
+      <h2>Files Updated</h2>
+      <ol>
+        <li>Updated: <code>frontend/src/api/client.ts</code></li>
+        <li>Updated: <code>frontend/src/api/types.ts</code></li>
+        <li>New: <code>frontend/src/components/LoginScreen.tsx</code></li>
+        <li>Updated: <code>frontend/src/App.tsx</code></li>
+        <li>Updated: <code>frontend/src/components/AdminScreen.tsx</code></li>
+        <li>Updated: <code>frontend/src/styles/app.css</code></li>
+      </ol>
+
+      
+      <h2>Phase-2 Continuation (Completed)</h2>
+      <ol>
+        <li>Implemented automatic access-token refresh on <code>401</code> with one retry path.</li>
+        <li>Added refresh de-duplication to avoid parallel refresh storms.</li>
+        <li>Added action-level role guards in Quote list (Create/Edit/Delete).</li>
+        <li>Added action-level role guards in Pricing screen (edit fields, add/delete line, save quote).</li>
+        <li>Added action-level role guards in Admin screen (import, validate/save, seed/sync, AI process).</li>
+      </ol>
+
+      <h2>Validation Status</h2>
+      <ol>
+        <li>Frontend build passed: <code>npm run build</code>.</li>
+              <li>Continuation build check passed: <code>npm run build</code>.</li>
+      </ol>
+
+      <h2>Phase Links</h2>
+      <div class="links">
+        <p><a href="/library/Development-Tenant-Phase-1.html" target="_blank" rel="noopener noreferrer">Open Development-Tenant-Phase-1.html</a></p>
+        <p><a href="/library/Development-Tenant-Phase-2.html" target="_blank" rel="noopener noreferrer">Open Development-Tenant-Phase-2.html</a></p>
+              <p><a href="/library/Multi-Tenant-Implementation-Completed.html" target="_blank" rel="noopener noreferrer">Open Multi-Tenant-Implementation-Completed.html</a></p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

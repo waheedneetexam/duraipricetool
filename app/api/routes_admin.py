@@ -2,8 +2,9 @@ import json
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 
+from app.core.security import AuthContext, require_auth
 from app.models.schemas import (
     AIPricingTemplateProcessRequest,
     CSVColumnMapping,
@@ -39,7 +40,7 @@ from app.services.quote_service import seed_default_workflow_rules
 from app.services.sample_data_generator import generate_synthetic_transactions
 from app.services.sync_service import run_sync_once
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_auth)])
 
 
 @router.post("/ingest/csv")
@@ -72,8 +73,8 @@ def seed_sample_data(row_count: int = 10000):
 
 
 @router.post("/seed/workflow-rules")
-def seed_workflow_rules():
-    return seed_default_workflow_rules()
+def seed_workflow_rules(context: AuthContext = Depends(require_auth)):
+    return seed_default_workflow_rules(tenant_id=context.tenant_id)
 
 
 @router.post("/sync/run-once")
@@ -85,14 +86,14 @@ def sync_run_once():
 
 
 @router.get("/line-item-config")
-def get_line_item_config(tenant_id: str = "default"):
-    return {"success": True, "data": get_line_item_column_config(tenant_id)}
+def get_line_item_config(context: AuthContext = Depends(require_auth)):
+    return {"success": True, "data": get_line_item_column_config(context.tenant_id)}
 
 
 @router.put("/line-item-config")
-def put_line_item_config(payload: LineItemColumnConfigSaveRequest, tenant_id: str = "default"):
+def put_line_item_config(payload: LineItemColumnConfigSaveRequest, context: AuthContext = Depends(require_auth)):
     try:
-        data = save_line_item_column_config(tenant_id, [col.model_dump() for col in payload.columns])
+        data = save_line_item_column_config(context.tenant_id, [col.model_dump() for col in payload.columns])
         return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}
@@ -104,16 +105,16 @@ def post_line_item_config_validate(payload: LineItemColumnConfigSaveRequest):
 
 
 @router.post("/field-logic/validate")
-def post_field_logic_validate(payload: FieldLogicValidateRequest):
-    data = validate_field_logic(payload.tenant_id, payload.scope, payload.field_key, payload.logic_text)
+def post_field_logic_validate(payload: FieldLogicValidateRequest, context: AuthContext = Depends(require_auth)):
+    data = validate_field_logic(context.tenant_id, payload.scope, payload.field_key, payload.logic_text)
     return {"success": True, "data": data}
 
 
 @router.post("/field-logic/save")
-def post_field_logic_save(payload: FieldLogicSaveRequest):
+def post_field_logic_save(payload: FieldLogicSaveRequest, context: AuthContext = Depends(require_auth)):
     try:
         data = save_field_logic_rule(
-            tenant_id=payload.tenant_id,
+            tenant_id=context.tenant_id,
             scope=payload.scope,
             field_key=payload.field_key,
             logic_text=payload.logic_text,
@@ -127,15 +128,15 @@ def post_field_logic_save(payload: FieldLogicSaveRequest):
 
 
 @router.get("/field-logic/list")
-def get_field_logic_list(tenant_id: str = "default", scope: str = ""):
-    data = list_field_logic_rules(tenant_id=tenant_id, scope=scope or None)
+def get_field_logic_list(scope: str = "", context: AuthContext = Depends(require_auth)):
+    data = list_field_logic_rules(tenant_id=context.tenant_id, scope=scope or None)
     return {"success": True, "data": data}
 
 
 @router.post("/ai-pricing/process-template")
-def post_ai_pricing_process_template(payload: AIPricingTemplateProcessRequest):
+def post_ai_pricing_process_template(payload: AIPricingTemplateProcessRequest, context: AuthContext = Depends(require_auth)):
     try:
-        data = process_ai_pricing_template(payload.tenant_id, payload.template_text)
+        data = process_ai_pricing_template(context.tenant_id, payload.template_text)
         return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}

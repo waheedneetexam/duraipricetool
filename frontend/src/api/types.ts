@@ -151,3 +151,32 @@ export type MasterCustomer = {
   industry?: string;
   active?: boolean;
 };
+
+export type AuthLoginResponse = {
+  success: boolean;
+  data: {
+    access_token: string;
+    refresh_token: string;
+    token_type: string;
+    expires_in: number;
+    refresh_expires_in: number;
+    tenant_id: string;
+    roles: string[];
+    user: { user_id: string; email: string; full_name?: string };
+  };
+};
+
+export type AuthMeResponse = {
+  success: boolean;
+  data: {
+    user_id: string;
+    tenant_id: string;
+    roles: string[];
+    permissions: string[];
+  };
+};
+
+export type AuthTenantsResponse = {
+  success: boolean;
+  data: Array<{ tenant_id: string; tenant_name: string }>;
+};

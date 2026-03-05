@@ -75,9 +75,58 @@ h4 {
   background: var(--nav-active);
 }
 
+.auth-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-controls select {
+  min-width: 160px;
+  max-width: 220px;
+  background: #f8fafc;
+}
+
+.auth-user {
+  font-size: 12px;
+  color: #dbeafe;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .main-area {
   flex: 1;
   min-height: 0;
+}
+
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.login-card {
+  width: min(420px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.login-card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.login-card label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
 }
 
 .screen {

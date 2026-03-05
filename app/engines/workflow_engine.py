@@ -21,6 +21,7 @@ class WorkflowEngine:
         discount_percent: float,
         current_state: str,
         requested_state: str,
+        tenant_id: str = "default",
     ) -> WorkflowDecision:
         if DB_ENGINE in {"postgres", "hybrid"}:
             rules_df = self._fetch_rules_postgres(
@@ -28,6 +29,7 @@ class WorkflowEngine:
                 requested_state=requested_state,
                 customer_id=customer_id,
                 customer_segment=customer_segment,
+                tenant_id=tenant_id,
             )
         else:
             rules_df = db_client.fetch_df(
@@ -35,13 +37,14 @@ class WorkflowEngine:
                 SELECT *
                 FROM workflow_rules
                 WHERE active = TRUE
+                  AND tenant_id = ?
                   AND state_from = ?
                   AND state_to = ?
                   AND (customer_id = ? OR customer_id IS NULL)
                   AND (customer_segment = ? OR customer_segment IS NULL)
                 ORDER BY customer_id DESC NULLS LAST, customer_segment DESC NULLS LAST
                 """,
-                (current_state, requested_state, customer_id, customer_segment),
+                (tenant_id, current_state, requested_state, customer_id, customer_segment),
             )
 
         if rules_df.empty:
@@ -86,19 +89,21 @@ class WorkflowEngine:
         requested_state: str,
         customer_id: str,
         customer_segment: str,
+        tenant_id: str,
     ):
         rows = pg_client.execute(
             """
             SELECT *
             FROM workflow_rules
             WHERE active = TRUE
+              AND tenant_id = %s
               AND state_from = %s
               AND state_to = %s
               AND (customer_id = %s OR customer_id IS NULL)
               AND (customer_segment = %s OR customer_segment IS NULL)
             ORDER BY customer_id DESC NULLS LAST, customer_segment DESC NULLS LAST
             """,
-            (current_state, requested_state, customer_id, customer_segment),
+            (tenant_id, current_state, requested_state, customer_id, customer_segment),
         )
         import pandas as pd
 

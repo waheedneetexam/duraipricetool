@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Development Tenant Phase 1 Progress</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f6f8fb; color: #1f2937; }
+    .wrap { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    .card { background: #fff; border: 1px solid #d7dee7; border-radius: 10px; padding: 20px; }
+    h1 { margin-top: 0; }
+    h2 { color: #0f766e; margin-top: 22px; }
+    ol { padding-left: 20px; }
+    code { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 1px 5px; }
+
+    .links a { color: #0b63ce; text-decoration: none; }
+    .links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Development Progress: Tenant Phase 1</h1>
+      <p>Scope: backend foundation for multi-tenant login and role-based access in DuraiPricingTool.</p>
+
+      <h2>Progress Completed</h2>
+      <ol>
+        <li>Added authentication API flow: <code>/auth/login</code>, <code>/auth/refresh</code>, <code>/auth/logout</code>, <code>/auth/me</code>, <code>/auth/tenants</code>.</li>
+        <li>Added security dependency for protected routers: <code>/admin</code>, <code>/master</code>, <code>/quotes</code>, <code>/analytics</code>, <code>/chatbot</code>.</li>
+        <li>Added tenant context and permission checks from token + headers.</li>
+        <li>Made quote/workflow flows tenant-aware: save/list/get/delete/calculate/evaluate.</li>
+        <li>Added tenant-aware workflow rule seeding.</li>
+        <li>Added auth and tenant schema additions for DuckDB and Postgres.</li>
+        <li>Added startup bootstrap seed for default tenant, roles, permissions, and admin user.</li>
+      </ol>
+
+      <h2>Files Updated</h2>
+      <ol>
+        <li>New: <code>app/api/routes_auth.py</code></li>
+        <li>New: <code>app/core/security.py</code></li>
+        <li>New: <code>app/services/auth_service.py</code></li>
+        <li>Updated: <code>app/main.py</code>, <code>app/core/config.py</code>, <code>app/models/schemas.py</code></li>
+        <li>Updated: <code>app/db/schema.sql</code>, <code>app/db/postgres_schema.sql</code></li>
+        <li>Updated: <code>app/services/quote_service.py</code>, <code>app/engines/workflow_engine.py</code></li>
+        <li>Updated: <code>app/api/routes_quotes.py</code>, <code>app/api/routes_admin.py</code>, <code>app/api/routes_master_data.py</code>, <code>app/api/routes_analytics.py</code>, <code>app/api/routes_chatbot.py</code></li>
+      </ol>
+
+      <h2>Validation Status</h2>
+      <ol>
+        <li>Code compile check passed: <code>python3 -m compileall app</code>.</li>
+        <li>Runtime auth smoke was blocked due to active DuckDB file lock by another process.</li>
+      </ol>
+
+      <h2>Current Defaults</h2>
+      <ol>
+        <li><code>AUTH_REQUIRED=0</code> (safe rollout default).</li>
+        <li>Bootstrap user: <code>admin@durai.local</code> / <code>Admin@123</code> on tenant <code>default</code> (change for production).</li>
+      </ol>
+
+      <h2>Next Phase Steps</h2>
+      <ol>
+        <li>Stop the process holding the DuckDB lock before runtime smoke: identify PID and stop gracefully.</li>
+        <li>Run runtime auth smoke: login, refresh, me, tenants, and protected endpoint checks.</li>
+        <li>Enable strict auth in test env with <code>AUTH_REQUIRED=1</code> and validate role-based access matrix.</li>
+        <li>Add frontend phase: login page, token handling, tenant switcher, and route guards.</li>
+        <li>Add tenant-aware coverage to master/admin services where tenant_id is not yet enforced.</li>
+        <li>Rotate bootstrap credentials and configure secure <code>AUTH_SECRET</code> for production.</li>
+      </ol>
+    
+
+      <h2>Phase Links</h2>
+      <div class="links">
+        <p><a href="/library/Development-Tenant-Phase-1.html" target="_blank" rel="noopener noreferrer">Open Development-Tenant-Phase-1.html</a></p>
+        <p><a href="/library/Development-Tenant-Phase-2.html" target="_blank" rel="noopener noreferrer">Open Development-Tenant-Phase-2.html</a></p>
+        <p><a href="/library/Multi-Tenant-Implementation-Completed.html" target="_blank" rel="noopener noreferrer">Open Multi-Tenant-Implementation-Completed.html</a></p>
+      </div>
+</div>
+  </div>
+</body>
+</html>

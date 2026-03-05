@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.routes_auth import router as auth_router
 from app.api.routes_admin import router as admin_router
 from app.api.routes_analytics import router as analytics_router
 from app.api.routes_chatbot import router as chatbot_router
@@ -8,6 +9,7 @@ from app.api.routes_master_data import router as master_data_router
 from app.api.routes_quotes import router as quotes_router
 from app.core.config import DB_ENGINE
 from app.db.postgres_client import pg_client
+from app.services.auth_service import ensure_auth_seed_data
 
 app = FastAPI(
     title="Durai Pricing Tool",
@@ -28,12 +30,14 @@ app.include_router(analytics_router)
 app.include_router(master_data_router)
 app.include_router(quotes_router)
 app.include_router(chatbot_router)
+app.include_router(auth_router)
 
 
 @app.on_event("startup")
 def startup_init():
     if DB_ENGINE in {"postgres", "hybrid"}:
         pg_client.initialize_schema()
+    ensure_auth_seed_data()
 
 
 @app.get("/")
