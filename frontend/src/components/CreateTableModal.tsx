@@ -82,7 +82,7 @@ export function CreateTableModal({ onClose, onCreated }: CreateTableModalProps) 
 
     return (
         <div className="modal-overlay">
-            <div className="modal-container" style={{ width: '900px', maxWidth: '95vw', background: '#fff', borderRadius: '12px', overflow: 'hidden' }}>
+            <div className="modal-container" style={{ width: '900px', maxWidth: '95vw' }}>
                 <div className="modal-header" style={{ background: '#1e293b', color: '#fff', padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div style={{ background: '#fff', padding: '4px', borderRadius: '4px' }}>
