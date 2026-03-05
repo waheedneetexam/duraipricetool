@@ -81,7 +81,8 @@ def seed_workflow_rules(context: AuthContext = Depends(require_auth)):
 
 
 @router.post("/sync/run-once")
-def sync_run_once():
+def sync_run_once(context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "platform.sync")
     try:
         return run_sync_once()
     except Exception as exc:
@@ -103,7 +104,8 @@ def put_line_item_config(payload: LineItemColumnConfigSaveRequest, context: Auth
 
 
 @router.post("/line-item-config/validate")
-def post_line_item_config_validate(payload: LineItemColumnConfigSaveRequest):
+def post_line_item_config_validate(payload: LineItemColumnConfigSaveRequest, context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "admin.manage")
     return {"success": True, "data": validate_line_item_column_config([col.model_dump() for col in payload.columns])}
 
 
@@ -138,6 +140,7 @@ def get_field_logic_list(scope: str = "", context: AuthContext = Depends(require
 
 @router.post("/ai-pricing/process-template")
 def post_ai_pricing_process_template(payload: AIPricingTemplateProcessRequest, context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "admin.manage")
     try:
         data = process_ai_pricing_template(context.tenant_id, payload.template_text)
         return {"success": True, "data": data}
@@ -146,7 +149,8 @@ def post_ai_pricing_process_template(payload: AIPricingTemplateProcessRequest, c
 
 
 @router.get("/data/table-schemas")
-def get_data_table_schemas():
+def get_data_table_schemas(context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "master_data.read")
     return {"success": True, "data": get_table_schemas()}
 
 
@@ -158,10 +162,13 @@ def get_data_table_rows(
     search: str = "",
     sort_by: str = "",
     sort_dir: str = "asc",
+    context: AuthContext = Depends(require_auth),
 ):
+    _require_perm(context, "master_data.read")
     try:
         return list_table_data(
             table_id=table_id,
+            tenant_id=context.tenant_id,
             page=page,
             page_size=page_size,
             search=search,
@@ -173,55 +180,61 @@ def get_data_table_rows(
 
 
 @router.post("/data/import/{table_id}")
-def post_data_import(table_id: str, payload: DataManagementImportRequest):
+def post_data_import(table_id: str, payload: DataManagementImportRequest, context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "master_data.manage")
     try:
-        data = import_table_data(table_id=table_id, rows=payload.data, update_duplicates=payload.update_duplicates)
+        data = import_table_data(table_id=table_id, rows=payload.data, tenant_id=context.tenant_id, update_duplicates=payload.update_duplicates)
         return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}
 
 
 @router.post("/data/table/{table_id}")
-def post_data_record(table_id: str, payload: DataManagementRecordPayload):
+def post_data_record(table_id: str, payload: DataManagementRecordPayload, context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "master_data.manage")
     try:
         record_id = str(payload.values.get("id") or payload.values.get("code") or payload.values.get("sku") or "")
-        data = save_table_record(table_id=table_id, record_id=record_id, payload=payload.values)
+        data = save_table_record(table_id=table_id, record_id=record_id, payload=payload.values, tenant_id=context.tenant_id)
         return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}
 
 
 @router.put("/data/table/{table_id}/{record_id}")
-def put_data_record(table_id: str, record_id: str, payload: DataManagementRecordPayload):
+def put_data_record(table_id: str, record_id: str, payload: DataManagementRecordPayload, context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "master_data.manage")
     try:
-        data = save_table_record(table_id=table_id, record_id=record_id, payload=payload.values)
+        data = save_table_record(table_id=table_id, record_id=record_id, payload=payload.values, tenant_id=context.tenant_id)
         return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}
 
 
 @router.delete("/data/table/{table_id}/{record_id}")
-def delete_data_record(table_id: str, record_id: str):
+def delete_data_record(table_id: str, record_id: str, context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "master_data.manage")
     try:
-        data = delete_table_record(table_id, record_id)
+        data = delete_table_record(table_id, record_id, tenant_id=context.tenant_id)
         return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}
 
 
 @router.delete("/data/table/{table_id}/bulk-delete")
-def delete_data_bulk(table_id: str, payload: DataManagementBulkDeleteRequest):
+def delete_data_bulk(table_id: str, payload: DataManagementBulkDeleteRequest, context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "master_data.manage")
     try:
-        data = bulk_delete_table_records(table_id, payload.ids)
+        data = bulk_delete_table_records(table_id, payload.ids, tenant_id=context.tenant_id)
         return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}
 
 
 @router.get("/data/table/{table_id}/stats")
-def get_data_table_stats(table_id: str):
+def get_data_table_stats(table_id: str, context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "master_data.read")
     try:
-        data = get_table_stats(table_id)
+        data = get_table_stats(table_id, tenant_id=context.tenant_id)
         return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}
@@ -237,6 +250,7 @@ from app.services.platform_service import (
     list_tenant_users,
     remove_tenant_user_role,
 )
+from app.services.audit_service import log_action
 
 
 def _require_perm(ctx: AuthContext, perm: str) -> None:
@@ -261,6 +275,14 @@ def post_tenant_user(payload: CreateTenantUserRequest, context: AuthContext = De
             password=payload.password,
             role_name=payload.role,
         )
+        log_action(
+            actor_user_id=context.user_id,
+            actor_tenant_id=context.tenant_id,
+            target_type="user",
+            target_id=data["user_id"],
+            action="create_tenant_user",
+            detail={"email": payload.email, "role": payload.role}
+        )
         return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}
@@ -275,6 +297,14 @@ def post_assign_role(user_id: str, payload: AssignRoleRequest, context: AuthCont
             user_id=user_id,
             role_name=payload.role,
         )
+        log_action(
+            actor_user_id=context.user_id,
+            actor_tenant_id=context.tenant_id,
+            target_type="user",
+            target_id=user_id,
+            action="assign_role",
+            detail={"role": payload.role}
+        )
         return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}
@@ -285,6 +315,14 @@ def delete_user_role(user_id: str, role_name: str, context: AuthContext = Depend
     _require_perm(context, "tenant.roles.assign")
     try:
         remove_tenant_user_role(tenant_id=context.tenant_id, user_id=user_id, role_name=role_name)
+        log_action(
+            actor_user_id=context.user_id,
+            actor_tenant_id=context.tenant_id,
+            target_type="user",
+            target_id=user_id,
+            action="remove_role",
+            detail={"role": role_name}
+        )
         return {"success": True}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}

@@ -414,7 +414,7 @@ def parse_csv_text(content: str) -> list[dict[str, Any]]:
     return rows
 
 
-def import_table_data(table_id: str, rows: list[dict[str, Any]], update_duplicates: bool = True) -> dict[str, Any]:
+def import_table_data(table_id: str, rows: list[dict[str, Any]], tenant_id: str, update_duplicates: bool = True) -> dict[str, Any]:
     _ensure_tables()
     table = _table_def(table_id)
     imported = 0
@@ -450,15 +450,15 @@ def import_table_data(table_id: str, rows: list[dict[str, Any]], update_duplicat
             continue
 
         exists = _execute(
-            f"SELECT {table.primary_key} FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()} LIMIT 1",
-            (pk,),
+            f"SELECT {table.primary_key} FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()} AND tenant_id = {_sql_placeholder()} LIMIT 1",
+            (pk, tenant_id),
         )
         if exists and not update_duplicates:
             skipped += 1
             warnings.append({"row": row_number, "field": table.primary_key, "message": f"Duplicate {pk} skipped"})
             continue
 
-        save_table_record(table_id, str(pk), normalized, allow_missing_pk=True)
+        save_table_record(table_id, str(pk), normalized, tenant_id=tenant_id, allow_missing_pk=True)
         if exists:
             updated += 1
         else:
@@ -477,6 +477,7 @@ def import_table_data(table_id: str, rows: list[dict[str, Any]], update_duplicat
 
 def list_table_data(
     table_id: str,
+    tenant_id: str,
     page: int = 1,
     page_size: int = 50,
     search: str = "",
@@ -487,7 +488,7 @@ def list_table_data(
     table = _table_def(table_id)
     field_names = [f.name for f in table.fields]
     select_cols = ", ".join(field_names)
-    rows = _execute(f"SELECT {select_cols} FROM {table.table_name}")
+    rows = _execute(f"SELECT {select_cols} FROM {table.table_name} WHERE tenant_id = {_sql_placeholder()}", (tenant_id,))
 
     if search.strip():
         needle = search.strip().lower()
@@ -522,7 +523,7 @@ def list_table_data(
     }
 
 
-def save_table_record(table_id: str, record_id: str, payload: dict[str, Any], allow_missing_pk: bool = False) -> dict[str, Any]:
+def save_table_record(table_id: str, record_id: str, payload: dict[str, Any], tenant_id: str, allow_missing_pk: bool = False) -> dict[str, Any]:
     _ensure_tables()
     table = _table_def(table_id)
     normalized: dict[str, Any] = {}
@@ -532,6 +533,7 @@ def save_table_record(table_id: str, record_id: str, payload: dict[str, Any], al
 
     if not allow_missing_pk:
         normalized[table.primary_key] = record_id
+    normalized["tenant_id"] = tenant_id
     pk = normalized.get(table.primary_key)
     if pk is None or str(pk).strip() == "":
         raise ValueError("Primary key value is required")
@@ -541,7 +543,7 @@ def save_table_record(table_id: str, record_id: str, payload: dict[str, Any], al
     if errs:
         raise ValueError(str(errs))
 
-    cols = [f.name for f in table.fields]
+    cols = [f.name for f in table.fields] + ["tenant_id"]
     values = [normalized.get(col) for col in cols]
     placeholders = ", ".join([_sql_placeholder()] * len(cols))
     col_list = ", ".join(cols)
@@ -559,7 +561,7 @@ def save_table_record(table_id: str, record_id: str, payload: dict[str, Any], al
             tuple(values),
         )
     else:
-        db_client.execute(f"DELETE FROM {table.table_name} WHERE {table.primary_key} = ?", (pk,))
+        db_client.execute(f"DELETE FROM {table.table_name} WHERE {table.primary_key} = ? AND tenant_id = ?", (pk, tenant_id))
         db_client.execute(
             f"INSERT INTO {table.table_name} ({col_list}, updated_at) VALUES ({placeholders}, CURRENT_TIMESTAMP)",
             tuple(values),
@@ -567,39 +569,39 @@ def save_table_record(table_id: str, record_id: str, payload: dict[str, Any], al
     return normalized
 
 
-def delete_table_record(table_id: str, record_id: str) -> dict[str, Any]:
+def delete_table_record(table_id: str, record_id: str, tenant_id: str) -> dict[str, Any]:
     _ensure_tables()
     table = _table_def(table_id)
     if _tx_on_postgres():
         pg_client.execute(
-            f"DELETE FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()}",
-            (record_id,),
+            f"DELETE FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()} AND tenant_id = {_sql_placeholder()}",
+            (record_id, tenant_id),
         )
     else:
         db_client.execute(
-            f"DELETE FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()}",
-            (record_id,),
+            f"DELETE FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()} AND tenant_id = {_sql_placeholder()}",
+            (record_id, tenant_id),
         )
     return {"deleted": record_id}
 
 
-def bulk_delete_table_records(table_id: str, ids: list[str]) -> dict[str, Any]:
+def bulk_delete_table_records(table_id: str, ids: list[str], tenant_id: str) -> dict[str, Any]:
     _ensure_tables()
     deleted = 0
     failures: list[str] = []
     for record_id in ids:
         try:
-            delete_table_record(table_id, record_id)
+            delete_table_record(table_id, record_id, tenant_id=tenant_id)
             deleted += 1
         except Exception as exc:
             failures.append(f"{record_id}: {exc}")
     return {"deleted": deleted, "errors": failures}
 
 
-def get_table_stats(table_id: str) -> dict[str, Any]:
+def get_table_stats(table_id: str, tenant_id: str) -> dict[str, Any]:
     _ensure_tables()
     table = _table_def(table_id)
-    rows = _execute(f"SELECT * FROM {table.table_name}")
+    rows = _execute(f"SELECT * FROM {table.table_name} WHERE tenant_id = {_sql_placeholder()}", (tenant_id,))
     total = len(rows)
     field_stats: dict[str, Any] = {}
 

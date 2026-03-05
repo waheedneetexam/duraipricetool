@@ -10,9 +10,12 @@ import type {
 import { DEFAULT_LINE_ITEM_COLUMNS, DEFAULT_LINE_ITEM_KEYS } from '../constants/lineItemColumns';
 import type { LineItemColumnConfig as ColumnConfig } from '../constants/lineItemColumns';
 import { FormulaBuilderAdmin } from './FormulaBuilderAdmin';
+import { UserManagementAdmin } from './UserManagementAdmin';
+import { PlatformManagementAdmin } from './PlatformManagementAdmin';
+import { AuditLogAdmin } from './AuditLogAdmin';
 
 type ImportResult = { status: 'ok' | 'error'; message: string };
-type AdminTab = 'data' | 'table' | 'logic' | 'ai' | 'formula';
+type AdminTab = 'data' | 'table' | 'logic' | 'ai' | 'formula' | 'users' | 'platform' | 'audit';
 type Props = { tenantId: string };
 
 const DEFAULT_MAPPING = {
@@ -63,9 +66,12 @@ line_item_fields:
   - name: "quantity"
     type: "number"
     required: true
-pricing_rules: []`);
+PricingRules: []`);
   const [aiResult, setAiResult] = useState<AIPricingProcessResult | null>(null);
   const canAdminManage = hasPermission('admin.manage');
+  const canManageUsers = hasPermission('tenant.users.manage');
+  const canManagePlatform = hasPermission('platform.tenants.manage');
+  const canReadAudit = hasPermission('tenant.audit.read') || hasPermission('platform.audit.read');
 
   useEffect(() => {
     void loadLineItemConfig();
@@ -286,9 +292,9 @@ pricing_rules: []`);
       prev.map((col) =>
         col.key === key
           ? {
-              ...col,
-              [field]: field === 'width' ? (value ? Number(value) : null) : value
-            }
+            ...col,
+            [field]: field === 'width' ? (value ? Number(value) : null) : value
+          }
           : col
       )
     );
@@ -299,12 +305,12 @@ pricing_rules: []`);
       prev.map((col) =>
         col.key === key
           ? {
-              ...col,
-              isCalculated: calculated,
-              editable: calculated ? false : col.editable,
-              formula: calculated ? col.formula : '',
-              fieldType: calculated ? 'calculated' : col.fieldType || 'text'
-            }
+            ...col,
+            isCalculated: calculated,
+            editable: calculated ? false : col.editable,
+            formula: calculated ? col.formula : '',
+            fieldType: calculated ? 'calculated' : col.fieldType || 'text'
+          }
           : col
       )
     );
@@ -457,6 +463,9 @@ pricing_rules: []`);
           <button className={`btn ${adminTab === 'table' ? 'btn-primary' : ''}`} onClick={() => setAdminTab('table')} type="button">Table Manager</button>
           <button className={`btn ${adminTab === 'logic' ? 'btn-primary' : ''}`} onClick={() => setAdminTab('logic')} type="button">Field Logic</button>
           <button className={`btn ${adminTab === 'ai' ? 'btn-primary' : ''}`} onClick={() => setAdminTab('ai')} type="button">AI Pricing</button>
+          {canManageUsers && <button className={`btn ${adminTab === 'users' ? 'btn-primary' : ''}`} onClick={() => setAdminTab('users')} type="button">Users</button>}
+          {canManagePlatform && <button className={`btn ${adminTab === 'platform' ? 'btn-primary' : ''}`} onClick={() => setAdminTab('platform')} type="button">Platform</button>}
+          {canReadAudit && <button className={`btn ${adminTab === 'audit' ? 'btn-primary' : ''}`} onClick={() => setAdminTab('audit')} type="button">Audit Log</button>}
           <button className={`btn ${adminTab === 'data' ? 'btn-primary' : ''}`} onClick={() => setAdminTab('data')} type="button">Data</button>
           <button className={`btn ${adminTab === 'formula' ? 'btn-primary' : ''}`} onClick={() => setAdminTab('formula')} type="button">Formula</button>
         </div>
@@ -693,6 +702,10 @@ pricing_rules: []`);
         </div>
       )}
 
+      {adminTab === 'users' && <UserManagementAdmin tenantId={tenantId} />}
+      {adminTab === 'platform' && <PlatformManagementAdmin />}
+      {adminTab === 'audit' && <AuditLogAdmin />}
+
       {adminTab === 'ai' && (
         <div className="panel-card">
           <h3>AI Pricing Engine (Template Processor)</h3>
@@ -709,34 +722,37 @@ pricing_rules: []`);
             </div>
           )}
         </div>
-      )}
+      )
+      }
 
       {adminTab === 'formula' && <FormulaBuilderAdmin />}
 
-      {adminTab === 'data' && (
-        <div className="admin-layout">
-          <form className="panel-card" onSubmit={handleUpload}>
-            <h3>CSV Upload</h3>
-            <p className="muted">Chunked ingestion for large files. Map your columns to the historical transaction schema.</p>
-            <input type="file" accept=".csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-            <label>Column Mapping JSON</label>
-            <textarea value={mappingJson} onChange={(e) => setMappingJson(e.target.value)} rows={14} />
-            <button className="btn btn-primary" type="submit" disabled={loading || !canAdminManage}>{loading ? 'Importing...' : 'Upload & Import'}</button>
-          </form>
+      {
+        adminTab === 'data' && (
+          <div className="admin-layout">
+            <form className="panel-card" onSubmit={handleUpload}>
+              <h3>CSV Upload</h3>
+              <p className="muted">Chunked ingestion for large files. Map your columns to the historical transaction schema.</p>
+              <input type="file" accept=".csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+              <label>Column Mapping JSON</label>
+              <textarea value={mappingJson} onChange={(e) => setMappingJson(e.target.value)} rows={14} />
+              <button className="btn btn-primary" type="submit" disabled={loading || !canAdminManage}>{loading ? 'Importing...' : 'Upload & Import'}</button>
+            </form>
 
-          <div className="panel-card">
-            <h3>Utilities</h3>
-            <button className="btn" onClick={downloadSampleCsv} type="button">Download Sample CSV Template</button>
-            <button className="btn" onClick={generateFakeData} disabled={loading || !canAdminManage} type="button">Generate 10,000 Sample Rows</button>
-            <button className="btn" onClick={seedWorkflow} disabled={loading || !canAdminManage} type="button">Seed Workflow Rules</button>
-            <button className="btn btn-primary" onClick={runSyncOnce} disabled={loading || !canAdminManage} type="button">Run Sync (Postgres to DuckDB)</button>
+            <div className="panel-card">
+              <h3>Utilities</h3>
+              <button className="btn" onClick={downloadSampleCsv} type="button">Download Sample CSV Template</button>
+              <button className="btn" onClick={generateFakeData} disabled={loading || !canAdminManage} type="button">Generate 10,000 Sample Rows</button>
+              <button className="btn" onClick={seedWorkflow} disabled={loading || !canAdminManage} type="button">Seed Workflow Rules</button>
+              <button className="btn btn-primary" onClick={runSyncOnce} disabled={loading || !canAdminManage} type="button">Run Sync (Postgres to DuckDB)</button>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {adminTab === 'data' && <DataManagementAdmin />}
 
       {result && <div className={result.status === 'ok' ? 'ok-box' : 'error-box'}>{result.message}</div>}
-    </section>
+    </section >
   );
 }

@@ -356,6 +356,7 @@ def ensure_auth_seed_data() -> None:
         "platform.users.manage",
         "platform.audit.read",
         "platform.security.manage",
+        "platform.sync",
     ]
 
     role_to_permissions = {

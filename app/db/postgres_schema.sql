@@ -402,3 +402,18 @@ CREATE INDEX IF NOT EXISTS idx_product_costs_sku_region ON product_costs (produc
 CREATE INDEX IF NOT EXISTS idx_app_users_email ON app_users (email);
 CREATE INDEX IF NOT EXISTS idx_user_tenant_roles_user_tenant ON user_tenant_roles (user_id, tenant_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_hash ON refresh_tokens (token_hash);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    log_id TEXT PRIMARY KEY,
+    actor_user_id TEXT,
+    actor_tenant_id TEXT,
+    target_type TEXT,
+    target_id TEXT,
+    action TEXT,
+    detail JSONB,
+    created_at_epoch BIGINT
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_log_tenant ON audit_log (actor_tenant_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_time ON audit_log (created_at_epoch DESC);
+
