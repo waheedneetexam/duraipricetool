@@ -23,6 +23,7 @@ export function FormulaBuilderAdmin() {
   const [testOutput, setTestOutput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [simulationResults, setSimulationResults] = useState<{ cost: number; result: number }[]>([]);
 
   const activeRule = rules.find((r) => r.id === activeRuleId) || rules[0];
 
@@ -148,30 +149,42 @@ export function FormulaBuilderAdmin() {
       const code = activeRule.generated_code;
       if (!code) throw new Error("No generated code to test.");
 
-      const sampleInput = { cost: 31, list_price: 1500, discount_percent: 0.15, quantity: 50 };
-      const argNames = Object.keys(sampleInput);
-      const argValues = Object.values(sampleInput);
+      const samples = [
+        { cost: 5.00, list_price: 1500, discount_percent: 0.15, quantity: 1 },
+        { cost: 10.00, list_price: 1500, discount_percent: 0.15, quantity: 1 },
+        { cost: 25.00, list_price: 1500, discount_percent: 0.15, quantity: 1 },
+        { cost: 31.00, list_price: 1500, discount_percent: 0.15, quantity: 1 }
+      ];
 
-      const exec = new Function(...argNames, `return ${code};`);
-      const output = exec(...argValues);
+      const results = samples.map(sample => {
+        const argNames = Object.keys(sample);
+        const argValues = Object.values(sample);
+        const exec = new Function(...argNames, `return ${code};`);
+        return {
+          cost: sample.cost,
+          result: Number(exec(...argValues).toFixed(2))
+        };
+      });
+
+      setSimulationResults(results);
 
       const logsObj = {
         system: {
           error: null,
-          generatedCode: code,
-          logs: { ...sampleInput, [activeRule.field_key]: output },
+          generated_code: code,
+          logs: results.map(r => ({ cost: r.cost, [activeRule.field_key]: r.result })),
           success: true
         }
       };
       setTestOutput(JSON.stringify(logsObj, null, 2));
       setMessage('Test run successful.');
     } catch (err) {
+      setSimulationResults([]);
       const errObj = {
         system: {
           error: String(err),
-          generatedCode: activeRule.generated_code || "",
-          logs: { cost: 31, list_type: "10.9333", discount_percent: "-0.823", ceslutime: "200" },
-          successules: { generated: "false" }
+          generated_code: activeRule.generated_code || "",
+          success: false
         }
       };
       setTestOutput(JSON.stringify(errObj, null, 2));
@@ -296,18 +309,18 @@ export function FormulaBuilderAdmin() {
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td>5.00</td>
-                  <td>220.00</td>
-                </tr>
-                <tr>
-                  <td>10.00</td>
-                  <td>225.00</td>
-                </tr>
-                <tr>
-                  <td>25.00</td>
-                  <td>225.00</td>
-                </tr>
+                {simulationResults.length === 0 ? (
+                  <tr>
+                    <td colSpan={2} style={{ textAlign: 'center', color: '#94a3b8' }}>No data. Run test.</td>
+                  </tr>
+                ) : (
+                  simulationResults.map((res, i) => (
+                    <tr key={i}>
+                      <td>{res.cost.toFixed(2)}</td>
+                      <td>{res.result.toFixed(2)}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
