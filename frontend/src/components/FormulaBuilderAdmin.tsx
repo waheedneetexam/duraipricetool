@@ -25,19 +25,22 @@ export function FormulaBuilderAdmin() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [simulationResults, setSimulationResults] = useState<{ cost: number; result: number }[]>([]);
 
-  const activeRule = rules.find((r) => r.id === activeRuleId) || rules[0];
+  // Derived state for the active rule
+  const activeRule = rules.find((r) => r.id === activeRuleId);
 
   useEffect(() => {
     loadRules();
   }, []);
 
-  async function loadRules() {
+  async function loadRules(selectFieldKey?: string) {
     setIsLoading(true);
     try {
+      console.log('Fetching rules for scope: line_item');
       const res = await apiFetch<any>('/admin/field-logic/list?scope=line_item', { method: 'GET' });
       if (res.success && Array.isArray(res.data)) {
+        console.log('Raw rules from backend:', res.data);
         const mapped = res.data.map((r: any) => ({
-          id: r.id,
+          id: r.id || r.logic_id, // Safety: handle both alias and original name
           scope: r.scope,
           field_key: r.field_key,
           logic_text: r.natural_language_logic || r.logic_text || '',
@@ -48,11 +51,22 @@ export function FormulaBuilderAdmin() {
           status: 'saved' as const
         }));
         setRules(mapped);
-        if (mapped.length > 0 && !activeRuleId) {
-          setActiveRuleId(mapped[0].id);
+
+        // Selection Logic: 
+        // 1. If we have a specific field key to select (e.g. after save), find it.
+        // 2. Otherwise, if there is an activeRuleId, try to find it in the new list.
+        // 3. Otherwise, default to the first rule.
+        if (mapped.length > 0) {
+          if (selectFieldKey) {
+            const match = mapped.find((m: any) => m.field_key === selectFieldKey);
+            if (match) setActiveRuleId(match.id!);
+          } else if (!activeRuleId || !mapped.find((m: any) => m.id === activeRuleId)) {
+            setActiveRuleId(mapped[0].id!);
+          }
         }
       }
     } catch (err) {
+      console.error('Failed to load rules:', err);
       setMessage('Failed to load rules.');
     } finally {
       setIsLoading(false);
@@ -140,7 +154,8 @@ export function FormulaBuilderAdmin() {
       });
       if (res.success) {
         setMessage('Rule saved successfully.');
-        loadRules(); // reload to get proper DB IDs
+        // After save, we reload and specify the field_key to stay on this specific rule
+        loadRules(activeRule.field_key);
       } else {
         setMessage(`Save failed: ${res.error}`);
         updateActiveRule({ status: 'error' });
