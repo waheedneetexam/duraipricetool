@@ -158,10 +158,10 @@ export function FormulaBuilderAdmin() {
       if (!code) throw new Error("No generated code to test.");
 
       const samples = [
-        { cost: 5.00, list_price: 1500, discount_percent: 0.15, quantity: 1 },
-        { cost: 10.00, list_price: 1500, discount_percent: 0.15, quantity: 1 },
-        { cost: 25.00, list_price: 1500, discount_percent: 0.15, quantity: 1 },
-        { cost: 31.00, list_price: 1500, discount_percent: 0.15, quantity: 1 }
+        { cost: 5.00, list_price: 100.00, net_price: 85.00, discount_percent: 0.15, quantity: 10 },
+        { cost: 10.00, list_price: 200.00, net_price: 180.00, discount_percent: 0.10, quantity: 5 },
+        { cost: 25.00, list_price: 500.00, net_price: 425.00, discount_percent: 0.15, quantity: 2 },
+        { cost: 31.00, list_price: 1000.00, net_price: 850.00, discount_percent: 0.15, quantity: 1 }
       ];
 
       const results = samples.map(sample => {
@@ -271,6 +271,23 @@ export function FormulaBuilderAdmin() {
               value={activeRule?.logic_text || ''}
               onChange={(e) => updateActiveRule({ logic_text: e.target.value })}
             />
+          </div>
+
+          <div style={{ marginTop: '12px', padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            <h5 style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              ℹ️ Data Context Reference
+            </h5>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '12px' }}>
+              <div>
+                <strong style={{ color: '#475569' }}>quote_line_items</strong>
+                <p style={{ margin: '4px 0', color: '#64748b' }}>Live quote variables: <code style={{ color: '#0ea5e9' }}>net_price</code>, <code style={{ color: '#0ea5e9' }}>list_price</code>, <code style={{ color: '#0ea5e9' }}>cost</code>, <code style={{ color: '#0ea5e9' }}>quantity</code>, <code style={{ color: '#0ea5e9' }}>margin</code>.</p>
+              </div>
+              <div>
+                <strong style={{ color: '#475569' }}>products</strong>
+                <p style={{ margin: '4px 0', color: '#64748b' }}>Catalog data: <code style={{ color: '#0ea5e9' }}>sku</code>, <code style={{ color: '#0ea5e9' }}>category</code>, <code style={{ color: '#0ea5e9' }}>family</code>, <code style={{ color: '#0ea5e9' }}>name</code>.</p>
+              </div>
+            </div>
+            <p style={{ margin: '8px 0 0 0', fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>Tip: Use these names in your logical description for more accurate formula generation.</p>
           </div>
 
           <div className="logic-section" style={{ marginTop: '24px' }}>
