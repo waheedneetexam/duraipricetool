@@ -24,9 +24,37 @@ def _tx_on_postgres() -> bool:
     return DB_ENGINE in {"postgres", "hybrid"}
 
 
+def _get_active_formulas(tenant_id: str) -> list[dict]:
+    if _tx_on_postgres():
+        rows = pg_client.execute(
+            """
+            SELECT field_key, generated_code
+            FROM field_logic_rules
+            WHERE tenant_id = %s AND active = TRUE AND scope = 'line_item'
+            ORDER BY created_at ASC
+            """,
+            (tenant_id,),
+        )
+        return [{"target_field": r["field_key"], "expression": r["generated_code"]} for r in rows]
+    else:
+        df = db_client.fetch_df(
+            """
+            SELECT field_key, generated_code
+            FROM field_logic_rules
+            WHERE tenant_id = ? AND active = TRUE AND scope = 'line_item'
+            ORDER BY created_at ASC
+            """,
+            (tenant_id,),
+        )
+        if df.empty:
+            return []
+        return [{"target_field": r["field_key"], "expression": r["generated_code"]} for r in df.to_dict(orient="records")]
+
+
 def calculate_quote(payload: QuoteCalculationRequest, tenant_id: str = "default") -> dict:
     engine = SafeFormulaEngine()
-    formulas = [f.model_dump() for f in payload.formulas] or DEFAULT_LINE_FORMULAS
+    db_formulas = _get_active_formulas(tenant_id)
+    formulas = [f.model_dump() for f in payload.formulas] or db_formulas or DEFAULT_LINE_FORMULAS
 
     computed_lines = []
     totals = {"total_list_price": 0.0, "total_net_price": 0.0, "total_cost": 0.0, "total_margin": 0.0}

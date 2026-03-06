@@ -210,14 +210,20 @@ def validate_field_logic(tenant_id: str | None, scope: str, field_key: str, logi
     for token in sorted(token for token in quoted_tokens if token in known_column_names):
         dependencies["columns"].append(token)
 
-    generated_code = (
-        f"// Auto-generated field logic for {normalized_scope}.{normalized_field}\n"
-        "export function evaluateField(context) {\n"
-        "  // Replace placeholder with compiled logic\n"
-        f"  // Natural language: {logic[:220]}\n"
-        "  return null;\n"
-        "}\n"
-    )
+    from app.services.ai_service import generate_field_logic
+    
+    try:
+        if not errors:
+            ai_res = generate_field_logic(normalized_scope, normalized_field, logic, list(known_column_names))
+            generated_code = ai_res["generatedCode"]
+            for col in ai_res["dependencies"].get("columns", []):
+                if col not in dependencies["columns"]:
+                    dependencies["columns"].append(col)
+        else:
+            generated_code = ""
+    except Exception as e:
+        warnings.append({"type": "ai_generation_error", "message": str(e), "suggestion": "Check AI Provider API keys or prompt"})
+        generated_code = ""
 
     status = "valid" if not errors else "invalid"
     severity = "error" if errors else ("warning" if warnings else "info")
@@ -455,25 +461,25 @@ def process_ai_pricing_template(tenant_id: str | None, template_text: str) -> di
     if not template:
         raise ValueError("template_text is required")
 
-    sections = {
-        "quote_header_fields": "headerFields",
-        "line_item_fields": "lineItemFields",
-        "pricing_rules": "pricingRules",
-        "table_dependencies": "tableDependencies",
-        "calculation_priorities": "calculationPriorities",
-    }
-    detected = {target: 0 for target in sections.values()}
-    template_lower = template.lower()
-    for needle, target in sections.items():
-        if needle in template_lower:
-            detected[target] = 1
+    from app.services.ai_service import evaluate_pricing_template
+    
+    try:
+        ai_result = evaluate_pricing_template(template)
+        summary = ai_result["summary"]
+        confidence = ai_result["confidence"]
+        detected = ai_result["sectionsDetected"]
+    except Exception as e:
+        # Fallback if API key is missing or prompt fails
+        summary = f"AI Generation Error: {str(e)}"
+        confidence = 0.0
+        detected = {
+            "headerFields": 0,
+            "lineItemFields": 0,
+            "pricingRules": 0,
+            "tableDependencies": 0,
+            "calculationPriorities": 0
+        }
 
-    confidence = round((sum(detected.values()) / max(len(detected), 1)) * 100, 2)
-    summary = (
-        "Template parsed with heuristic analysis. "
-        "Detected sections: "
-        + ", ".join(target for target, count in detected.items() if count > 0)
-    ).strip()
     processed_result = {
         "summary": summary,
         "confidence": confidence,

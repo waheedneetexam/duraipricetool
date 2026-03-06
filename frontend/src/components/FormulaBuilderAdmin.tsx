@@ -1,733 +1,165 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import * as Blockly from 'blockly';
-import { javascriptGenerator, Order } from 'blockly/javascript';
+import { useEffect, useState } from 'react';
+import { apiFetch } from '../api/client';
 
-type FormulaNavTab = 'types' | 'lookups';
-type FormulaStatus = 'draft' | 'saved' | 'invalid' | 'valid';
+type FormulaNavTab = 'formulas';
 
-type FormulaItem = {
-  id: string;
-  name: string;
-  status: FormulaStatus;
-  workspace: Record<string, unknown> | null;
-};
-
-const STORAGE_KEY = 'admin_formula_builder_v1';
-
-const INITIAL_FORMULAS: FormulaItem[] = [
-  { id: 'withoutBroadcastInput', name: 'withoutBroadcastInput', status: 'valid', workspace: null },
-  { id: 'newFormula18', name: 'NewFormula18', status: 'saved', workspace: null },
-  { id: 'JohansAverageCostPlusConditional', name: 'JohansAverageCostPlusConditional', status: 'saved', workspace: null },
-  { id: 'newFormula16', name: 'NewFormula16', status: 'saved', workspace: null },
-  { id: 'TramCostPlus', name: 'TramCostPlus', status: 'saved', workspace: null },
-  { id: 'copyOfcopyOfKRY_Test1', name: 'copyOfcopyOfKRY_Test1', status: 'saved', workspace: null },
-  { id: 'copyOfKRY_Test1', name: 'copyOfKRY_Test1', status: 'saved', workspace: null },
-  { id: 'InputWithLabel', name: 'InputWithLabel', status: 'saved', workspace: null },
-  { id: 'CostPlusNoInput', name: 'CostPlusNoInput', status: 'saved', workspace: null },
-  { id: 'NewFormula13', name: 'NewFormula13', status: 'saved', workspace: null },
-  { id: 'KRY_Test', name: 'KRY_Test', status: 'saved', workspace: null },
-  { id: 'MK_Test', name: 'MK_Test', status: 'saved', workspace: null }
-];
-
-let customBlocksRegistered = false;
-
-const BLOCKLY_THEME = Blockly.Theme.defineTheme('formula_admin_theme', {
-  name: 'formula_admin_theme',
-  base: Blockly.Themes.Zelos,
-  componentStyles: {
-    workspaceBackgroundColour: '#f3f4f6',
-    toolboxBackgroundColour: '#f8fafc',
-    toolboxForegroundColour: '#1e293b',
-    flyoutBackgroundColour: '#f3f4f6',
-    flyoutForegroundColour: '#0f172a',
-    flyoutOpacity: 1,
-    scrollbarColour: '#94a3b8',
-    scrollbarOpacity: 0.4,
-    insertionMarkerColour: '#2563eb',
-    insertionMarkerOpacity: 0.25,
-    markerColour: '#2563eb',
-    cursorColour: '#2563eb'
-  },
-  fontStyle: {
-    family: 'IBM Plex Sans, sans-serif',
-    weight: '500',
-    size: 13
-  },
-  startHats: false
-});
-
-function registerCustomBlocks() {
-  if (customBlocksRegistered) return;
-  customBlocksRegistered = true;
-
-  Blockly.defineBlocksWithJsonArray([
-    // ─── Legacy blocks (kept for backward compat with saved workspaces) ──
-    {
-      type: 'formula_result_set',
-      message0: 'set %1 to %2',
-      args0: [
-        {
-          type: 'field_dropdown',
-          name: 'TARGET',
-          options: [
-            ['Result', 'formula_result'],
-            ['Formula Detail', 'formula_detail']
-          ]
-        },
-        { type: 'input_value', name: 'VALUE', check: ['Number', 'String', 'Boolean'] }
-      ],
-      previousStatement: null,
-      nextStatement: null,
-      colour: 330
-    },
-    {
-      type: 'formula_lookup_take',
-      message0: 'take %1 %2 from %3',
-      args0: [
-        {
-          type: 'field_dropdown',
-          name: 'AGG',
-          options: [['first', 'first'], ['average', 'avg'], ['min', 'min'], ['max', 'max']]
-        },
-        { type: 'field_dropdown', name: 'FIELD', options: [['Cost (Number)', 'cost'], ['List Price (Number)', 'list_price']] },
-        { type: 'field_input', name: 'LOOKUP', text: 'ProductCosts' }
-      ],
-      output: 'Number',
-      colour: 35
-    },
-    {
-      type: 'formula_parameter',
-      message0: 'parameter %1',
-      args0: [{ type: 'field_input', name: 'NAME', text: 'margin' }],
-      output: 'Number',
-      colour: 315
-    },
-    {
-      type: 'formula_input_attr',
-      message0: 'input %1',
-      args0: [
-        {
-          type: 'field_dropdown',
-          name: 'ATTR',
-          options: [
-            ['Cost', 'cost'],
-            ['List Price', 'list_price'],
-            ['Quantity', 'quantity'],
-            ['Discount %', 'discount_percent']
-          ]
-        }
-      ],
-      output: 'Number',
-      colour: 200
-    },
-
-    // ─── Formula Mother Block ─────────────────────────────────────────────
-    {
-      type: 'formula_root',
-      message0: '📐 Formula  result = %1',
-      args0: [{ type: 'input_value', name: 'RESULT' }],
-      colour: 330,
-      tooltip: 'Top-level container — plug your formula expression into the result slot.',
-      helpUrl: '',
-      deletable: false,
-      movable: true,
-      editable: false
-    },
-
-    // ─── Math Blocks ──────────────────────────────────────────────────────
-    {
-      type: 'formula_number',
-      message0: '%1',
-      args0: [{ type: 'field_number', name: 'NUM', value: 0 }],
-      output: 'Number',
-      colour: 230,
-      tooltip: 'A numeric constant.',
-      helpUrl: ''
-    },
-    {
-      type: 'formula_arithmetic',
-      message0: '%1 %2 %3',
-      args0: [
-        { type: 'input_value', name: 'A', check: 'Number' },
-        {
-          type: 'field_dropdown',
-          name: 'OP',
-          options: [['+', 'ADD'], ['−', 'MINUS'], ['×', 'MULTIPLY'], ['÷', 'DIVIDE']]
-        },
-        { type: 'input_value', name: 'B', check: 'Number' }
-      ],
-      inputsInline: true,
-      output: 'Number',
-      colour: 230,
-      tooltip: 'Arithmetic: add, subtract, multiply or divide two numbers.',
-      helpUrl: ''
-    },
-    {
-      type: 'formula_round',
-      message0: '%1 %2',
-      args0: [
-        {
-          type: 'field_dropdown',
-          name: 'MODE',
-          options: [['round (half-up)', 'ROUND'], ['round up', 'CEIL'], ['round down', 'FLOOR']]
-        },
-        { type: 'input_value', name: 'NUM', check: 'Number' }
-      ],
-      inputsInline: true,
-      output: 'Number',
-      colour: 230,
-      tooltip: 'Round a number using the chosen rounding mode.',
-      helpUrl: ''
-    },
-    {
-      type: 'formula_constrain',
-      message0: 'constrain %1 low %2 high %3',
-      args0: [
-        { type: 'input_value', name: 'VALUE', check: 'Number' },
-        { type: 'input_value', name: 'LOW', check: 'Number' },
-        { type: 'input_value', name: 'HIGH', check: 'Number' }
-      ],
-      inputsInline: true,
-      output: 'Number',
-      colour: 230,
-      tooltip: 'Limit a value between an optional minimum (low) and maximum (high).',
-      helpUrl: ''
-    },
-    {
-      type: 'formula_no_price',
-      message0: '🚫 No Price',
-      previousStatement: null,
-      nextStatement: null,
-      colour: 0,
-      tooltip: 'Use as the final block when this formula should return no value.',
-      helpUrl: ''
-    },
-
-    // ─── Logic Blocks ─────────────────────────────────────────────────────
-    {
-      type: 'formula_if_then_else',
-      message0: 'if %1 then %2 else %3',
-      args0: [
-        { type: 'input_value', name: 'IF', check: 'Boolean' },
-        { type: 'input_value', name: 'THEN' },
-        { type: 'input_value', name: 'ELSE' }
-      ],
-      inputsInline: true,
-      output: null,
-      colour: 210,
-      tooltip: 'Returns THEN if condition is true, otherwise ELSE.',
-      helpUrl: ''
-    },
-    {
-      type: 'formula_evaluate',
-      message0: 'evaluate %1',
-      args0: [{ type: 'input_value', name: 'SUBJECT' }],
-      message1: 'when %1 return %2',
-      args1: [
-        { type: 'input_value', name: 'WHEN0' },
-        { type: 'input_value', name: 'RETURN0' }
-      ],
-      message2: 'when %1 return %2',
-      args2: [
-        { type: 'input_value', name: 'WHEN1' },
-        { type: 'input_value', name: 'RETURN1' }
-      ],
-      message3: 'when %1 return %2',
-      args3: [
-        { type: 'input_value', name: 'WHEN2' },
-        { type: 'input_value', name: 'RETURN2' }
-      ],
-      message4: 'else return %1',
-      args4: [{ type: 'input_value', name: 'DEFAULT' }],
-      output: null,
-      colour: 210,
-      tooltip: 'Switch-case: evaluates subject against multiple conditions and returns the first match.',
-      helpUrl: ''
-    },
-    {
-      type: 'formula_logical_op',
-      message0: '%1 %2 %3',
-      args0: [
-        { type: 'input_value', name: 'A', check: 'Boolean' },
-        {
-          type: 'field_dropdown',
-          name: 'OP',
-          options: [['and', 'AND'], ['or', 'OR']]
-        },
-        { type: 'input_value', name: 'B', check: 'Boolean' }
-      ],
-      inputsInline: true,
-      output: 'Boolean',
-      colour: 210,
-      tooltip: 'Combine two conditions with AND or OR.',
-      helpUrl: ''
-    },
-    {
-      type: 'formula_comparison',
-      message0: '%1 %2 %3',
-      args0: [
-        { type: 'input_value', name: 'A' },
-        {
-          type: 'field_dropdown',
-          name: 'OP',
-          options: [['=', 'EQ'], ['≠', 'NEQ'], ['<', 'LT'], ['≤', 'LTE'], ['>', 'GT'], ['≥', 'GTE']]
-        },
-        { type: 'input_value', name: 'B' }
-      ],
-      inputsInline: true,
-      output: 'Boolean',
-      colour: 210,
-      tooltip: 'Compare two values.',
-      helpUrl: ''
-    },
-    {
-      type: 'formula_is_empty',
-      message0: '%1 %2',
-      args0: [
-        {
-          type: 'field_dropdown',
-          name: 'MODE',
-          options: [['is empty', 'EMPTY'], ['is not empty', 'NOT_EMPTY']]
-        },
-        { type: 'input_value', name: 'VALUE' }
-      ],
-      inputsInline: true,
-      output: 'Boolean',
-      colour: 210,
-      tooltip: 'Returns true if the value is (or is not) empty / null.',
-      helpUrl: ''
-    },
-    {
-      type: 'formula_boolean',
-      message0: '%1',
-      args0: [
-        {
-          type: 'field_dropdown',
-          name: 'BOOL',
-          options: [['true', 'TRUE'], ['false', 'FALSE']]
-        }
-      ],
-      output: 'Boolean',
-      colour: 210,
-      tooltip: 'A boolean constant: true or false.',
-      helpUrl: ''
-    }
-  ]);
-
-  // ─── Generators ────────────────────────────────────────────────────────
-  // Legacy
-  javascriptGenerator.forBlock['formula_result_set'] = (block) => {
-    const target = block.getFieldValue('TARGET');
-    const value = javascriptGenerator.valueToCode(block, 'VALUE', Order.NONE) || 'null';
-    return `result["${target}"] = ${value};\n`;
-  };
-
-  javascriptGenerator.forBlock['formula_lookup_take'] = (block) => {
-    const agg = block.getFieldValue('AGG');
-    const field = block.getFieldValue('FIELD');
-    const lookup = block.getFieldValue('LOOKUP').replace(/"/g, '');
-    return [`lookupFn("${lookup}", "${field}", "${agg}", input)`, Order.FUNCTION_CALL];
-  };
-
-  javascriptGenerator.forBlock['formula_parameter'] = (block) => {
-    const key = block.getFieldValue('NAME').replace(/"/g, '');
-    return [`Number(params["${key}"] ?? 0)`, Order.ATOMIC];
-  };
-
-  javascriptGenerator.forBlock['formula_input_attr'] = (block) => {
-    const attr = block.getFieldValue('ATTR');
-    return [`input.${attr}`, Order.ATOMIC];
-  };
-
-  // Formula mother block — emit result expression as an assignment
-  javascriptGenerator.forBlock['formula_root'] = (block) => {
-    const result = javascriptGenerator.valueToCode(block, 'RESULT', Order.NONE) || 'null';
-    return `result["formula_result"] = ${result};\n`;
-  };
-
-  // Math
-  javascriptGenerator.forBlock['formula_number'] = (block) => {
-    return [String(block.getFieldValue('NUM') ?? '0'), Order.ATOMIC];
-  };
-
-  javascriptGenerator.forBlock['formula_arithmetic'] = (block) => {
-    const a = javascriptGenerator.valueToCode(block, 'A', Order.NONE) || '0';
-    const b = javascriptGenerator.valueToCode(block, 'B', Order.NONE) || '0';
-    const opMap: Record<string, string> = { ADD: '+', MINUS: '-', MULTIPLY: '*', DIVIDE: '/' };
-    const op = opMap[block.getFieldValue('OP')] ?? '+';
-    return [`(${a} ${op} ${b})`, Order.ADDITION];
-  };
-
-  javascriptGenerator.forBlock['formula_round'] = (block) => {
-    const num = javascriptGenerator.valueToCode(block, 'NUM', Order.NONE) || '0';
-    const fnMap: Record<string, string> = { ROUND: 'Math.round', CEIL: 'Math.ceil', FLOOR: 'Math.floor' };
-    const fn = fnMap[block.getFieldValue('MODE')] ?? 'Math.round';
-    return [`${fn}(${num})`, Order.FUNCTION_CALL];
-  };
-
-  javascriptGenerator.forBlock['formula_constrain'] = (block) => {
-    const val = javascriptGenerator.valueToCode(block, 'VALUE', Order.NONE) || '0';
-    const low = javascriptGenerator.valueToCode(block, 'LOW', Order.NONE);
-    const high = javascriptGenerator.valueToCode(block, 'HIGH', Order.NONE);
-    let expr = val;
-    if (low) expr = `Math.max(${low}, ${expr})`;
-    if (high) expr = `Math.min(${high}, ${expr})`;
-    return [expr, Order.FUNCTION_CALL];
-  };
-
-  javascriptGenerator.forBlock['formula_no_price'] = () => {
-    return 'result["formula_result"] = null;\n';
-  };
-
-  // Logic
-  javascriptGenerator.forBlock['formula_if_then_else'] = (block) => {
-    const cond = javascriptGenerator.valueToCode(block, 'IF', Order.NONE) || 'false';
-    const then = javascriptGenerator.valueToCode(block, 'THEN', Order.NONE) || 'null';
-    const els = javascriptGenerator.valueToCode(block, 'ELSE', Order.NONE) || 'null';
-    return [`((${cond}) ? (${then}) : (${els}))`, Order.CONDITIONAL];
-  };
-
-  javascriptGenerator.forBlock['formula_evaluate'] = (block) => {
-    const subject = javascriptGenerator.valueToCode(block, 'SUBJECT', Order.NONE) || 'null';
-    const cases: string[] = [];
-    for (let i = 0; i < 3; i++) {
-      const when = javascriptGenerator.valueToCode(block, `WHEN${i}`, Order.NONE);
-      const ret = javascriptGenerator.valueToCode(block, `RETURN${i}`, Order.NONE) || 'null';
-      if (when) cases.push(`(${subject}) === (${when}) ? (${ret})`);
-    }
-    const def = javascriptGenerator.valueToCode(block, 'DEFAULT', Order.NONE) || 'null';
-    const expr = cases.length ? `(${cases.join(' : ')} : ${def})` : def;
-    return [expr, Order.CONDITIONAL];
-  };
-
-  javascriptGenerator.forBlock['formula_logical_op'] = (block) => {
-    const a = javascriptGenerator.valueToCode(block, 'A', Order.NONE) || 'false';
-    const b = javascriptGenerator.valueToCode(block, 'B', Order.NONE) || 'false';
-    const op = block.getFieldValue('OP') === 'AND' ? '&&' : '||';
-    return [`(${a} ${op} ${b})`, Order.LOGICAL_AND];
-  };
-
-  javascriptGenerator.forBlock['formula_comparison'] = (block) => {
-    const a = javascriptGenerator.valueToCode(block, 'A', Order.NONE) || '0';
-    const b = javascriptGenerator.valueToCode(block, 'B', Order.NONE) || '0';
-    const opMap: Record<string, string> = { EQ: '===', NEQ: '!==', LT: '<', LTE: '<=', GT: '>', GTE: '>=' };
-    const op = opMap[block.getFieldValue('OP')] ?? '===';
-    return [`(${a} ${op} ${b})`, Order.EQUALITY];
-  };
-
-  javascriptGenerator.forBlock['formula_is_empty'] = (block) => {
-    const val = javascriptGenerator.valueToCode(block, 'VALUE', Order.NONE) || 'null';
-    const check = `(${val} === null || ${val} === undefined || ${val} === '')`;
-    return [block.getFieldValue('MODE') === 'EMPTY' ? check : `!(${check})`, Order.LOGICAL_NOT];
-  };
-
-  javascriptGenerator.forBlock['formula_boolean'] = (block) => {
-    return [block.getFieldValue('BOOL') === 'TRUE' ? 'true' : 'false', Order.ATOMIC];
-  };
-}
-
-function getToolbox() {
-  const comingSoon = [{ kind: 'label', text: '— Coming Soon —' }];
-  return {
-    kind: 'categoryToolbox',
-    contents: [
-      // Formula mother block — always first
-      {
-        kind: 'category',
-        name: '📐 Formula',
-        colour: '330',
-        contents: [{ kind: 'block', type: 'formula_root' }]
-      },
-      // Dummy / coming-soon categories
-      { kind: 'category', name: 'Parameters', colour: '315', contents: comingSoon },
-      { kind: 'category', name: 'Data Lookups', colour: '35', contents: comingSoon },
-      { kind: 'category', name: 'Constants', colour: '95', contents: comingSoon },
-      { kind: 'category', name: 'Inputs', colour: '280', contents: comingSoon },
-      { kind: 'category', name: 'Functions', colour: '260', contents: comingSoon },
-      // Math blocks
-      {
-        kind: 'category',
-        name: 'Math',
-        colour: '230',
-        contents: [
-          { kind: 'block', type: 'formula_number' },
-          { kind: 'block', type: 'formula_arithmetic' },
-          { kind: 'block', type: 'formula_round' },
-          { kind: 'block', type: 'formula_constrain' },
-          { kind: 'block', type: 'formula_no_price' }
-        ]
-      },
-      // Logic blocks
-      {
-        kind: 'category',
-        name: 'Logic',
-        colour: '210',
-        contents: [
-          { kind: 'block', type: 'formula_if_then_else' },
-          { kind: 'block', type: 'formula_evaluate' },
-          { kind: 'block', type: 'formula_logical_op' },
-          { kind: 'block', type: 'formula_comparison' },
-          { kind: 'block', type: 'formula_is_empty' },
-          { kind: 'block', type: 'formula_boolean' }
-        ]
-      }
-    ]
-  };
-}
-
-function collectWarnings(workspace: Blockly.WorkspaceSvg): string[] {
-  const warnings: string[] = [];
-  const blocks = workspace.getAllBlocks(false);
-
-  const hasRoot = blocks.some((b) => b.type === 'formula_root');
-  if (!hasRoot) warnings.push('A Formula (mother) block is required on the canvas.');
-
-  const dangling = blocks.filter((b) => Boolean(b.outputConnection) && !b.outputConnection?.isConnected()).length;
-  if (dangling) warnings.push(`${dangling} value block(s) are not connected.`);
-
-  return warnings;
-}
-
-function lookupFn(table: string, field: string, agg: string, input: Record<string, number>): number {
-  const data: Record<string, Array<Record<string, number | string>>> = {
-    ProductCosts: [
-      { sku: 'SKU-1001', cost: 800, list_price: 1190 },
-      { sku: 'SKU-2040', cost: 275, list_price: 435 }
-    ]
-  };
-  const rows = data[table] ?? [];
-  const candidates = rows
-    .filter((r) => String(r.sku ?? '') === String(input.sku ?? ''))
-    .map((r) => Number(r[field] ?? 0))
-    .filter((v) => Number.isFinite(v));
-
-  if (!candidates.length) return 0;
-  if (agg === 'first') return candidates[0];
-  if (agg === 'avg') return candidates.reduce((a, b) => a + b, 0) / candidates.length;
-  if (agg === 'min') return Math.min(...candidates);
-  if (agg === 'max') return Math.max(...candidates);
-  return candidates[0];
+interface FormulaRule {
+  id?: string;
+  scope: string;
+  field_key: string;
+  logic_text: string;
+  generated_code: string;
+  explanation?: string;
+  dependencies?: Record<string, unknown>;
+  active: boolean;
+  status?: 'draft' | 'saved' | 'saving' | 'error';
 }
 
 export function FormulaBuilderAdmin() {
-  const [navTab, setNavTab] = useState<FormulaNavTab>('types');
-  const [showAddMenu, setShowAddMenu] = useState(false);
-  const [formulas, setFormulas] = useState<FormulaItem[]>(INITIAL_FORMULAS);
-  const [activeFormulaId, setActiveFormulaId] = useState(INITIAL_FORMULAS[1].id);
+  const [navTab, setNavTab] = useState<FormulaNavTab>('formulas');
+  const [rules, setRules] = useState<FormulaRule[]>([]);
+  const [activeRuleId, setActiveRuleId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [testOutput, setTestOutput] = useState('');
-  const [warnings, setWarnings] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  const blocklyHostRef = useRef<HTMLDivElement | null>(null);
-  const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
-  const isLoadingRef = useRef(false);
-
-  const activeFormula = useMemo(
-    () => formulas.find((f) => f.id === activeFormulaId) ?? formulas[0],
-    [formulas, activeFormulaId]
-  );
+  const activeRule = rules.find((r) => r.id === activeRuleId) || rules[0];
 
   useEffect(() => {
-    registerCustomBlocks();
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw) as FormulaItem[];
-        if (Array.isArray(parsed) && parsed.length) {
-          setFormulas(parsed);
-          setActiveFormulaId(parsed[0].id);
-        }
-      } catch {
-        // ignore
-      }
-    }
+    loadRules();
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(formulas));
-  }, [formulas]);
-
-  // ── Effect 1: inject Blockly ONCE (no activeFormula dependency) ─────────
-  // IMPORTANT: keep activeFormula out of this effect's dependency array.
-  // Having it here caused Blockly to be disposed + re-injected on every
-  // formula switch, which corrupted the SVG and broke pointer events
-  // (blocks became unclickable / undraggable).
-  const activeFormulaRef = useRef(activeFormula);
-  activeFormulaRef.current = activeFormula;
-
-  useEffect(() => {
-    if (!blocklyHostRef.current) return;
-
-    const ws = Blockly.inject(blocklyHostRef.current, {
-      toolbox: getToolbox(),
-      renderer: 'zelos',
-      theme: BLOCKLY_THEME,
-      trashcan: true,
-      sounds: false,
-      zoom: {
-        controls: true,
-        wheel: true,
-        startScale: 0.88,
-        maxScale: 2,
-        minScale: 0.45,
-        scaleSpeed: 1.12,
-        pinch: true
-      },
-      move: { drag: true, wheel: true, scrollbars: true },
-      grid: { spacing: 20, length: 3, colour: '#d5dbe5', snap: true }
-    });
-
-    // Force Blockly to read the container's actual pixel dimensions immediately
-    // after injection. Without this, the SVG canvas has 0 size and blocks float.
-    Blockly.svgResize(ws);
-
-    // Keep the canvas in sync whenever the host element is resized
-    const ro = new ResizeObserver(() => Blockly.svgResize(ws));
-    ro.observe(blocklyHostRef.current!);
-
-    // Use a ref to always read the latest activeFormula without re-running inject
-    ws.addChangeListener(() => {
-      const current = activeFormulaRef.current;
-      if (isLoadingRef.current || !current) return;
-      const snapshot = Blockly.serialization.workspaces.save(ws);
-      const wsWarnings = collectWarnings(ws);
-      setWarnings(wsWarnings);
-      setFormulas((prev) =>
-        prev.map((f) =>
-          f.id === current.id
-            ? { ...f, workspace: snapshot, status: wsWarnings.length ? 'invalid' : 'saved' }
-            : f
-        )
-      );
-    });
-
-    workspaceRef.current = ws;
-    return () => {
-      ro.disconnect();
-      ws.dispose();
-      workspaceRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // intentionally empty — inject runs once only
-
-  // ── Effect 2: load workspace content whenever activeFormula changes ──────
-  useEffect(() => {
-    const ws = workspaceRef.current;
-    if (!ws || !activeFormula) return;
-
-    isLoadingRef.current = true;
-    ws.clear();
-    if (activeFormula.workspace) {
-      Blockly.serialization.workspaces.load(activeFormula.workspace, ws);
-    }
-
-    // Ensure the Formula mother block is always present
-    const hasRoot = ws.getAllBlocks(false).some((b) => b.type === 'formula_root');
-    if (!hasRoot) {
-      const rootBlock = ws.newBlock('formula_root');
-      rootBlock.initSvg();
-      rootBlock.render();
-      rootBlock.moveBy(60, 60);
-      // Explicitly enable dragging on the mother block instance
-      rootBlock.setMovable(true);
-      rootBlock.setDeletable(false);
-    }
-
-    setWarnings(collectWarnings(ws));
-    isLoadingRef.current = false;
-  }, [activeFormula]);
-
-  function addType() {
-    const nextIndex = formulas.length + 1;
-    const next: FormulaItem = {
-      id: `newFormula${nextIndex}`,
-      name: `NewFormula${nextIndex}`,
-      status: 'draft',
-      workspace: null
-    };
-    setFormulas((prev) => [next, ...prev]);
-    setActiveFormulaId(next.id);
-    setShowAddMenu(false);
-    setMessage('New type added.');
-  }
-
-  function importFormula(file: File | null) {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(String(reader.result ?? '')) as FormulaItem;
-        const imported: FormulaItem = {
-          id: `imported_${Date.now()}`,
-          name: parsed.name || `Imported_${formulas.length + 1}`,
-          status: 'draft',
-          workspace: parsed.workspace ?? null
-        };
-        setFormulas((prev) => [imported, ...prev]);
-        setActiveFormulaId(imported.id);
-        setMessage('Formula imported.');
-      } catch {
-        setMessage('Import failed: invalid JSON.');
+  async function loadRules() {
+    setIsLoading(true);
+    try {
+      const res = await apiFetch<any>('/admin/field-logic/list?scope=line_item', { method: 'GET' });
+      if (res.success && Array.isArray(res.data)) {
+        const mapped = res.data.map((r: any) => ({
+          id: r.id,
+          scope: r.scope,
+          field_key: r.field_key,
+          logic_text: r.logic_text,
+          generated_code: r.generated_code,
+          explanation: r.explanation,
+          dependencies: r.dependencies,
+          active: r.active,
+          status: 'saved' as const
+        }));
+        setRules(mapped);
+        if (mapped.length > 0 && !activeRuleId) {
+          setActiveRuleId(mapped[0].id);
+        }
       }
-    };
-    reader.readAsText(file);
+    } catch (err) {
+      setMessage('Failed to load rules.');
+    } finally {
+      setIsLoading(false);
+    }
   }
 
-  function exportFormula() {
-    if (!activeFormula) return;
-    const ws = workspaceRef.current;
-    const payload: FormulaItem = {
-      ...activeFormula,
-      workspace: ws ? Blockly.serialization.workspaces.save(ws) : activeFormula.workspace,
-      status: warnings.length ? 'invalid' : 'saved'
+  function addNewRule() {
+    const newRule: FormulaRule = {
+      id: `draft_${Date.now()}`,
+      scope: 'line_item',
+      field_key: 'new_field',
+      logic_text: 'Describe how this field is calculated...',
+      generated_code: '',
+      active: true,
+      status: 'draft'
     };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${payload.name}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    setMessage('Formula exported.');
+    setRules((prev) => [newRule, ...prev]);
+    setActiveRuleId(newRule.id!);
   }
 
-  function validateFormula() {
-    const ws = workspaceRef.current;
-    if (!ws || !activeFormula) return;
-    const wsWarnings = collectWarnings(ws);
-    setWarnings(wsWarnings);
-    setFormulas((prev) =>
-      prev.map((f) => (f.id === activeFormula.id ? { ...f, status: wsWarnings.length ? 'invalid' : 'valid' } : f))
+  function updateActiveRule(updates: Partial<FormulaRule>) {
+    setRules((prev) =>
+      prev.map((r) => {
+        if (r.id === activeRule?.id) {
+          return { ...r, ...updates, status: 'draft' };
+        }
+        return r;
+      })
     );
-    setMessage(wsWarnings.length ? 'Validation found issues.' : 'Formula is valid.');
+  }
+
+  async function generateAILogic() {
+    if (!activeRule) return;
+    setIsGenerating(true);
+    setMessage('Generating AI logic...');
+    try {
+      const payload = {
+        scope: activeRule.scope,
+        field_key: activeRule.field_key,
+        logic_text: activeRule.logic_text
+      };
+      const res = await apiFetch<any>('/admin/field-logic/validate', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      if (res.success) {
+        updateActiveRule({
+          generated_code: res.data.generatedCode,
+          dependencies: res.data.dependencies,
+        });
+        setMessage('AI Logic generated successfully! Please test before saving.');
+      } else {
+        setMessage(`Generation failed: ${res.error}`);
+      }
+    } catch (e) {
+      setMessage('Error connecting to AI service.');
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
+  async function saveRule() {
+    if (!activeRule) return;
+    try {
+      updateActiveRule({ status: 'saving' });
+      const payload = {
+        scope: activeRule.scope,
+        field_key: activeRule.field_key,
+        logic_text: activeRule.logic_text,
+        generated_code: activeRule.generated_code,
+        explanation: activeRule.explanation || "AI Generated",
+        dependencies: activeRule.dependencies || {}
+      };
+      const res = await apiFetch<any>('/admin/field-logic/save', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      if (res.success) {
+        setMessage('Rule saved successfully.');
+        loadRules(); // reload to get proper DB IDs
+      } else {
+        setMessage(`Save failed: ${res.error}`);
+        updateActiveRule({ status: 'error' });
+      }
+    } catch (e) {
+      setMessage('Error saving rule.');
+      updateActiveRule({ status: 'error' });
+    }
   }
 
   function runTest() {
-    const ws = workspaceRef.current;
-    if (!ws || !activeFormula) return;
-    const code = javascriptGenerator.workspaceToCode(ws);
+    if (!activeRule) return;
     try {
-      const exec = new Function(
-        'input',
-        'params',
-        'lookupFn',
-        'result',
-        `${code}\nreturn result;`
-      ) as (
-        input: Record<string, number | string>,
-        params: Record<string, number>,
-        lookupFnImpl: typeof lookupFn,
-        result: Record<string, unknown>
-      ) => Record<string, unknown>;
+      const code = activeRule.generated_code;
+      if (!code) throw new Error("No generated code to test.");
 
       const sampleInput = { sku: 'SKU-1001', cost: 780, list_price: 1200, quantity: 20, discount_percent: 0.11 };
-      const output = exec(sampleInput, { margin: 0.2 }, lookupFn, {});
-      setTestOutput(JSON.stringify({ input: sampleInput, output, generatedCode: code }, null, 2));
-      setMessage('Test run completed.');
+      const argNames = Object.keys(sampleInput);
+      const argValues = Object.values(sampleInput);
+
+      // The AI generates Python math like `list_price * (1 - discount_percent)` which evaluates identically in JS
+      const exec = new Function(...argNames, `return ${code};`);
+      const output = exec(...argValues);
+
+      setTestOutput(JSON.stringify({ input: sampleInput, 'Math Formula': code, output }, null, 2));
+      setMessage('Test run successful.');
     } catch (err) {
-      setTestOutput(JSON.stringify({ error: String(err), generatedCode: code }, null, 2));
+      setTestOutput(JSON.stringify({ error: String(err), generatedCode: activeRule.generated_code }, null, 2));
       setMessage('Test run failed.');
     }
   }
@@ -736,90 +168,82 @@ export function FormulaBuilderAdmin() {
     <section className="formula-admin panel-card">
       <div className="formula-admin-head">
         <div className="formula-admin-title-row">
-          <button className="formula-link-btn" type="button" aria-label="Back">&larr;</button>
-          <h3>Edit Types</h3>
+          <h3>AI Pricing Rules Engine</h3>
         </div>
         <div className="formula-admin-tabs">
-          <button className={navTab === 'types' ? 'active' : ''} onClick={() => setNavTab('types')} type="button">Types</button>
-          <button className={navTab === 'lookups' ? 'active' : ''} onClick={() => setNavTab('lookups')} type="button">Data Lookups</button>
+          <button className={navTab === 'formulas' ? 'active' : ''} onClick={() => setNavTab('formulas')} type="button">Rules</button>
         </div>
       </div>
 
       <div className="formula-admin-body">
         <aside className="formula-left-pane">
           <div className="formula-pane-head">
-            <h4>Types</h4>
+            <h4>Active Rules</h4>
             <div className="formula-add-wrap">
-              <button className="btn formula-add-btn" type="button" onClick={() => setShowAddMenu((v) => !v)}>
-                Add <span className="caret">▾</span>
+              <button className="btn formula-add-btn" type="button" onClick={addNewRule}>
+                + New Rule
               </button>
-              {showAddMenu && (
-                <div className="formula-add-menu">
-                  <button type="button" onClick={addType}>Add Type</button>
-                  <label>
-                    Import
-                    <input type="file" accept="application/json,.json" onChange={(e) => importFormula(e.target.files?.[0] ?? null)} />
-                  </label>
-                </div>
-              )}
             </div>
           </div>
 
           <div className="formula-list">
-            {formulas.map((formula) => (
+            {isLoading && <p>Loading rules...</p>}
+            {rules.map((rule) => (
               <button
-                key={formula.id}
+                key={rule.id}
                 type="button"
-                className={`formula-list-item ${activeFormulaId === formula.id ? 'active' : ''}`}
-                onClick={() => setActiveFormulaId(formula.id)}
+                className={`formula-list-item ${activeRule?.id === rule.id ? 'active' : ''}`}
+                onClick={() => setActiveRuleId(rule.id!)}
               >
-                {formula.name}
+                {rule.field_key} {rule.status === 'draft' ? '(Draft)' : ''}
               </button>
             ))}
-          </div>
-
-          <div className="formula-drafts">
-            <h5>Drafts</h5>
-            <button type="button" className="formula-list-item active">{activeFormula?.name ?? 'NewFormula'}</button>
           </div>
         </aside>
 
         <main className="formula-main-pane">
           <div className="formula-main-head">
             <div>
-              <h3>{activeFormula?.name ?? 'NewFormula'}</h3>
+              <h3>Target Field: <input className="input" style={{ marginLeft: '10px' }} value={activeRule?.field_key || ''} onChange={(e) => updateActiveRule({ field_key: e.target.value })} /></h3>
               <div className="formula-status-row">
-                <span className="status-dot" /> {activeFormula?.status === 'draft' ? 'Draft' : 'Saved'}
-                <span>|</span>
-                <span>Saved</span>
-                <span>|</span>
-                <span className={activeFormula?.status === 'invalid' ? 'status-invalid' : ''}>{activeFormula?.status === 'valid' ? 'Valid' : 'Invalid'}</span>
+                <span className="status-dot" /> Status: {activeRule?.status || 'Unknown'}
               </div>
             </div>
             <div className="formula-head-actions">
-              <button className="btn" type="button" onClick={validateFormula}>Validate</button>
+              <button className="btn btn-primary" type="button" onClick={generateAILogic} disabled={isGenerating}>
+                {isGenerating ? 'Generating...' : '✨ Generate with AI'}
+              </button>
               <button className="btn" type="button" onClick={runTest}>Test Run</button>
-              <button className="btn" type="button" onClick={exportFormula}>Export</button>
+              <button className="btn btn-success" type="button" onClick={saveRule}>Save Rule</button>
             </div>
           </div>
 
           {message && <div className="formula-banner">{message}</div>}
-          {warnings.length > 0 && (
-            <div className="formula-warning-list">
-              {warnings.map((warning) => <p key={warning}>{warning}</p>)}
-            </div>
-          )}
 
-          <div className="formula-workbench">
-            <div className="formula-canvas-area blockly-theme-wrap">
-              <div className="formula-blockly-host" ref={blocklyHostRef} />
+          <div className="formula-workbench" style={{ display: 'flex', gap: '2rem', padding: '1rem', flexDirection: 'column' }}>
+            <div className="formula-nlp-area" style={{ flex: 1 }}>
+              <h4>Natural Language Logic</h4>
+              <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '0.5rem' }}>
+                Describe how to calculate this field. Ensure any variables you mention match actual columns (e.g., list_price, discount_percent, cost, quantity).
+              </p>
+              <textarea
+                value={activeRule?.logic_text || ''}
+                onChange={(e) => updateActiveRule({ logic_text: e.target.value })}
+                rows={5}
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '1rem', fontFamily: 'inherit' }}
+              />
+
+              <h4 style={{ marginTop: '1.5rem' }}>Generated Formula</h4>
+              <pre style={{ backgroundColor: '#f1f5f9', padding: '1rem', borderRadius: '4px', border: '1px solid #e2e8f0', minHeight: '60px' }}>
+                {activeRule?.generated_code || "Formula will appear here after clicking Generate..."}
+              </pre>
             </div>
 
-            <aside className="formula-output-pane">
-              <h4>Sample Export/Test Output</h4>
-              {!testOutput && <div className="empty">Run test to generate sample export data.</div>}
+            <aside className="formula-output-pane" style={{ flex: 1, backgroundColor: '#1e293b', color: '#f8fafc', padding: '1rem', borderRadius: '6px' }}>
+              <h4 style={{ color: '#94a3b8', margin: 0, paddingBottom: '0.5rem', borderBottom: '1px solid #334155' }}>Test Simulator Output</h4>
+              {!testOutput && <div className="empty" style={{ marginTop: '1rem', color: '#64748b' }}>Run a test to simulate calculations on a sample line item...</div>}
               {testOutput && (
-                <pre>{testOutput}</pre>
+                <pre style={{ marginTop: '1rem', whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '0.85rem' }}>{testOutput}</pre>
               )}
             </aside>
           </div>

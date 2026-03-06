@@ -1,0 +1,33 @@
+{
+    "mcpServers": {
+        "postgres": {
+            "command": "ssh",
+            "args": [
+                "-i",
+                "/home/waheed/Work/Anti-Gravity/PhotonNetwork/Server/Oracle/ssh-key-2026-01-09.key",
+                "-o",
+                "StrictHostKeyChecking=no",
+                "waheed@129.151.152.207",
+                "npx",
+                "-y",
+                "@modelcontextprotocol/server-postgres",
+                "postgresql://postgres:postgres@127.0.0.1:5432/duraipricing"
+            ]
+        },
+        "filesystem": {
+            "command": "ssh",
+            "args": [
+                "-i",
+                "/home/waheed/Work/Anti-Gravity/PhotonNetwork/Server/Oracle/ssh-key-2026-01-09.key",
+                "-o",
+                "StrictHostKeyChecking=no",
+                "waheed@129.151.152.207",
+                "npx",
+                "-y",
+                "@modelcontextprotocol/server-filesystem",
+                "/home/waheed/DuraiPricingTool/app",
+                "/home/waheed/DuraiPricingTool/frontend"
+            ]
+        }
+    }
+}
