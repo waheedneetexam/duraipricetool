@@ -215,7 +215,7 @@ def validate_field_logic(tenant_id: str | None, scope: str, field_key: str, logi
     try:
         if not errors:
             ai_res = generate_field_logic(normalized_scope, normalized_field, logic, list(known_column_names))
-            generated_code = ai_res["generatedCode"]
+            generated_code = ai_res["generated_code"]
             for col in ai_res["dependencies"].get("columns", []):
                 if col not in dependencies["columns"]:
                     dependencies["columns"].append(col)
@@ -277,7 +277,7 @@ def validate_field_logic(tenant_id: str | None, scope: str, field_key: str, logi
         "errors": errors,
         "warnings": warnings,
         "dependencies": dependencies,
-        "generatedCode": generated_code,
+        "generated_code": generated_code,
     }
 
 

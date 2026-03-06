@@ -86,7 +86,7 @@ def generate_field_logic(scope: str, field_key: str, logic_text: str, available_
         )
         data = json.loads(response.choices[0].message.content)
         return {
-            "generatedCode": data.get("formula", ""),
+            "generated_code": data.get("formula", ""),
             "explanation": data.get("explanation", ""),
             "dependencies": {
                 "tables": [],
