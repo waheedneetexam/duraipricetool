@@ -40,30 +40,28 @@ export function FormulaBuilderAdmin() {
       if (res.success && Array.isArray(res.data)) {
         console.log('Raw rules from backend:', res.data);
         const mapped = res.data.map((r: any) => ({
-          id: r.id || r.logic_id, // Safety: handle both alias and original name
-          scope: r.scope,
-          field_key: r.field_key,
-          logic_text: r.natural_language_logic || r.logic_text || '',
-          generated_code: r.generated_code || '',
+          id: r.id || r.logic_id || r.logicId,
+          scope: r.scope || 'line_item',
+          field_key: r.field_key || r.fieldKey,
+          logic_text: r.natural_language_logic || r.logic_text || r.logicText || '',
+          generated_code: r.generated_code || r.generatedCode || '',
           explanation: r.explanation || '',
           dependencies: r.dependencies_json || r.dependencies || {},
           active: r.active,
           status: 'saved' as const
-        }));
+        })).filter((r: FormulaRule) => Boolean(r.id && r.field_key));
         setRules(mapped);
 
-        // Selection Logic: 
-        // 1. If we have a specific field key to select (e.g. after save), find it.
-        // 2. Otherwise, if there is an activeRuleId, try to find it in the new list.
-        // 3. Otherwise, default to the first rule.
-        if (mapped.length > 0) {
+        // Keep selected rule stable after reload; otherwise fall back safely.
+        setActiveRuleId((prev) => {
+          if (mapped.length === 0) return null;
           if (selectFieldKey) {
-            const match = mapped.find((m: any) => m.field_key === selectFieldKey);
-            if (match) setActiveRuleId(match.id!);
-          } else if (!activeRuleId || !mapped.find((m: any) => m.id === activeRuleId)) {
-            setActiveRuleId(mapped[0].id!);
+            const matchByField = mapped.find((m: FormulaRule) => m.field_key === selectFieldKey);
+            if (matchByField?.id) return matchByField.id;
           }
-        }
+          if (prev && mapped.some((m: FormulaRule) => m.id === prev)) return prev;
+          return mapped[0].id || null;
+        });
       }
     } catch (err) {
       console.error('Failed to load rules:', err);

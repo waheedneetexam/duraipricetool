@@ -442,16 +442,26 @@ def list_field_logic_rules(tenant_id: str | None, scope: str | None = None) -> l
 
     result: list[dict] = []
     for row in rows:
+        logic_id = row.get("id") or row.get("logic_id")
+        field_key = row.get("field_key") or row.get("fieldKey")
+        logic_text = row.get("natural_language_logic") or row.get("logicText") or ""
+        generated_code = row.get("generated_code") or row.get("generatedCode") or ""
+        dependencies = row.get("dependencies_json") or row.get("dependencies") or {}
         result.append(
             {
-                "logicId": row.get("logic_id"),
+                "id": logic_id,
+                "logicId": logic_id,
                 "tenantId": row.get("tenant_id"),
                 "scope": row.get("scope"),
-                "fieldKey": row.get("field_key"),
-                "logicText": row.get("natural_language_logic") or "",
-                "generatedCode": row.get("generated_code") or "",
+                "field_key": field_key,
+                "fieldKey": field_key,
+                "natural_language_logic": logic_text,
+                "logicText": logic_text,
+                "generated_code": generated_code,
+                "generatedCode": generated_code,
                 "explanation": row.get("explanation") or "",
-                "dependencies": row.get("dependencies_json") or {},
+                "dependencies_json": dependencies,
+                "dependencies": dependencies,
                 "version": int(row.get("version") or 1),
                 "active": bool(row.get("active", True)),
                 "createdAt": row.get("created_at"),
