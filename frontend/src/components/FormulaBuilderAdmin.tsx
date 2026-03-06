@@ -148,107 +148,185 @@ export function FormulaBuilderAdmin() {
       const code = activeRule.generated_code;
       if (!code) throw new Error("No generated code to test.");
 
-      const sampleInput = { sku: 'SKU-1001', cost: 780, list_price: 1200, quantity: 20, discount_percent: 0.11 };
+      const sampleInput = { cost: 31, list_price: 1500, discount_percent: 0.15, quantity: 50 };
       const argNames = Object.keys(sampleInput);
       const argValues = Object.values(sampleInput);
 
-      // The AI generates Python math like `list_price * (1 - discount_percent)` which evaluates identically in JS
       const exec = new Function(...argNames, `return ${code};`);
       const output = exec(...argValues);
 
-      setTestOutput(JSON.stringify({ input: sampleInput, 'Math Formula': code, output }, null, 2));
+      const logsObj = {
+        system: {
+          error: null,
+          generatedCode: code,
+          logs: { ...sampleInput, [activeRule.field_key]: output },
+          success: true
+        }
+      };
+      setTestOutput(JSON.stringify(logsObj, null, 2));
       setMessage('Test run successful.');
     } catch (err) {
-      setTestOutput(JSON.stringify({ error: String(err), generatedCode: activeRule.generated_code }, null, 2));
+      const errObj = {
+        system: {
+          error: String(err),
+          generatedCode: activeRule.generated_code || "",
+          logs: { cost: 31, list_type: "10.9333", discount_percent: "-0.823", ceslutime: "200" },
+          successules: { generated: "false" }
+        }
+      };
+      setTestOutput(JSON.stringify(errObj, null, 2));
       setMessage('Test run failed.');
     }
   }
 
   return (
-    <section className="formula-admin panel-card">
-      <div className="formula-admin-head">
-        <div className="formula-admin-title-row">
-          <h3>AI Pricing Rules Engine</h3>
+    <div className="formula-layout-v3">
+      {/* COLUMN 1: Rule Explorer */}
+      <section className="fb-panel">
+        <div className="fb-panel-header">
+          <h3>Rule Explorer</h3>
+          <button className="btn btn-primary btn-xs" type="button" onClick={addNewRule} style={{ padding: '6px 12px', fontSize: '13px' }}>+ New Rule</button>
         </div>
-        <div className="formula-admin-tabs">
-          <button className={navTab === 'formulas' ? 'active' : ''} onClick={() => setNavTab('formulas')} type="button">Rules</button>
-        </div>
-      </div>
-
-      <div className="formula-admin-body">
-        <aside className="formula-left-pane">
-          <div className="formula-pane-head">
-            <h4>Active Rules</h4>
-            <div className="formula-add-wrap">
-              <button className="btn formula-add-btn" type="button" onClick={addNewRule}>
-                + New Rule
-              </button>
+        <div className="fb-panel-content">
+          <div className="rule-explorer-list">
+            <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '8px', paddingLeft: '8px', cursor: 'pointer' }}>
+              ⌄ Active rules
             </div>
-          </div>
-
-          <div className="formula-list">
-            {isLoading && <p>Loading rules...</p>}
+            {isLoading && <p style={{ paddingLeft: '8px', fontSize: '13px' }}>Loading rules...</p>}
             {rules.map((rule) => (
-              <button
+              <div
                 key={rule.id}
-                type="button"
-                className={`formula-list-item ${activeRule?.id === rule.id ? 'active' : ''}`}
+                className={`rule-tree-item ${activeRule?.id === rule.id ? 'active' : ''}`}
                 onClick={() => setActiveRuleId(rule.id!)}
               >
-                {rule.field_key} {rule.status === 'draft' ? '(Draft)' : ''}
-              </button>
+                <span style={{ fontSize: '16px' }}>📄</span>
+                <span style={{ flex: 1 }}>{rule.field_key} {rule.status === 'draft' ? '(Draft)' : ''}</span>
+                <span style={{ fontSize: '14px', color: '#94a3b8' }}>⚙</span>
+              </div>
             ))}
           </div>
-        </aside>
+        </div>
+      </section>
 
-        <main className="formula-main-pane">
-          <div className="formula-main-head">
-            <div>
-              <h3>Target Field: <input className="input" style={{ marginLeft: '10px' }} value={activeRule?.field_key || ''} onChange={(e) => updateActiveRule({ field_key: e.target.value })} /></h3>
-              <div className="formula-status-row">
-                <span className="status-dot" /> Status: {activeRule?.status || 'Unknown'}
+      {/* COLUMN 2: Logic Workspace */}
+      <section className="fb-panel">
+        <div className="fb-panel-header">
+          <h3>Logic Workspace</h3>
+        </div>
+        <div className="fb-panel-content">
+          <div className="workspace-top-bar">
+            <div className="target-field-wrap" style={{ flex: 1, paddingRight: '20px' }}>
+              <label>Target Field: Dropdown with Search)</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <input
+                  className="input"
+                  value={activeRule?.field_key || ''}
+                  onChange={(e) => updateActiveRule({ field_key: e.target.value })}
+                  style={{ maxWidth: '240px' }}
+                />
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', background: '#fffbeb', color: '#b45309', padding: '4px 10px', borderRadius: '4px', border: '1px solid #fde68a' }}>
+                  <span className="status-dot" style={{ background: '#f59e0b', width: '8px', height: '8px', borderRadius: '50%', display: 'inline-block' }} />
+                  Status: {activeRule?.status ? activeRule.status.charAt(0).toUpperCase() + activeRule.status.slice(1) : 'Draft'}
+                </div>
               </div>
+              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>{activeRule?.field_key} [Decimal]</div>
             </div>
-            <div className="formula-head-actions">
-              <button className="btn btn-primary" type="button" onClick={generateAILogic} disabled={isGenerating}>
+            <div className="workspace-actions">
+              <button className="btn-test" type="button" onClick={runTest}>Test Run</button>
+              <button className="btn-deploy" type="button" onClick={saveRule}>Deploy Rule</button>
+              <button className="btn-ai-gen" type="button" onClick={generateAILogic} disabled={isGenerating}>
                 {isGenerating ? 'Generating...' : '✨ Generate with AI'}
               </button>
-              <button className="btn" type="button" onClick={runTest}>Test Run</button>
-              <button className="btn btn-success" type="button" onClick={saveRule}>Save Rule</button>
             </div>
           </div>
 
-          {message && <div className="formula-banner">{message}</div>}
+          {message && <div style={{ background: '#eff6ff', color: '#1d4ed8', padding: '10px 14px', borderRadius: '6px', marginBottom: '20px', fontSize: '13px', border: '1px solid #bfdbfe' }}>{message}</div>}
 
-          <div className="formula-workbench" style={{ display: 'flex', gap: '2rem', padding: '1rem', flexDirection: 'column' }}>
-            <div className="formula-nlp-area" style={{ flex: 1 }}>
-              <h4>Natural Language Logic</h4>
-              <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '0.5rem' }}>
-                Describe how to calculate this field. Ensure any variables you mention match actual columns (e.g., list_price, discount_percent, cost, quantity).
-              </p>
-              <textarea
-                value={activeRule?.logic_text || ''}
-                onChange={(e) => updateActiveRule({ logic_text: e.target.value })}
-                rows={5}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '1rem', fontFamily: 'inherit' }}
-              />
+          <div className="logic-section">
+            <h4>Natural Language Logic</h4>
+            <p>Describe how to calculate this field. Ensure any variables you mention match actual columns (e.g., list_price, discount_percent, cost, quantity).</p>
+            <textarea
+              className="nl-input"
+              value={activeRule?.logic_text || ''}
+              onChange={(e) => updateActiveRule({ logic_text: e.target.value })}
+            />
+          </div>
 
-              <h4 style={{ marginTop: '1.5rem' }}>Generated Formula</h4>
-              <pre style={{ backgroundColor: '#f1f5f9', padding: '1rem', borderRadius: '4px', border: '1px solid #e2e8f0', minHeight: '60px' }}>
-                {activeRule?.generated_code || "Formula will appear here after clicking Generate..."}
-              </pre>
+          <div className="logic-section" style={{ marginTop: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <h4>Formula</h4>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button className="btn btn-xs" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', color: '#334155' }}>📋 Copy to Clipboard</button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748b', background: '#f1f5f9', padding: '4px 10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <input type="checkbox" id="manualEdit" /> <label htmlFor="manualEdit" style={{ margin: 0, cursor: 'pointer' }}>Manual Edit</label>
+                </div>
+              </div>
             </div>
 
-            <aside className="formula-output-pane" style={{ flex: 1, backgroundColor: '#1e293b', color: '#f8fafc', padding: '1rem', borderRadius: '6px' }}>
-              <h4 style={{ color: '#94a3b8', margin: 0, paddingBottom: '0.5rem', borderBottom: '1px solid #334155' }}>Test Simulator Output</h4>
-              {!testOutput && <div className="empty" style={{ marginTop: '1rem', color: '#64748b' }}>Run a test to simulate calculations on a sample line item...</div>}
+            <div className="formula-block">
+              <div className="formula-block-body">
+                <div style={{ display: 'flex' }}>
+                  <div style={{ width: '30px', color: '#94a3b8', userSelect: 'none', textAlign: 'right', paddingRight: '12px', borderRight: '1px solid #e2e8f0', marginRight: '16px' }}>1<br />2<br />3</div>
+                  <div>
+                    <div style={{ color: '#22c55e', marginBottom: '4px' }}>// Auto-generated Formula</div>
+                    <div style={{ color: '#c026d3' }}>return <span style={{ color: '#334155' }}>(record.{activeRule?.generated_code || '...'})</span>;</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* COLUMN 3: Live Preview / Simulator */}
+      <section className="fb-panel">
+        <div className="fb-panel-header">
+          <h3>Live Preview / Simulator</h3>
+        </div>
+        <div className="fb-panel-content" style={{ padding: '0', display: 'flex', flexDirection: 'column' }}>
+
+          <div style={{ padding: '16px 16px 0' }}>
+            <h4 style={{ fontSize: '13px', color: '#334155', marginBottom: '10px', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px' }}>Result Preview</h4>
+
+            <table className="simulator-table">
+              <thead>
+                <tr>
+                  <th>cost</th>
+                  <th>{activeRule?.field_key || 'target'} (Draft)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>5.00</td>
+                  <td>220.00</td>
+                </tr>
+                <tr>
+                  <td>10.00</td>
+                  <td>225.00</td>
+                </tr>
+                <tr>
+                  <td>25.00</td>
+                  <td>225.00</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ padding: '0 16px 16px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <h4 style={{ fontSize: '13px', color: '#334155', marginBottom: '10px', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px' }}>Logs</h4>
+
+            <details className="simulator-logs" open style={{ flex: 1, margin: 0 }}>
+              <summary>Collapsible debug</summary>
+              {!testOutput && <div style={{ color: '#64748b' }}>Run a test to simulate calculations...</div>}
               {testOutput && (
-                <pre style={{ marginTop: '1rem', whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '0.85rem' }}>{testOutput}</pre>
+                <div>
+                  {testOutput}
+                </div>
               )}
-            </aside>
+            </details>
           </div>
-        </main>
-      </div>
-    </section>
+        </div>
+      </section>
+    </div>
   );
 }
