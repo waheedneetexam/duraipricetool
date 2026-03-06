@@ -40,10 +40,10 @@ export function FormulaBuilderAdmin() {
           id: r.id,
           scope: r.scope,
           field_key: r.field_key,
-          logic_text: r.logic_text,
-          generated_code: r.generated_code,
-          explanation: r.explanation,
-          dependencies: r.dependencies,
+          logic_text: r.natural_language_logic || r.logic_text || '',
+          generated_code: r.generated_code || '',
+          explanation: r.explanation || '',
+          dependencies: r.dependencies_json || r.dependencies || {},
           active: r.active,
           status: 'saved' as const
         }));
