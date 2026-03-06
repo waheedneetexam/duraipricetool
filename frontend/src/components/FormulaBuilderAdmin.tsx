@@ -99,6 +99,12 @@ export function FormulaBuilderAdmin() {
         body: JSON.stringify(payload)
       });
       if (res.success) {
+        if (res.data.status === 'invalid' || (res.data.errors && res.data.errors.length > 0)) {
+          const errMsgs = res.data.errors.map((e: any) => typeof e === 'string' ? e : (e.message || 'Unknown error')).join('. ');
+          setMessage(`Validation Error: ${errMsgs}`);
+          return;
+        }
+
         console.log('AI Logic Result:', res.data);
         const code = res.data.generated_code || res.data.generatedCode || '';
         updateActiveRule({
@@ -107,7 +113,7 @@ export function FormulaBuilderAdmin() {
         });
         setMessage('AI Logic generated successfully! Please test before saving.');
       } else {
-        setMessage(`Generation failed: ${res.error}`);
+        setMessage(`Generation failed: ${res.error || 'Check connectivity or API keys'}`);
       }
     } catch (e) {
       setMessage('Error connecting to AI service.');
