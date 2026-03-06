@@ -1,3 +1,13 @@
+<!-- [MermaidChart: 4b263df0-602e-401b-aff3-9233183991ee] -->
+<!-- [MermaidChart: 4b263df0-602e-401b-aff3-9233183991ee] -->
+<!-- [MermaidChart: 4b263df0-602e-401b-aff3-9233183991ee] -->
+---
+title: DuraiPricingTool Master README
+category: Foundation
+description: Root documentation for the project structure, setup, and core functionality.
+created: 2026-02-28
+---
+
 # DuraiPricingTool
 
 Modular enterprise pricing foundation (CPQ/PRO) with DuckDB analytics, chunked CSV ingestion, dynamic quote formulas, and configurable workflows.

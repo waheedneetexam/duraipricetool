@@ -1,3 +1,10 @@
+---
+title: Technical Blueprint
+category: Foundation
+description: Detailed technical architecture of the DuraiPricingTool platform.
+created: 2026-02-28
+---
+
 # DuraiPricingTool Technical Blueprint
 
 ## 1) Antigravity Architecture

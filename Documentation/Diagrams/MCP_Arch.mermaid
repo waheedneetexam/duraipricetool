@@ -1,0 +1,47 @@
+graph TB
+    subgraph "Coding Environment (Cursor / Windsurf / Claude Code)"
+        Agent[**AI Coding Agent**<br/>OpenAI GPT-4o / Claude 3.5]
+        MCP_Client[**MCP Client**<br/>Context Orchestrator]
+    end
+
+    subgraph "MCP Server Layer"
+        PG_MCP[**Postgres MCP Server**<br/>Exposes Table Schemas]
+        FS_MCP[**Filesystem MCP Server**<br/>Exposes Python/TS Code]
+    end
+
+    subgraph "Application Backend (FastAPI)"
+        API[**FastAPI App**<br/>app/main.py]
+        Sync[**Sync Worker**<br/>pg_to_duck_sync]
+        Prompt_Eng[**Prompt Orchestrator**<br/>Natural Lang -> Logic]
+    end
+
+    subgraph "Data Layer"
+        PG[(**PostgreSQL**<br/>Primary / System of Record)]
+        DDB[(**DuckDB**<br/>Analytical Engine / Pricing Math)]
+    end
+
+    subgraph "Frontend"
+        React[**React 18.3**<br/>Vite / AG Grid / Blockly]
+    end
+
+    %% Connections
+    React -->|Natural Language Requirement| API
+    API -->|Schema Retrieval| PG_MCP
+    Agent <-->|Queries Metadata| MCP_Client
+    MCP_Client <--> PG_MCP
+    MCP_Client <--> FS_MCP
+    
+    PG_MCP <-->|Reads Schema| PG
+    FS_MCP <-->|Reads Models/Logic| API
+    
+    API <-->|Transaction Data| PG
+    Sync ---|ETL Pipe| PG
+    Sync ---|ETL Pipe| DDB
+    API <-->|Heavy Pricing Calcs| DDB
+    
+    %% Styling
+    style Agent fill:#f9f,stroke:#333,stroke-width:2px
+    style PG fill:#336791,color:#fff
+    style DDB fill:#fff700,color:#000
+// [MermaidChart: 4b263df0-602e-401b-aff3-9233183991ee]
+    style MCP_Client fill:#00ff00,color:#000
