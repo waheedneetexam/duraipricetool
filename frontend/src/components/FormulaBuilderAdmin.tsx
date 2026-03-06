@@ -99,7 +99,7 @@ export function FormulaBuilderAdmin() {
       });
       if (res.success) {
         updateActiveRule({
-          generated_code: res.data.generatedCode,
+          generated_code: res.data.generated_code,
           dependencies: res.data.dependencies,
         });
         setMessage('AI Logic generated successfully! Please test before saving.');
