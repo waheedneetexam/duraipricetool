@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -12,12 +14,15 @@ from app.api.routes_audit import router as audit_router
 from app.core.config import DB_ENGINE
 from app.db.postgres_client import pg_client
 from app.services.auth_service import ensure_auth_seed_data
+from app.services.health_service import build_health_payload
 
 app = FastAPI(
     title="Durai Pricing Tool",
     description="Modular CPQ/PRO platform blueprint with DuckDB analytics and dynamic quoting.",
     version="0.1.0",
 )
+
+APP_START_TIME = datetime.now(timezone.utc)
 
 app.add_middleware(
     CORSMiddleware,
@@ -56,4 +61,4 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return build_health_payload(APP_START_TIME)
