@@ -152,12 +152,16 @@ def _get_table_columns() -> dict[str, set[str]]:
     return columns
 
 
+_PARSER_STOP_WORDS = {"the", "a", "an", "some", "every", "all", "its", "their", "of", "to", "in", "on", "at", "by", "with"}
+
+
 def _extract_tables(logic_text: str) -> set[str]:
     tables: set[str] = set()
     for match in re.findall(r'"([A-Za-z_][A-Za-z0-9_]*)"\s+table', logic_text):
         tables.add(match)
     for match in re.findall(r"\bfrom\s+([A-Za-z_][A-Za-z0-9_]*)\b", logic_text, flags=re.IGNORECASE):
-        tables.add(match)
+        if match.lower() not in _PARSER_STOP_WORDS:
+            tables.add(match)
     return tables
 
 
