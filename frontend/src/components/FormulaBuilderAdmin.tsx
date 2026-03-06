@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../api/client';
 
 type FormulaNavTab = 'formulas';
@@ -19,50 +19,150 @@ export function FormulaBuilderAdmin() {
   const [navTab, setNavTab] = useState<FormulaNavTab>('formulas');
   const [rules, setRules] = useState<FormulaRule[]>([]);
   const [activeRuleId, setActiveRuleId] = useState<string | null>(null);
+  const [activeRuleKey, setActiveRuleKey] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [testOutput, setTestOutput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [simulationResults, setSimulationResults] = useState<{ cost: number; result: number }[]>([]);
+  const [debugTenantId, setDebugTenantId] = useState<string>('');
+  const [debugRuleCount, setDebugRuleCount] = useState<number>(0);
+  const [debugScopeCount, setDebugScopeCount] = useState<{ line_item: number; other: number }>({ line_item: 0, other: 0 });
+  const loadTokenRef = useRef(0);
+  const lastUserSelectRef = useRef(0);
 
   // Derived state for the active rule
-  const activeRule = rules.find((r) => r.id === activeRuleId);
+  const activeRule =
+    rules.find((r) => (activeRuleId ? r.id === activeRuleId : false))
+    || rules.find((r) => (activeRuleKey ? r.field_key === activeRuleKey : false));
 
   useEffect(() => {
+    void fetchDebugTenant();
     loadRules();
   }, []);
 
+  async function fetchDebugTenant() {
+    try {
+      const res = await apiFetch<any>('/auth/me', { method: 'GET' });
+      if (res?.success && res.data?.tenant_id) {
+        setDebugTenantId(String(res.data.tenant_id));
+      }
+    } catch {
+      setDebugTenantId('');
+    }
+  }
+
+  function applyActiveSelection(nextRule?: FormulaRule | null) {
+    setActiveRuleId(nextRule?.id || null);
+    setActiveRuleKey(nextRule?.field_key || null);
+  }
+
+  function pickActiveRule(
+    mapped: FormulaRule[],
+    prevId: string | null,
+    prevKey: string | null,
+    selectFieldKey: string | undefined,
+    selectionStampAtStart: number
+  ): FormulaRule | null {
+    if (mapped.length === 0) return null;
+    if (
+      lastUserSelectRef.current !== selectionStampAtStart
+      && prevId
+    ) {
+      const matchById = mapped.find((m) => m.id === prevId);
+      if (matchById) return matchById;
+    }
+    if (selectFieldKey) {
+      const matchByField = mapped.find((m) => m.field_key === selectFieldKey);
+      if (matchByField) return matchByField;
+    }
+    if (prevId) {
+      const matchById = mapped.find((m) => m.id === prevId);
+      if (matchById) return matchById;
+    }
+    if (prevKey) {
+      const matchByKey = mapped.find((m) => m.field_key === prevKey);
+      if (matchByKey) return matchByKey;
+    }
+    return mapped[0] || null;
+  }
+
   async function loadRules(selectFieldKey?: string) {
+    const loadToken = ++loadTokenRef.current;
+    const selectionStampAtStart = lastUserSelectRef.current;
     setIsLoading(true);
     try {
-      console.log('Fetching rules for scope: line_item');
-      const res = await apiFetch<any>('/admin/field-logic/list?scope=line_item', { method: 'GET' });
-      if (res.success && Array.isArray(res.data)) {
-        console.log('Raw rules from backend:', res.data);
-        const mapped = res.data.map((r: any) => ({
-          id: r.id || r.logic_id || r.logicId,
-          scope: r.scope || 'line_item',
-          field_key: r.field_key || r.fieldKey,
-          logic_text: r.natural_language_logic || r.logic_text || r.logicText || '',
-          generated_code: r.generated_code || r.generatedCode || '',
-          explanation: r.explanation || '',
-          dependencies: r.dependencies_json || r.dependencies || {},
-          active: r.active,
-          status: 'saved' as const
-        })).filter((r: FormulaRule) => Boolean(r.id && r.field_key));
-        setRules(mapped);
+      const fetchRules = async (scope?: string, allTenants = false, includeInactive = false) => {
+        const params = new URLSearchParams();
+        if (scope) params.set('scope', scope);
+        if (allTenants) params.set('all_tenants', 'true');
+        if (includeInactive) params.set('include_inactive', 'true');
+        const query = params.toString() ? `?${params.toString()}` : '';
+        const res = await apiFetch<any>(`/admin/field-logic/list${query}`, { method: 'GET' });
+        if (!res.success || !Array.isArray(res.data)) return [] as FormulaRule[];
+        return res.data.map((r: any) => {
+          const idRaw = r.id ?? r.logic_id ?? r.logicId ?? '';
+          const id = typeof idRaw === 'string' ? idRaw : String(idRaw);
+          const fieldKey = r.field_key || r.fieldKey || '';
+          return {
+            id,
+            scope: r.scope || 'line_item',
+            field_key: fieldKey,
+            logic_text: r.natural_language_logic || r.logic_text || r.logicText || '',
+            generated_code: r.generated_code || r.generatedCode || '',
+            explanation: r.explanation || '',
+            dependencies: r.dependencies_json || r.dependencies || {},
+            active: r.active,
+            status: 'saved' as const
+          };
+        }).filter((r: FormulaRule) => Boolean(r.id && r.field_key));
+      };
 
-        // Keep selected rule stable after reload; otherwise fall back safely.
-        setActiveRuleId((prev) => {
-          if (mapped.length === 0) return null;
-          if (selectFieldKey) {
-            const matchByField = mapped.find((m: FormulaRule) => m.field_key === selectFieldKey);
-            if (matchByField?.id) return matchByField.id;
-          }
-          if (prev && mapped.some((m: FormulaRule) => m.id === prev)) return prev;
-          return mapped[0].id || null;
-        });
+      console.log('Fetching rules for scope: line_item');
+      let mapped = await fetchRules('line_item');
+      if (loadToken !== loadTokenRef.current) return;
+
+      setDebugScopeCount({
+        line_item: mapped.length,
+        other: 0
+      });
+
+      if (mapped.length === 0) {
+        console.log('No line_item rules returned, fetching all scopes...');
+        const unscoped = await fetchRules();
+        if (loadToken !== loadTokenRef.current) return;
+        if (unscoped.length > 0) {
+          setMessage('No line_item rules found. Showing all scopes.');
+          mapped = unscoped;
+          const otherCount = unscoped.filter((rule: FormulaRule) => rule.scope && rule.scope !== 'line_item').length;
+          setDebugScopeCount({
+            line_item: unscoped.length - otherCount,
+            other: otherCount
+          });
+        }
       }
+
+      if (mapped.length === 0) {
+        console.log('No rules for current tenant, fetching all tenants (including inactive)...');
+        const allTenantRules = await fetchRules(undefined, true, true);
+        if (loadToken !== loadTokenRef.current) return;
+        if (allTenantRules.length > 0) {
+          setMessage('No rules for current tenant. Showing all tenants (including inactive).');
+          mapped = allTenantRules;
+          const otherCount = allTenantRules.filter((rule: FormulaRule) => rule.scope && rule.scope !== 'line_item').length;
+          setDebugScopeCount({
+            line_item: allTenantRules.length - otherCount,
+            other: otherCount
+          });
+        }
+      }
+
+      setDebugRuleCount(mapped.length);
+      setRules(mapped);
+
+      // Keep selected rule stable after reload; otherwise fall back safely.
+      const nextActive = pickActiveRule(mapped, activeRuleId, activeRuleKey, selectFieldKey, selectionStampAtStart);
+      applyActiveSelection(nextActive);
     } catch (err) {
       console.error('Failed to load rules:', err);
       setMessage('Failed to load rules.');
@@ -82,7 +182,15 @@ export function FormulaBuilderAdmin() {
       status: 'draft'
     };
     setRules((prev) => [newRule, ...prev]);
-    setActiveRuleId(newRule.id!);
+    applyActiveSelection(newRule);
+  }
+
+  function handleRuleSelect(ruleId?: string) {
+    if (!ruleId) return;
+    const selected = rules.find((rule) => rule.id === ruleId);
+    lastUserSelectRef.current += 1;
+    setActiveRuleId(ruleId);
+    setActiveRuleKey(selected?.field_key || activeRuleKey);
   }
 
   function updateActiveRule(updates: Partial<FormulaRule>) {
@@ -231,7 +339,7 @@ export function FormulaBuilderAdmin() {
               <div
                 key={rule.id}
                 className={`rule-tree-item ${activeRule?.id === rule.id ? 'active' : ''}`}
-                onClick={() => setActiveRuleId(rule.id!)}
+                onClick={() => handleRuleSelect(rule.id)}
               >
                 <span style={{ fontSize: '16px' }}>📄</span>
                 <span style={{ flex: 1 }}>{rule.field_key} {rule.status === 'draft' ? '(Draft)' : ''}</span>
@@ -272,6 +380,10 @@ export function FormulaBuilderAdmin() {
                 {isGenerating ? 'Generating...' : '✨ Generate with AI'}
               </button>
             </div>
+          </div>
+
+          <div style={{ marginTop: '8px', marginBottom: '12px', fontSize: '12px', color: '#64748b' }}>
+            Debug: tenant {debugTenantId || 'unknown'} • rules {debugRuleCount} • line_item {debugScopeCount.line_item} • other {debugScopeCount.other}
           </div>
 
           {message && <div style={{ background: '#eff6ff', color: '#1d4ed8', padding: '10px 14px', borderRadius: '6px', marginBottom: '20px', fontSize: '13px', border: '1px solid #bfdbfe' }}>{message}</div>}

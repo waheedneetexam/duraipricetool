@@ -11,7 +11,7 @@ data/*.broken-*
 
 # Dependencies
 node_modules/
-
+.venv/
 # Logs
 logs
 *.log

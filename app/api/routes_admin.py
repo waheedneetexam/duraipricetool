@@ -146,9 +146,19 @@ def post_field_logic_save(payload: FieldLogicSaveRequest, context: AuthContext =
         return {"success": False, "error": str(exc)}
 
 
+def _can_read_all_tenants(context: AuthContext) -> bool:
+    return "*" in context.permissions or "platform.tenants.manage" in context.permissions
+
+
 @router.get("/field-logic/list")
-def get_field_logic_list(scope: str = "", context: AuthContext = Depends(require_auth)):
-    data = list_field_logic_rules(tenant_id=context.tenant_id, scope=scope or None)
+def get_field_logic_list(
+    scope: str = "",
+    include_inactive: bool = False,
+    all_tenants: bool = False,
+    context: AuthContext = Depends(require_auth),
+):
+    tenant_id = None if (all_tenants and _can_read_all_tenants(context)) else context.tenant_id
+    data = list_field_logic_rules(tenant_id=tenant_id, scope=scope or None, include_inactive=include_inactive)
     return {"success": True, "data": data}
 
 

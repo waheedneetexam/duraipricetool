@@ -380,65 +380,57 @@ def save_field_logic_rule(
     }
 
 
-def list_field_logic_rules(tenant_id: str | None, scope: str | None = None) -> list[dict]:
+def list_field_logic_rules(
+    tenant_id: str | None,
+    scope: str | None = None,
+    include_inactive: bool = False,
+) -> list[dict]:
     _ensure_tables()
-    tenant = _normalize_tenant_id(tenant_id)
+    tenant = _normalize_tenant_id(tenant_id) if tenant_id else None
     scope_filter = (scope or "").strip()
 
+    where_clauses: list[str] = []
+    params: list = []
+
+    if tenant:
+        where_clauses.append("tenant_id = %s")
+        params.append(tenant)
+    if scope_filter:
+        where_clauses.append("scope = %s")
+        params.append(scope_filter)
+    if not include_inactive:
+        where_clauses.append("active = TRUE")
+
+    where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
     if _tx_on_postgres():
-        if scope_filter:
-            rows = pg_client.execute(
-                """
-                SELECT
-                    logic_id AS id, tenant_id, scope, field_key, natural_language_logic,
-                    generated_code, explanation, dependencies_json, version, active,
-                    created_at, updated_at
-                FROM field_logic_rules
-                WHERE tenant_id = %s AND scope = %s AND active = TRUE
-                ORDER BY updated_at DESC
-                """,
-                (tenant, scope_filter),
-            )
-        else:
-            rows = pg_client.execute(
-                """
-                SELECT
-                    logic_id AS id, tenant_id, scope, field_key, natural_language_logic,
-                    generated_code, explanation, dependencies_json, version, active,
-                    created_at, updated_at
-                FROM field_logic_rules
-                WHERE tenant_id = %s AND active = TRUE
-                ORDER BY updated_at DESC
-                """,
-                (tenant,),
-            )
+        rows = pg_client.execute(
+            f"""
+            SELECT
+                logic_id AS id, tenant_id, scope, field_key, natural_language_logic,
+                generated_code, explanation, dependencies_json, version, active,
+                created_at, updated_at
+            FROM field_logic_rules
+            {where_sql}
+            ORDER BY updated_at DESC
+            """,
+            tuple(params),
+        )
     else:
-        if scope_filter:
-            rows = db_client.fetch_df(
-                """
-                SELECT
-                    logic_id AS id, tenant_id, scope, field_key, natural_language_logic,
-                    generated_code, explanation, dependencies_json, version, active,
-                    created_at, updated_at
-                FROM field_logic_rules
-                WHERE tenant_id = ? AND scope = ? AND active = TRUE
-                ORDER BY updated_at DESC
-                """,
-                (tenant, scope_filter),
-            ).to_dict(orient="records")
-        else:
-            rows = db_client.fetch_df(
-                """
-                SELECT
-                    logic_id AS id, tenant_id, scope, field_key, natural_language_logic,
-                    generated_code, explanation, dependencies_json, version, active,
-                    created_at, updated_at
-                FROM field_logic_rules
-                WHERE tenant_id = ? AND active = TRUE
-                ORDER BY updated_at DESC
-                """,
-                (tenant,),
-            ).to_dict(orient="records")
+        if where_clauses:
+            where_sql = where_sql.replace("%s", "?")
+        rows = db_client.fetch_df(
+            f"""
+            SELECT
+                logic_id AS id, tenant_id, scope, field_key, natural_language_logic,
+                generated_code, explanation, dependencies_json, version, active,
+                created_at, updated_at
+            FROM field_logic_rules
+            {where_sql}
+            ORDER BY updated_at DESC
+            """,
+            tuple(params),
+        ).to_dict(orient="records")
 
     result: list[dict] = []
     for row in rows:
