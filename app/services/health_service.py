@@ -1,5 +1,7 @@
 import time
 from datetime import datetime, timezone
+import re
+import subprocess
 from typing import Any
 
 import duckdb
@@ -15,6 +17,44 @@ def _serialize_datetime(value: Any) -> Any:
     if isinstance(value, datetime):
         return value.astimezone(timezone.utc).isoformat()
     return str(value)
+
+
+def _extract_pid_from_error(message: str) -> int | None:
+    match = re.search(r"PID\s+(\d+)", message or "")
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except ValueError:
+        return None
+
+
+def _describe_process(pid: int) -> dict:
+    try:
+        result = subprocess.run(
+            ["ps", "-p", str(pid), "-o", "pid=,user=,lstart=,etime=,cmd="],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        line = (result.stdout or "").strip()
+        if not line:
+            return {"pid": pid, "status": "not_found"}
+        # Split into up to 9 chunks:
+        # pid, user, weekday, month, day, time, year, elapsed, cmd...
+        parts = line.split(maxsplit=8)
+        if len(parts) < 9:
+            return {"pid": pid, "status": "unknown", "raw": line}
+        return {
+            "pid": int(parts[0]),
+            "user": parts[1],
+            "started_at": " ".join(parts[2:7]),
+            "elapsed": parts[7],
+            "command": parts[8],
+            "status": "running",
+        }
+    except Exception as exc:
+        return {"pid": pid, "status": "lookup_error", "error": str(exc)}
 
 
 def check_postgres_health() -> dict:
@@ -50,7 +90,11 @@ def check_duckdb_health() -> dict:
         info["duration_ms"] = int((time.monotonic() - start) * 1000)
     except Exception as exc:  # pragma: no cover - health guard
         info["status"] = "error"
-        info["error"] = str(exc)
+        err = str(exc)
+        info["error"] = err
+        pid = _extract_pid_from_error(err)
+        if pid is not None:
+            info["lock_holder"] = _describe_process(pid)
         info["duration_ms"] = int((time.monotonic() - start) * 1000)
 
     return info
