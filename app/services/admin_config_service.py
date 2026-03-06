@@ -225,6 +225,9 @@ def validate_field_logic(tenant_id: str | None, scope: str, field_key: str, logi
         warnings.append({"type": "ai_generation_error", "message": str(e), "suggestion": "Check AI Provider API keys or prompt"})
         generated_code = ""
 
+    if not errors and not generated_code:
+        errors.append({"type": "ai_empty_response", "message": "AI failed to generate a formula. Please try rephrasing your logic description."})
+
     status = "valid" if not errors else "invalid"
     severity = "error" if errors else ("warning" if warnings else "info")
     validation_id = str(uuid4())
