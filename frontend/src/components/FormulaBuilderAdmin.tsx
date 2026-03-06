@@ -99,9 +99,11 @@ export function FormulaBuilderAdmin() {
         body: JSON.stringify(payload)
       });
       if (res.success) {
+        console.log('AI Logic Result:', res.data);
+        const code = res.data.generated_code || res.data.generatedCode || '';
         updateActiveRule({
-          generated_code: res.data.generated_code,
-          dependencies: res.data.dependencies,
+          generated_code: code,
+          dependencies: res.data.dependencies || {},
         });
         setMessage('AI Logic generated successfully! Please test before saving.');
       } else {
@@ -282,7 +284,9 @@ export function FormulaBuilderAdmin() {
                   <div style={{ width: '30px', color: '#94a3b8', userSelect: 'none', textAlign: 'right', paddingRight: '12px', borderRight: '1px solid #e2e8f0', marginRight: '16px' }}>1<br />2<br />3</div>
                   <div>
                     <div style={{ color: '#22c55e', marginBottom: '4px' }}>// Auto-generated Formula</div>
-                    <div style={{ color: '#c026d3' }}>return <span style={{ color: '#334155' }}>(record.{activeRule?.generated_code || '...'})</span>;</div>
+                    <div style={{ color: '#c026d3' }}>
+                      return <span style={{ color: '#334155' }}>({activeRule?.generated_code || '...'})</span>;
+                    </div>
                   </div>
                 </div>
               </div>
