@@ -1,16 +1,15 @@
 import json
 import logging
-from google import genai
-from google.genai import types
-from app.core.config import GEMINI_API_KEY
+from openai import OpenAI
+from app.core.config import OPENAI_API_KEY
 
 logger = logging.getLogger(__name__)
 
 def evaluate_pricing_template(template_text: str) -> dict:
-    if not GEMINI_API_KEY:
-        raise ValueError("GEMINI_API_KEY is not configured in .env")
+    if not OPENAI_API_KEY:
+        raise ValueError("OPENAI_API_KEY is not configured in .env")
         
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    client = OpenAI(api_key=OPENAI_API_KEY)
     
     prompt = f"""
     You are an AI pricing logic generator for a B2B SaaS quoting engine.
@@ -31,15 +30,13 @@ def evaluate_pricing_template(template_text: str) -> dict:
     """
     
     try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.1
-            ),
+        response = client.chat.completions.create(
+            model='gpt-4o',
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+            temperature=0.1
         )
-        data = json.loads(response.text)
+        data = json.loads(response.choices[0].message.content)
         return {
             "summary": data.get("summary", "Analysis complete."),
             "confidence": float(data.get("confidence", 95.0)),
@@ -56,10 +53,10 @@ def evaluate_pricing_template(template_text: str) -> dict:
         raise ValueError("Failed to process template via AI.")
 
 def generate_field_logic(scope: str, field_key: str, logic_text: str, available_columns: list[str]) -> dict:
-    if not GEMINI_API_KEY:
-        raise ValueError("GEMINI_API_KEY is not configured in .env")
+    if not OPENAI_API_KEY:
+        raise ValueError("OPENAI_API_KEY is not configured in .env")
         
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    client = OpenAI(api_key=OPENAI_API_KEY)
     
     prompt = f"""
     You are an AI generating Python AST-compatible mathematical formulas for a pricing engine.
@@ -81,15 +78,13 @@ def generate_field_logic(scope: str, field_key: str, logic_text: str, available_
     """
     
     try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.0
-            ),
+        response = client.chat.completions.create(
+            model='gpt-4o',
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+            temperature=0.0
         )
-        data = json.loads(response.text)
+        data = json.loads(response.choices[0].message.content)
         return {
             "generatedCode": data.get("formula", ""),
             "explanation": data.get("explanation", ""),
