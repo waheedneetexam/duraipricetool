@@ -383,11 +383,11 @@ def list_field_logic_rules(tenant_id: str | None, scope: str | None = None) -> l
             rows = pg_client.execute(
                 """
                 SELECT
-                    logic_id, tenant_id, scope, field_key, natural_language_logic,
+                    logic_id AS id, tenant_id, scope, field_key, natural_language_logic,
                     generated_code, explanation, dependencies_json, version, active,
                     created_at, updated_at
                 FROM field_logic_rules
-                WHERE tenant_id = %s AND scope = %s
+                WHERE tenant_id = %s AND scope = %s AND active = TRUE
                 ORDER BY updated_at DESC
                 """,
                 (tenant, scope_filter),
@@ -396,11 +396,11 @@ def list_field_logic_rules(tenant_id: str | None, scope: str | None = None) -> l
             rows = pg_client.execute(
                 """
                 SELECT
-                    logic_id, tenant_id, scope, field_key, natural_language_logic,
+                    logic_id AS id, tenant_id, scope, field_key, natural_language_logic,
                     generated_code, explanation, dependencies_json, version, active,
                     created_at, updated_at
                 FROM field_logic_rules
-                WHERE tenant_id = %s
+                WHERE tenant_id = %s AND active = TRUE
                 ORDER BY updated_at DESC
                 """,
                 (tenant,),
@@ -410,11 +410,11 @@ def list_field_logic_rules(tenant_id: str | None, scope: str | None = None) -> l
             rows = db_client.fetch_df(
                 """
                 SELECT
-                    logic_id, tenant_id, scope, field_key, natural_language_logic,
+                    logic_id AS id, tenant_id, scope, field_key, natural_language_logic,
                     generated_code, explanation, dependencies_json, version, active,
                     created_at, updated_at
                 FROM field_logic_rules
-                WHERE tenant_id = ? AND scope = ?
+                WHERE tenant_id = ? AND scope = ? AND active = TRUE
                 ORDER BY updated_at DESC
                 """,
                 (tenant, scope_filter),
@@ -423,11 +423,11 @@ def list_field_logic_rules(tenant_id: str | None, scope: str | None = None) -> l
             rows = db_client.fetch_df(
                 """
                 SELECT
-                    logic_id, tenant_id, scope, field_key, natural_language_logic,
+                    logic_id AS id, tenant_id, scope, field_key, natural_language_logic,
                     generated_code, explanation, dependencies_json, version, active,
                     created_at, updated_at
                 FROM field_logic_rules
-                WHERE tenant_id = ?
+                WHERE tenant_id = ? AND active = TRUE
                 ORDER BY updated_at DESC
                 """,
                 (tenant,),
