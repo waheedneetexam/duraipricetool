@@ -55,9 +55,6 @@ def _describe_process(pid: int) -> dict:
 
 
 def check_postgres_health() -> dict:
-    if DB_ENGINE not in {"postgres", "hybrid"}:
-        return {"status": "skipped", "reason": f"DB_ENGINE={DB_ENGINE} (Postgres not in use)"}
-
     start = time.monotonic()
     try:
         pg_client.execute("SELECT 1 AS ok")
@@ -68,45 +65,6 @@ def check_postgres_health() -> dict:
         return {"status": "error", "error": str(exc), "duration_ms": duration_ms}
 
 
-def check_sync_health() -> dict:
-    if DB_ENGINE != "hybrid":
-        return {"status": "skipped", "reason": f"DB_ENGINE={DB_ENGINE} (syncs disabled)"}
-
-    start = time.monotonic()
-    try:
-        rows = pg_client.execute(
-            """
-            SELECT sync_name, last_cursor_ts, last_cursor_id, updated_at
-            FROM sync_state
-            ORDER BY sync_name
-            """
-        )
-        serialized = [
-            {
-                "sync_name": row["sync_name"],
-                "last_cursor_ts": _serialize_datetime(row["last_cursor_ts"]),
-                "last_cursor_id": row["last_cursor_id"],
-                "updated_at": _serialize_datetime(row["updated_at"]),
-            }
-            for row in rows
-        ]
-        last_run = None
-        for row in rows:
-            candidate = row.get("updated_at")
-            if candidate and (last_run is None or candidate > last_run):
-                last_run = candidate
-
-        duration_ms = int((time.monotonic() - start) * 1000)
-        return {
-            "status": "ok",
-            "last_run_at": _serialize_datetime(last_run),
-            "tables": serialized,
-            "count": len(serialized),
-            "duration_ms": duration_ms,
-        }
-    except Exception as exc:  # pragma: no cover - health guard
-        duration_ms = int((time.monotonic() - start) * 1000)
-        return {"status": "error", "error": str(exc), "duration_ms": duration_ms}
 
 
 def build_health_payload(start_time: datetime) -> dict:
@@ -125,9 +83,6 @@ def build_health_payload(start_time: datetime) -> dict:
 
     if DB_ENGINE == "postgres":
         components["postgres"] = check_postgres_health()
-    elif DB_ENGINE == "hybrid":
-        components["postgres"] = check_postgres_health()
-        components["pg_to_duck_sync"] = check_sync_health()
 
     overall_status = "ok"
     for component in components.values():

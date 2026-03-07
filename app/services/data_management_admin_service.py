@@ -9,12 +9,11 @@ from typing import Any
 
 from app.core.config import DB_ENGINE
 from app.constants.table_classification import VALID_TABLE_CATEGORIES
-from app.db.duckdb_client import db_client
 from app.db.postgres_client import pg_client
 
 
 def _tx_on_postgres() -> bool:
-    return DB_ENGINE in {"postgres", "hybrid"}
+    return True
 
 
 @dataclass(frozen=True)
@@ -216,7 +215,7 @@ TABLE_DEFS: dict[str, TableDef] = {
 
 
 def _sql_placeholder() -> str:
-    return "%s" if _tx_on_postgres() else "?"
+    return "%s"
 
 _TABLE_COLUMNS_CACHE: dict[str, set[str]] = {}
 
@@ -236,18 +235,14 @@ def _table_supports_tenant(table_name: str) -> bool:
 
 
 def _execute(query: str, params: tuple | list | None = None) -> list[dict[str, Any]]:
-    if _tx_on_postgres():
-        return [dict(r) for r in pg_client.execute(query, params)]
-    if params is None:
-        return db_client.fetch_df(query).to_dict(orient="records")
-    return db_client.fetch_df(query, tuple(params)).to_dict(orient="records")
+    return [dict(r) for r in pg_client.execute(query, params)]
 
 
 def _get_dynamic_table_definitions(tenant_id: str | None = None) -> list[dict[str, Any]]:
     query = "SELECT * FROM dynamic_table_definitions"
     params = []
     if tenant_id:
-        query += " WHERE tenant_id = %s OR tenant_id IS NULL" if _tx_on_postgres() else " WHERE tenant_id = ? OR tenant_id IS NULL"
+        query += " WHERE tenant_id = %s OR tenant_id IS NULL"
         params.append(tenant_id)
     try:
         return _execute(query, tuple(params))
@@ -256,24 +251,11 @@ def _get_dynamic_table_definitions(tenant_id: str | None = None) -> list[dict[st
 
 
 def _ensure_tables() -> None:
-    if _tx_on_postgres():
-        pg_client.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS cost NUMERIC")
-        pg_client.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS unit_of_measure TEXT")
-        pg_client.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS country TEXT")
-        pg_client.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS email TEXT")
-        pg_client.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS credit_limit NUMERIC")
-    else:
-        for stmt in (
-            "ALTER TABLE products ADD COLUMN IF NOT EXISTS cost DECIMAL",
-            "ALTER TABLE products ADD COLUMN IF NOT EXISTS unit_of_measure VARCHAR",
-            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS country VARCHAR",
-            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS email VARCHAR",
-            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS credit_limit DECIMAL",
-        ):
-            try:
-                db_client.execute(stmt)
-            except Exception:
-                pass
+    pg_client.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS cost NUMERIC")
+    pg_client.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS unit_of_measure TEXT")
+    pg_client.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS country TEXT")
+    pg_client.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS email TEXT")
+    pg_client.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS credit_limit NUMERIC")
 
     statements = [
         """
@@ -343,10 +325,7 @@ def _ensure_tables() -> None:
         """,
     ]
     for stmt in statements:
-        if _tx_on_postgres():
-            pg_client.execute(stmt)
-        else:
-            db_client.execute(stmt)
+        pg_client.execute(stmt)
 
     # Initialize tables for any dynamic schema in the DB
     for dynamic in _get_dynamic_table_definitions():
@@ -366,7 +345,7 @@ def _ensure_individual_table(schema: dict[str, Any]) -> None:
     for f in fields:
         col_type = "TEXT"
         if f["type"] in {"number", "currency"}:
-            col_type = "DOUBLE PRECISION" if _tx_on_postgres() else "DECIMAL"
+            col_type = "DOUBLE PRECISION"
         elif f["type"] == "boolean":
             col_type = "BOOLEAN"
         elif f["type"] == "date":
@@ -384,10 +363,7 @@ def _ensure_individual_table(schema: dict[str, Any]) -> None:
     col_defs.append("updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     
     stmt = f"CREATE TABLE IF NOT EXISTS {table_name} ({', '.join(col_defs)})"
-    if _tx_on_postgres():
-        pg_client.execute(stmt)
-    else:
-        db_client.execute(stmt)
+    pg_client.execute(stmt)
 
 
 def _normalize_value(field: FieldDef, raw: Any) -> Any:
@@ -527,24 +503,17 @@ def save_dynamic_table_schema(schema: dict[str, Any], tenant_id: str) -> None:
     schema_json = json.dumps(schema)
     placeholder = _sql_placeholder()
     
-    if _tx_on_postgres():
-        pg_client.execute(
-            """
-            INSERT INTO dynamic_table_definitions (table_id, tenant_id, display_name, schema_json, updated_at)
-            VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
-            ON CONFLICT (table_id) DO UPDATE SET
-                display_name = EXCLUDED.display_name,
-                schema_json = EXCLUDED.schema_json,
-                updated_at = CURRENT_TIMESTAMP
-            """,
-            (table_id, tenant_id, display_name, schema_json)
-        )
-    else:
-        db_client.execute("DELETE FROM dynamic_table_definitions WHERE table_id = ?", (table_id,))
-        db_client.execute(
-            "INSERT INTO dynamic_table_definitions (table_id, tenant_id, display_name, schema_json) VALUES (?, ?, ?, ?)",
-            (table_id, tenant_id, display_name, schema_json)
-        )
+    pg_client.execute(
+        """
+        INSERT INTO dynamic_table_definitions (table_id, tenant_id, display_name, schema_json, updated_at)
+        VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (table_id) DO UPDATE SET
+            display_name = EXCLUDED.display_name,
+            schema_json = EXCLUDED.schema_json,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (table_id, tenant_id, display_name, schema_json)
+    )
         
     # Create the actual SQL table
     _ensure_individual_table(schema)
@@ -756,27 +725,17 @@ def save_table_record(table_id: str, record_id: str, payload: dict[str, Any], te
     placeholders = ", ".join([_sql_placeholder()] * len(cols))
     col_list = ", ".join(cols)
 
-    if _tx_on_postgres():
-        updates = ", ".join([f"{c}=EXCLUDED.{c}" for c in cols if c != table.primary_key])
-        pg_client.execute(
-            f"""
-            INSERT INTO {table.table_name} ({col_list}, updated_at)
-            VALUES ({placeholders}, CURRENT_TIMESTAMP)
-            ON CONFLICT ({table.primary_key}) DO UPDATE SET
-                {updates},
-                updated_at = CURRENT_TIMESTAMP
-            """,
-            tuple(values),
-        )
-    else:
-        if has_tenant:
-            db_client.execute(f"DELETE FROM {table.table_name} WHERE {table.primary_key} = ? AND tenant_id = ?", (pk, tenant_id))
-        else:
-            db_client.execute(f"DELETE FROM {table.table_name} WHERE {table.primary_key} = ?", (pk,))
-        db_client.execute(
-            f"INSERT INTO {table.table_name} ({col_list}, updated_at) VALUES ({placeholders}, CURRENT_TIMESTAMP)",
-            tuple(values),
-        )
+    updates = ", ".join([f"{c}=EXCLUDED.{c}" for c in cols if c != table.primary_key])
+    pg_client.execute(
+        f"""
+        INSERT INTO {table.table_name} ({col_list}, updated_at)
+        VALUES ({placeholders}, CURRENT_TIMESTAMP)
+        ON CONFLICT ({table.primary_key}) DO UPDATE SET
+            {updates},
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        tuple(values),
+    )
     return normalized
 
 
@@ -869,47 +828,28 @@ def get_table_stats(table_id: str, tenant_id: str) -> dict[str, Any]:
 
 
 def get_table_classifications(tenant_id: str = "default") -> dict[str, str]:
-    if _tx_on_postgres():
-        rows = pg_client.execute(
-            """
-            SELECT table_name, category
-            FROM table_classifications
-            WHERE tenant_id = %s
-            """,
-            (tenant_id,),
-        )
-        return {row["table_name"]: row["category"] for row in rows}
-    df = db_client.fetch_df(
+    rows = pg_client.execute(
         """
         SELECT table_name, category
         FROM table_classifications
-        WHERE tenant_id = ?
+        WHERE tenant_id = %s
         """,
         (tenant_id,),
     )
-    return {row["table_name"]: row["category"] for row in df.to_dict(orient="records")}
+    return {row["table_name"]: row["category"] for row in rows}
 
 
 def save_table_classification(table_name: str, category: str, tenant_id: str = "default") -> None:
     if category not in VALID_TABLE_CATEGORIES:
         raise ValueError(f"Unknown category '{category}'")
 
-    if _tx_on_postgres():
-        pg_client.execute(
-            """
-            INSERT INTO table_classifications (table_name, category, tenant_id, updated_at)
-            VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
-            ON CONFLICT (table_name, tenant_id) DO UPDATE SET
-                category = EXCLUDED.category,
-                updated_at = CURRENT_TIMESTAMP
-            """,
-            (table_name, category, tenant_id),
-        )
-    else:
-        db_client.execute(
-            """
-            INSERT OR REPLACE INTO table_classifications (table_name, category, tenant_id, updated_at)
-            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-            """,
-            (table_name, category, tenant_id),
-        )
+    pg_client.execute(
+        """
+        INSERT INTO table_classifications (table_name, category, tenant_id, updated_at)
+        VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (table_name, tenant_id) DO UPDATE SET
+            category = EXCLUDED.category,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (table_name, category, tenant_id),
+    )
