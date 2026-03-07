@@ -357,5 +357,4 @@ def ensure_auth_seed_data() -> None:
             )
 
     return
-
-        return
+# End of file
