@@ -72,7 +72,7 @@ TABLE_DEFS: dict[str, TableDef] = {
             FieldDef("customer_id", required=True, unique=True),
             FieldDef("name", required=True),
             FieldDef("segment", required=True, enum=("Enterprise", "Mid-Market", "SMB", "Startup")),
-            FieldDef("region", required=True),
+            FieldDef("region_id", required=True),
             FieldDef("country", required=True),
             FieldDef("email", type="email", pattern=EMAIL_PATTERN),
             FieldDef("credit_limit", type="currency", min_value=0),

@@ -51,46 +51,26 @@ function TableDetailsModal({ table, classification, onClose }: TableDetailsModal
   );
 }
 
-type ImportValidateModalProps = {
-  tableId: string;
+type TableRecordsModalProps = {
+  table: DataTableDefinition;
   onClose: () => void;
-  onUploadComplete: () => void;
+  onDataLoad: () => void;
 };
 
-function ImportValidateModal({ tableId, onClose, onUploadComplete }: ImportValidateModalProps) {
+function TableRecordsModal({ table, onClose, onDataLoad }: TableRecordsModalProps) {
   return (
-    <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
-      <div style={{ background: "#fff", borderRadius: "18px", width: "640px", maxWidth: "95vw", padding: "32px", boxShadow: "0 30px 80px rgba(15,23,42,0.2)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
+      <div style={{ width: "90vw", maxWidth: "1000px", maxHeight: "85vh", overflowY: "auto", background: "#fff", borderRadius: "20px", padding: "24px", boxShadow: "0 30px 70px rgba(15,23,42,0.3)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
           <div>
-            <p style={{ margin: 0, fontSize: "12px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.2em" }}>Import & Validate</p>
-            <h3 style={{ margin: "4px 0 0", fontSize: "22px" }}>CSV Upload</h3>
+            <p style={{ margin: 0, fontSize: "12px", color: "#94a3b8", textTransform: "uppercase" }}>Table Data</p>
+            <h3 style={{ margin: "4px 0 0", fontSize: "20px" }}>{table.displayName}</h3>
           </div>
-          <button onClick={onClose} style={{ border: "none", background: "transparent", fontSize: "20px", cursor: "pointer", color: "#64748b" }} aria-label="Close import modal">
+          <button onClick={onClose} style={{ border: "none", background: "transparent", fontSize: "24px", cursor: "pointer", color: "#475569" }} aria-label="Close records modal">
             ×
           </button>
         </div>
-        <p style={{ marginTop: "12px", color: "#475569", fontSize: "14px" }}>Drop a CSV file to map your fields and trigger validation rules before importing data into the selected table.</p>
-        <div style={{ marginTop: "20px" }}>
-          <CsvUpload selectedTableId={tableId} onUploadComplete={onUploadComplete} embedded={false} />
-        </div>
-        <div style={{ marginTop: "24px", background: "#f8fafc", borderRadius: "12px", padding: "16px", border: "1px solid #e2e8f0" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <p style={{ margin: 0, fontSize: "12px", color: "#64748b" }}>Validation rules</p>
-              <strong style={{ fontSize: "16px", color: "#0f172a" }}>Schema integrity</strong>
-            </div>
-            <span className="status-dot online" />
-          </div>
-          <p style={{ marginTop: "8px", fontSize: "13px", color: "#475569" }}>Null checks, duplicate checks, and schema validation will run automatically. Configure rules if you need custom logic.</p>
-          <div style={{ marginTop: "12px", display: "flex", gap: "10px" }}>
-            <button className="btn btn-xs" style={{ flex: 1 }}>Configure rules</button>
-            <button className="btn btn-xs" style={{ flex: 1 }}>Column mapping</button>
-          </div>
-        </div>
-        <div style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end" }}>
-          <button onClick={onClose} className="btn btn-xs" style={{ background: "#e2e8f0", color: "#0f172a", borderRadius: "10px", padding: "8px 18px" }}>Close</button>
-        </div>
+        <TableManager table={table} embedded={false} onDataLoad={onDataLoad} />
       </div>
     </div>
   );
@@ -108,7 +88,7 @@ export function DataManagementAdmin() {
   const [categorySaving, setCategorySaving] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showTableModal, setShowTableModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
+  const [showRecordsModal, setShowRecordsModal] = useState(false);
 
   const reloadStats = () => {
     if (selectedTableId) {
@@ -429,22 +409,33 @@ export function DataManagementAdmin() {
               </button>
               <button
                 className="btn btn-primary btn-xs"
-                onClick={() => setShowImportModal(true)}
-                style={{ borderRadius: '10px', padding: '10px 18px', background: '#10b981', borderColor: '#10b981', color: '#fff' }}
+                onClick={() => setShowRecordsModal(true)}
+                style={{ borderRadius: '10px', padding: '10px 18px', background: '#0f172a', borderColor: '#0f172a', color: '#fff' }}
                 disabled={!selectedTableId}
               >
-                Import & Validate
+                View data
               </button>
             </div>
           </div>
 
-          {selectedTable && (
-            <TableManager
-              table={selectedTable}
+          <div className="panel-card" style={{ padding: '20px', borderRadius: '16px', background: '#fff', border: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '16px' }}>Import & Validate</h4>
+                <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>Drop CSV files here to trigger automatic validation before import.</p>
+              </div>
+              <span className="status-dot online" />
+            </div>
+            <CsvUpload
+              selectedTableId={selectedTableId}
+              onUploadComplete={reloadStats}
               embedded={true}
-              onDataLoad={reloadStats}
             />
-          )}
+            <div style={{ marginTop: '14px', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
+              <button className="btn btn-xs">Configure rules</button>
+              <button className="btn btn-xs">Column mapping</button>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -489,11 +480,11 @@ export function DataManagementAdmin() {
           onClose={() => setShowTableModal(false)}
         />
       )}
-      {showImportModal && selectedTableId && (
-        <ImportValidateModal
-          tableId={selectedTableId}
-          onClose={() => setShowImportModal(false)}
-          onUploadComplete={reloadStats}
+      {showRecordsModal && selectedTable && (
+        <TableRecordsModal
+          table={selectedTable}
+          onClose={() => setShowRecordsModal(false)}
+          onDataLoad={reloadStats}
         />
       )}
     </div>
