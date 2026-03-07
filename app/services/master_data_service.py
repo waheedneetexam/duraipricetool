@@ -77,10 +77,7 @@ def upsert_product(product: Product, tenant_id: str = "default") -> dict:
 
 
 def delete_product(product_id: str, tenant_id: str = "default") -> dict:
-    if _tx_on_postgres():
-        pg_client.execute("DELETE FROM products WHERE product_id = %s AND tenant_id = %s", (product_id, tenant_id))
-    else:
-        db_client.execute("DELETE FROM products WHERE product_id = ? AND tenant_id = ?", (product_id, tenant_id))
+    pg_client.execute("DELETE FROM products WHERE product_id = %s AND tenant_id = %s", (product_id, tenant_id))
     return {"deleted": product_id}
 
 

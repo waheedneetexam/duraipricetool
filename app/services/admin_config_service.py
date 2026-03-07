@@ -728,64 +728,34 @@ def save_field_logic_rule(
     if not logic:
         raise ValueError("logic_text is required")
 
-    if _tx_on_postgres():
-        version_rows = pg_client.execute(
-            """
-            SELECT COALESCE(MAX(version), 0) AS max_version
-            FROM field_logic_rules
-            WHERE tenant_id = %s AND scope = %s AND field_key = %s
-            """,
-            (tenant, normalized_scope, normalized_field),
-        )
-        next_version = int(version_rows[0]["max_version"] or 0) + 1
-        pg_client.execute(
-            """
-            UPDATE field_logic_rules
-            SET active = FALSE, updated_at = CURRENT_TIMESTAMP
-            WHERE tenant_id = %s AND scope = %s AND field_key = %s
-            """,
-            (tenant, normalized_scope, normalized_field),
-        )
-        logic_id = str(uuid4())
-        pg_client.execute(
-            """
-            INSERT INTO field_logic_rules (
-                logic_id, tenant_id, scope, field_key, natural_language_logic,
-                generated_code, explanation, dependencies_json, version, active,
-                created_at, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            """,
-            (logic_id, tenant, normalized_scope, normalized_field, logic, code, note, json.dumps(dep), next_version),
-        )
-    else:
-        existing = db_client.fetch_df(
-            """
-            SELECT COALESCE(MAX(version), 0) AS max_version
-            FROM field_logic_rules
-            WHERE tenant_id = ? AND scope = ? AND field_key = ?
-            """,
-            (tenant, normalized_scope, normalized_field),
-        ).to_dict(orient="records")
-        next_version = int((existing[0] or {}).get("max_version") or 0) + 1
-        db_client.execute(
-            """
-            UPDATE field_logic_rules
-            SET active = FALSE, updated_at = CURRENT_TIMESTAMP
-            WHERE tenant_id = ? AND scope = ? AND field_key = ?
-            """,
-            (tenant, normalized_scope, normalized_field),
-        )
-        logic_id = str(uuid4())
-        db_client.execute(
-            """
-            INSERT INTO field_logic_rules (
-                logic_id, tenant_id, scope, field_key, natural_language_logic,
-                generated_code, explanation, dependencies_json, version, active,
-                created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            """,
-            (logic_id, tenant, normalized_scope, normalized_field, logic, code, note, json.dumps(dep), next_version),
-        )
+    version_rows = pg_client.execute(
+        """
+        SELECT COALESCE(MAX(version), 0) AS max_version
+        FROM field_logic_rules
+        WHERE tenant_id = %s AND scope = %s AND field_key = %s
+        """,
+        (tenant, normalized_scope, normalized_field),
+    )
+    next_version = int(version_rows[0]["max_version"] or 0) + 1
+    pg_client.execute(
+        """
+        UPDATE field_logic_rules
+        SET active = FALSE, updated_at = CURRENT_TIMESTAMP
+        WHERE tenant_id = %s AND scope = %s AND field_key = %s
+        """,
+        (tenant, normalized_scope, normalized_field),
+    )
+    logic_id = str(uuid4())
+    pg_client.execute(
+        """
+        INSERT INTO field_logic_rules (
+            logic_id, tenant_id, scope, field_key, natural_language_logic,
+            generated_code, explanation, dependencies_json, version, active,
+            created_at, updated_at
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        """,
+        (logic_id, tenant, normalized_scope, normalized_field, logic, code, note, json.dumps(dep), next_version),
+    )
 
     return {
         "logicId": logic_id,
@@ -820,34 +790,18 @@ def list_field_logic_rules(
 
     where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
-    if _tx_on_postgres():
-        rows = pg_client.execute(
-            f"""
-            SELECT
-                logic_id AS id, tenant_id, scope, field_key, natural_language_logic,
-                generated_code, explanation, dependencies_json, version, active,
-                created_at, updated_at
-            FROM field_logic_rules
-            {where_sql}
-            ORDER BY updated_at DESC
-            """,
-            tuple(params),
-        )
-    else:
-        if where_clauses:
-            where_sql = where_sql.replace("%s", "?")
-        rows = db_client.fetch_df(
-            f"""
-            SELECT
-                logic_id AS id, tenant_id, scope, field_key, natural_language_logic,
-                generated_code, explanation, dependencies_json, version, active,
-                created_at, updated_at
-            FROM field_logic_rules
-            {where_sql}
-            ORDER BY updated_at DESC
-            """,
-            tuple(params),
-        ).to_dict(orient="records")
+    rows = pg_client.execute(
+        f"""
+        SELECT
+            logic_id AS id, tenant_id, scope, field_key, natural_language_logic,
+            generated_code, explanation, dependencies_json, version, active,
+            created_at, updated_at
+        FROM field_logic_rules
+        {where_sql}
+        ORDER BY updated_at DESC
+        """,
+        tuple(params),
+    )
 
     result: list[dict] = []
     for row in rows:
@@ -914,26 +868,15 @@ def process_ai_pricing_template(tenant_id: str | None, template_text: str) -> di
     }
     config_id = str(uuid4())
 
-    if _tx_on_postgres():
-        pg_client.execute(
-            """
-            INSERT INTO ai_pricing_configurations (
-                config_id, tenant_id, template_text, status, summary,
-                confidence, processed_result_json, created_at, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            """,
-            (config_id, tenant, template, "processed", summary, confidence, json.dumps(processed_result)),
-        )
-    else:
-        db_client.execute(
-            """
-            INSERT INTO ai_pricing_configurations (
-                config_id, tenant_id, template_text, status, summary,
-                confidence, processed_result_json, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            """,
-            (config_id, tenant, template, "processed", summary, confidence, json.dumps(processed_result)),
-        )
+    pg_client.execute(
+        """
+        INSERT INTO ai_pricing_configurations (
+            config_id, tenant_id, template_text, status, summary,
+            confidence, processed_result_json, created_at, updated_at
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        """,
+        (config_id, tenant, template, "processed", summary, confidence, json.dumps(processed_result)),
+    )
 
     return {
         "configId": config_id,
