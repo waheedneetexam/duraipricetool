@@ -284,79 +284,78 @@ def ensure_auth_seed_data() -> None:
         "Viewer": ["quotes.read", "master_data.read", "analytics.read"],
     }
 
-    if _tx_on_postgres():
+    pg_client.execute(
+        """
+        INSERT INTO tenants (tenant_id, tenant_name, active)
+        VALUES (%s, %s, TRUE)
+        ON CONFLICT (tenant_id) DO NOTHING
+        """,
+        (AUTH_BOOTSTRAP_TENANT, AUTH_BOOTSTRAP_TENANT),
+    )
+
+    for key in permissions:
         pg_client.execute(
             """
-            INSERT INTO tenants (tenant_id, tenant_name, active)
-            VALUES (%s, %s, TRUE)
-            ON CONFLICT (tenant_id) DO NOTHING
+            INSERT INTO permissions (permission_id, permission_key, description)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (permission_key) DO NOTHING
             """,
-            (AUTH_BOOTSTRAP_TENANT, AUTH_BOOTSTRAP_TENANT),
+            (str(uuid4()), key, key),
         )
 
-        for key in permissions:
-            pg_client.execute(
-                """
-                INSERT INTO permissions (permission_id, permission_key, description)
-                VALUES (%s, %s, %s)
-                ON CONFLICT (permission_key) DO NOTHING
-                """,
-                (str(uuid4()), key, key),
-            )
+    for role_name in role_to_permissions:
+        pg_client.execute(
+            """
+            INSERT INTO roles (role_id, role_name, description)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (role_name) DO NOTHING
+            """,
+            (str(uuid4()), role_name, role_name),
+        )
 
-        for role_name in role_to_permissions:
+    rows = pg_client.execute("SELECT COUNT(*) AS c FROM app_users")
+    user_count = int(rows[0]["c"]) if rows else 0
+    if user_count == 0:
+        user_id = str(uuid4())
+        pg_client.execute(
+            """
+            INSERT INTO app_users (user_id, email, full_name, password_hash, active)
+            VALUES (%s, %s, %s, %s, TRUE)
+            """,
+            (user_id, AUTH_BOOTSTRAP_EMAIL, "Bootstrap SuperAdmin", _hash_password(AUTH_BOOTSTRAP_PASSWORD)),
+        )
+        role_id_rows = pg_client.execute("SELECT role_id FROM roles WHERE role_name = %s LIMIT 1", ("SuperAdmin",))
+        if role_id_rows:
             pg_client.execute(
                 """
-                INSERT INTO roles (role_id, role_name, description)
-                VALUES (%s, %s, %s)
-                ON CONFLICT (role_name) DO NOTHING
-                """,
-                (str(uuid4()), role_name, role_name),
-            )
-
-        rows = pg_client.execute("SELECT COUNT(*) AS c FROM app_users")
-        user_count = int(rows[0]["c"]) if rows else 0
-        if user_count == 0:
-            user_id = str(uuid4())
-            pg_client.execute(
-                """
-                INSERT INTO app_users (user_id, email, full_name, password_hash, active)
+                INSERT INTO user_tenant_roles (id, user_id, tenant_id, role_id, active)
                 VALUES (%s, %s, %s, %s, TRUE)
+                ON CONFLICT DO NOTHING
                 """,
-                (user_id, AUTH_BOOTSTRAP_EMAIL, "Bootstrap SuperAdmin", _hash_password(AUTH_BOOTSTRAP_PASSWORD)),
+                (str(uuid4()), user_id, AUTH_BOOTSTRAP_TENANT, role_id_rows[0]["role_id"]),
             )
-            role_id_rows = pg_client.execute("SELECT role_id FROM roles WHERE role_name = %s LIMIT 1", ("SuperAdmin",))
-            if role_id_rows:
-                pg_client.execute(
-                    """
-                    INSERT INTO user_tenant_roles (id, user_id, tenant_id, role_id, active)
-                    VALUES (%s, %s, %s, %s, TRUE)
-                    ON CONFLICT DO NOTHING
-                    """,
-                    (str(uuid4()), user_id, AUTH_BOOTSTRAP_TENANT, role_id_rows[0]["role_id"]),
-                )
 
-        for role_name, keys in role_to_permissions.items():
-            role_rows = pg_client.execute("SELECT role_id FROM roles WHERE role_name = %s LIMIT 1", (role_name,))
-            if not role_rows:
+    for role_name, keys in role_to_permissions.items():
+        role_rows = pg_client.execute("SELECT role_id FROM roles WHERE role_name = %s LIMIT 1", (role_name,))
+        if not role_rows:
+            continue
+        role_id = role_rows[0]["role_id"]
+        if "*" in keys:
+            continue
+        for key in keys:
+            perm_rows = pg_client.execute("SELECT permission_id FROM permissions WHERE permission_key = %s LIMIT 1", (key,))
+            if not perm_rows:
                 continue
-            role_id = role_rows[0]["role_id"]
-            if "*" in keys:
-                continue
-            for key in keys:
-                perm_rows = pg_client.execute("SELECT permission_id FROM permissions WHERE permission_key = %s LIMIT 1", (key,))
-                if not perm_rows:
-                    continue
-                perm_id = perm_rows[0]["permission_id"]
-                pg_client.execute(
-                    """
-                    INSERT INTO role_permissions (id, role_id, permission_id)
-                    VALUES (%s, %s, %s)
-                    ON CONFLICT DO NOTHING
-                    """,
-                    (str(uuid4()), role_id, perm_id),
-                )
+            perm_id = perm_rows[0]["permission_id"]
+            pg_client.execute(
+                """
+                INSERT INTO role_permissions (id, role_id, permission_id)
+                VALUES (%s, %s, %s)
+                ON CONFLICT DO NOTHING
+                """,
+                (str(uuid4()), role_id, perm_id),
+            )
 
-        return
+    return
 
         return
