@@ -277,19 +277,11 @@ def delete_data_table_schema(table_id: str, context: AuthContext = Depends(requi
     if table_id not in schemas or not schemas[table_id].get("isDynamic"):
         return {"success": False, "error": "Cannot delete core system tables"}
         
-    from app.db.duckdb_client import db_client
-    from app.db.postgres_client import pg_client
-    from app.core.config import DB_ENGINE
-    
     table_name = schemas[table_id]["name"]
     
     try:
-        if DB_ENGINE in {"postgres", "hybrid"}:
-            pg_client.execute(f"DROP TABLE IF EXISTS {table_name}")
-            pg_client.execute("DELETE FROM dynamic_table_definitions WHERE table_id = %s AND tenant_id = %s", (table_id, context.tenant_id))
-        else:
-            db_client.execute(f"DROP TABLE IF EXISTS {table_name}")
-            db_client.execute("DELETE FROM dynamic_table_definitions WHERE table_id = ? AND tenant_id = ?", (table_id, context.tenant_id))
+        pg_client.execute(f"DROP TABLE IF EXISTS {table_name}")
+        pg_client.execute("DELETE FROM dynamic_table_definitions WHERE table_id = %s AND tenant_id = %s", (table_id, context.tenant_id))
         return {"success": True}
     except Exception as exc:
         return {"success": False, "error": str(exc)}

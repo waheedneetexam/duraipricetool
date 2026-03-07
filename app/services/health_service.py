@@ -4,7 +4,6 @@ import re
 import subprocess
 from typing import Any
 
-from app.core.config import DB_ENGINE
 from app.db.postgres_client import pg_client
 
 
@@ -77,12 +76,10 @@ def build_health_payload(start_time: datetime) -> dict:
             "started_at": start_time.astimezone(timezone.utc).isoformat(),
             "server_time": now.isoformat(),
             "uptime_seconds": api_uptime,
-            "db_engine": DB_ENGINE,
+            "db_engine": "postgres",
         },
+        "postgres": check_postgres_health(),
     }
-
-    if DB_ENGINE == "postgres":
-        components["postgres"] = check_postgres_health()
 
     overall_status = "ok"
     for component in components.values():

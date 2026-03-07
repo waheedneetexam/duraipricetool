@@ -3,8 +3,6 @@ import logging
 from uuid import uuid4
 
 import pandas as pd
-from app.core.config import DB_ENGINE
-from app.db.duckdb_client import db_client
 from app.db.postgres_client import pg_client
 from app.engines.formula_engine import SafeFormulaEngine
 from app.engines.workflow_engine import WorkflowEngine
@@ -23,63 +21,37 @@ DEFAULT_LINE_FORMULAS = [
 logger = logging.getLogger(__name__)
 
 
-def _tx_on_postgres() -> bool:
-    return DB_ENGINE in {"postgres", "hybrid"}
 
 
 def _column_exists(table: str, column: str) -> bool:
     try:
-        if _tx_on_postgres():
-            rows = pg_client.execute(
-                """
-                SELECT 1
-                FROM information_schema.columns
-                WHERE table_schema = 'public'
-                  AND table_name = %s
-                  AND column_name = %s
-                LIMIT 1
-                """,
-                (table, column),
-            )
-            return bool(rows)
-        df = db_client.fetch_df(
+        rows = pg_client.execute(
             """
             SELECT 1
             FROM information_schema.columns
-            WHERE table_schema = 'main'
-              AND table_name = ?
-              AND column_name = ?
+            WHERE table_schema = 'public'
+              AND table_name = %s
+              AND column_name = %s
             LIMIT 1
             """,
             (table, column),
         )
-        return not df.empty
+        return bool(rows)
     except Exception:
         return False
 
 
 def _ensure_region_discount_schema() -> None:
     try:
-        if _tx_on_postgres():
-            pg_client.execute(
-                "ALTER TABLE quote_line_items ADD COLUMN IF NOT EXISTS customer_region_discount NUMERIC"
-            )
-            pg_client.execute(
-                "ALTER TABLE regions ADD COLUMN IF NOT EXISTS discount_percent NUMERIC"
-            )
-            pg_client.execute(
-                "ALTER TABLE regions ADD COLUMN IF NOT EXISTS tenant_id TEXT"
-            )
-        else:
-            db_client.execute(
-                "ALTER TABLE quote_line_items ADD COLUMN IF NOT EXISTS customer_region_discount DOUBLE"
-            )
-            db_client.execute(
-                "ALTER TABLE regions ADD COLUMN IF NOT EXISTS discount_percent DOUBLE"
-            )
-            db_client.execute(
-                "ALTER TABLE regions ADD COLUMN IF NOT EXISTS tenant_id VARCHAR"
-            )
+        pg_client.execute(
+            "ALTER TABLE quote_line_items ADD COLUMN IF NOT EXISTS customer_region_discount NUMERIC"
+        )
+        pg_client.execute(
+            "ALTER TABLE regions ADD COLUMN IF NOT EXISTS discount_percent NUMERIC"
+        )
+        pg_client.execute(
+            "ALTER TABLE regions ADD COLUMN IF NOT EXISTS tenant_id TEXT"
+        )
     except Exception:
         # Best-effort; missing columns will be handled by fallback logic.
         pass
@@ -120,45 +92,25 @@ def _apply_customer_region_discount(quote_id: str, tenant_id: str) -> None:
           AND q.tenant_id = {{tenant_id_param}}
     """
     try:
-        if _tx_on_postgres():
-            pg_client.execute(
-                query.format(quote_id_param="%s", tenant_id_param="%s"),
-                (quote_id, tenant_id),
-            )
-        else:
-            db_client.execute(
-                query.format(quote_id_param="?", tenant_id_param="?"),
-                (quote_id, tenant_id),
-            )
+        pg_client.execute(
+            query.format(quote_id_param="%s", tenant_id_param="%s"),
+            (quote_id, tenant_id),
+        )
     except Exception as exc:
         logger.warning("Failed to apply customer region discount for quote %s: %s", quote_id, exc)
 
 
 def _get_active_formulas(tenant_id: str) -> list[dict]:
-    if _tx_on_postgres():
-        rows = pg_client.execute(
-            """
-            SELECT field_key, generated_code
-            FROM field_logic_rules
-            WHERE tenant_id = %s AND active = TRUE AND scope = 'line_item'
-            ORDER BY created_at ASC
-            """,
-            (tenant_id,),
-        )
-        return [{"target_field": r["field_key"], "expression": r["generated_code"]} for r in rows]
-    else:
-        df = db_client.fetch_df(
-            """
-            SELECT field_key, generated_code
-            FROM field_logic_rules
-            WHERE tenant_id = ? AND active = TRUE AND scope = 'line_item'
-            ORDER BY created_at ASC
-            """,
-            (tenant_id,),
-        )
-        if df.empty:
-            return []
-        return [{"target_field": r["field_key"], "expression": r["generated_code"]} for r in df.to_dict(orient="records")]
+    rows = pg_client.execute(
+        """
+        SELECT field_key, generated_code
+        FROM field_logic_rules
+        WHERE tenant_id = %s AND active = TRUE AND scope = 'line_item'
+        ORDER BY created_at ASC
+        """,
+        (tenant_id,),
+    )
+    return [{"target_field": r["field_key"], "expression": r["generated_code"]} for r in rows]
 
 
 def calculate_quote(payload: QuoteCalculationRequest, tenant_id: str = "default") -> dict:
@@ -246,174 +198,105 @@ def seed_default_workflow_rules(tenant_id: str = "default") -> dict:
     ]
 
     for rule in defaults:
-        if _tx_on_postgres():
-            pg_client.execute(
-                """
-                INSERT INTO workflow_rules (
-                    rule_id, tenant_id, customer_id, customer_segment, state_from, state_to,
-                    metric_name, comparator, threshold, required_approver_role, active, updated_at
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, CURRENT_TIMESTAMP)
-                """,
-                (
-                    rule["rule_id"],
-                    tenant_id,
-                    rule["customer_id"],
-                    rule["customer_segment"],
-                    rule["state_from"],
-                    rule["state_to"],
-                    rule["metric_name"],
-                    rule["comparator"],
-                    rule["threshold"],
-                    rule["required_approver_role"],
-                ),
-            )
-        else:
-            db_client.execute(
-                """
-                INSERT INTO workflow_rules (
-                    rule_id, tenant_id, customer_id, customer_segment, state_from, state_to,
-                    metric_name, comparator, threshold, required_approver_role, active
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
-                """,
-                (
-                    rule["rule_id"],
-                    tenant_id,
-                    rule["customer_id"],
-                    rule["customer_segment"],
-                    rule["state_from"],
-                    rule["state_to"],
-                    rule["metric_name"],
-                    rule["comparator"],
-                    rule["threshold"],
-                    rule["required_approver_role"],
-                ),
-            )
+        pg_client.execute(
+            """
+            INSERT INTO workflow_rules (
+                rule_id, tenant_id, customer_id, customer_segment, state_from, state_to,
+                metric_name, comparator, threshold, required_approver_role, active, updated_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, CURRENT_TIMESTAMP)
+            """,
+            (
+                rule["rule_id"],
+                tenant_id,
+                rule["customer_id"],
+                rule["customer_segment"],
+                rule["state_from"],
+                rule["state_to"],
+                rule["metric_name"],
+                rule["comparator"],
+                rule["threshold"],
+                rule["required_approver_role"],
+            ),
+        )
     return {"seeded_rules": len(defaults)}
 
 
 def _persist_quote(payload: QuoteCalculationRequest, line_items: list[dict], totals: dict, status: str, tenant_id: str = "default") -> None:
     header = payload.header
-    if _tx_on_postgres():
+    pg_client.execute(
+        """
+        INSERT INTO quotes (
+            quote_id, tenant_id, customer_id, customer_name, customer_segment, status,
+            header_fields, total_list_price, total_net_price, total_cost, total_margin, updated_at
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (quote_id) DO UPDATE SET
+            customer_id = EXCLUDED.customer_id,
+            customer_name = EXCLUDED.customer_name,
+            customer_segment = EXCLUDED.customer_segment,
+            status = EXCLUDED.status,
+            header_fields = EXCLUDED.header_fields,
+            total_list_price = EXCLUDED.total_list_price,
+            total_net_price = EXCLUDED.total_net_price,
+            total_cost = EXCLUDED.total_cost,
+            total_margin = EXCLUDED.total_margin,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (
+            header.quote_id,
+            tenant_id,
+            header.customer_id,
+            header.customer_name,
+            header.customer_segment,
+            status,
+            json.dumps(header.header_fields),
+            totals["total_list_price"],
+            totals["total_net_price"],
+            totals["total_cost"],
+            totals["total_margin"],
+        ),
+    )
+    pg_client.execute("DELETE FROM quote_line_items WHERE quote_id = %s AND tenant_id = %s", (header.quote_id, tenant_id))
+    for item in line_items:
         pg_client.execute(
             """
-            INSERT INTO quotes (
-                quote_id, tenant_id, customer_id, customer_name, customer_segment, status,
-                header_fields, total_list_price, total_net_price, total_cost, total_margin, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-            ON CONFLICT (quote_id) DO UPDATE SET
-                customer_id = EXCLUDED.customer_id,
-                customer_name = EXCLUDED.customer_name,
-                customer_segment = EXCLUDED.customer_segment,
-                status = EXCLUDED.status,
-                header_fields = EXCLUDED.header_fields,
-                total_list_price = EXCLUDED.total_list_price,
-                total_net_price = EXCLUDED.total_net_price,
-                total_cost = EXCLUDED.total_cost,
-                total_margin = EXCLUDED.total_margin,
-                updated_at = CURRENT_TIMESTAMP
+            INSERT INTO quote_line_items (
+                quote_line_id, quote_id, tenant_id, sku, quantity, list_price,
+                discount_percent, net_price, cost, margin, dynamic_fields, updated_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, CURRENT_TIMESTAMP)
             """,
             (
+                item["quote_line_id"],
                 header.quote_id,
                 tenant_id,
-                header.customer_id,
-                header.customer_name,
-                header.customer_segment,
-                status,
-                json.dumps(header.header_fields),
-                totals["total_list_price"],
-                totals["total_net_price"],
-                totals["total_cost"],
-                totals["total_margin"],
+                item["sku"],
+                item["quantity"],
+                item["list_price"],
+                item["discount_percent"],
+                item["net_price"],
+                item["cost"],
+                item["margin"],
+                json.dumps(item["dynamic_fields"]),
             ),
         )
-        pg_client.execute("DELETE FROM quote_line_items WHERE quote_id = %s AND tenant_id = %s", (header.quote_id, tenant_id))
-        for item in line_items:
-            pg_client.execute(
-                """
-                INSERT INTO quote_line_items (
-                    quote_line_id, quote_id, tenant_id, sku, quantity, list_price,
-                    discount_percent, net_price, cost, margin, dynamic_fields, updated_at
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, CURRENT_TIMESTAMP)
-                """,
-                (
-                    item["quote_line_id"],
-                    header.quote_id,
-                    tenant_id,
-                    item["sku"],
-                    item["quantity"],
-                    item["list_price"],
-                    item["discount_percent"],
-                    item["net_price"],
-                    item["cost"],
-                    item["margin"],
-                    json.dumps(item["dynamic_fields"]),
-                ),
-            )
-        _apply_customer_region_discount(header.quote_id, tenant_id)
-    else:
-        db_client.execute(
-            """
-            INSERT OR REPLACE INTO quotes (
-                quote_id, tenant_id, customer_id, customer_name, customer_segment, status,
-                header_fields, total_list_price, total_net_price, total_cost, total_margin, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            """,
-            (
-                header.quote_id,
-                tenant_id,
-                header.customer_id,
-                header.customer_name,
-                header.customer_segment,
-                status,
-                json.dumps(header.header_fields),
-                totals["total_list_price"],
-                totals["total_net_price"],
-                totals["total_cost"],
-                totals["total_margin"],
-            ),
-        )
-
-        db_client.execute("DELETE FROM quote_line_items WHERE quote_id = ? AND tenant_id = ?", (header.quote_id, tenant_id))
-        for item in line_items:
-            db_client.execute(
-                """
-                INSERT INTO quote_line_items (
-                    quote_line_id, quote_id, tenant_id, sku, quantity, list_price,
-                    discount_percent, net_price, cost, margin, dynamic_fields, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                """,
-                (
-                    item["quote_line_id"],
-                    header.quote_id,
-                    tenant_id,
-                    item["sku"],
-                    item["quantity"],
-                    item["list_price"],
-                    item["discount_percent"],
-                    item["net_price"],
-                    item["cost"],
-                    item["margin"],
-                    json.dumps(item["dynamic_fields"]),
-                ),
-            )
-        _apply_customer_region_discount(header.quote_id, tenant_id)
+    _apply_customer_region_discount(header.quote_id, tenant_id)
 
 
 def _embedded_analytics(customer_id: str, quote_quantity: int, tenant_id: str = "default") -> dict:
-    trend = db_client.fetch_df(
+    rows = pg_client.execute(
         """
         SELECT
             DATE_TRUNC('month', transaction_date) AS month,
             AVG(net_price) AS avg_net_price
         FROM historical_transactions
-        WHERE customer_id = ?
-          AND tenant_id = ?
+        WHERE customer_id = %s
+          AND tenant_id = %s
         GROUP BY 1
         ORDER BY 1 DESC
         LIMIT 6
         """,
         (customer_id, tenant_id),
-    ).to_dict(orient="records")
+    )
+    trend = [dict(r) for r in rows]
 
     quote_bridge = {
         "steps": [
@@ -425,82 +308,50 @@ def _embedded_analytics(customer_id: str, quote_quantity: int, tenant_id: str = 
 
 
 def _historical_avg_quantity(customer_id: str, tenant_id: str = "default") -> float:
-    row = db_client.execute(
+    rows = pg_client.execute(
         """
-        SELECT COALESCE(AVG(quantity), 0)
+        SELECT COALESCE(AVG(quantity), 0) AS avg_qty
         FROM historical_transactions
-        WHERE customer_id = ?
-          AND tenant_id = ?
+        WHERE customer_id = %s
+          AND tenant_id = %s
         """,
         (customer_id, tenant_id),
-    ).fetchone()
-    return float(row[0] or 0.0)
+    )
+    return float(rows[0]["avg_qty"] or 0.0) if rows else 0.0
 
 
 def list_quotes(tenant_id: str = "default") -> list[dict]:
-    if _tx_on_postgres():
-        rows = pg_client.execute(
-            """
-            SELECT
-                q.quote_id,
-                q.customer_id,
-                q.customer_name,
-                q.customer_segment,
-                q.status,
-                q.header_fields,
-                q.total_net_price,
-                q.created_at,
-                q.updated_at,
-                COUNT(li.quote_line_id) AS line_item_count
-            FROM quotes q
-            LEFT JOIN quote_line_items li ON li.quote_id = q.quote_id AND li.tenant_id = q.tenant_id
-            WHERE q.tenant_id = %s
-            GROUP BY
-                q.quote_id,
-                q.customer_id,
-                q.customer_name,
-                q.customer_segment,
-                q.status,
-                q.header_fields,
-                q.total_net_price,
-                q.created_at,
-                q.updated_at
-            ORDER BY q.updated_at DESC
-            """,
-            (tenant_id,),
-        )
-        df = pd.DataFrame(rows)
-    else:
-        df = db_client.fetch_df(
-            """
-            SELECT
-                q.quote_id,
-                q.customer_id,
-                q.customer_name,
-                q.customer_segment,
-                q.status,
-                q.header_fields,
-                q.total_net_price,
-                q.created_at,
-                q.updated_at,
-                COUNT(li.quote_line_id) AS line_item_count
-            FROM quotes q
-            LEFT JOIN quote_line_items li ON li.quote_id = q.quote_id AND li.tenant_id = q.tenant_id
-            WHERE q.tenant_id = ?
-            GROUP BY
-                q.quote_id,
-                q.customer_id,
-                q.customer_name,
-                q.customer_segment,
-                q.status,
-                q.header_fields,
-                q.total_net_price,
-                q.created_at,
-                q.updated_at
-            ORDER BY q.updated_at DESC
-            """,
-            (tenant_id,),
-        )
+    rows = pg_client.execute(
+        """
+        SELECT
+            q.quote_id,
+            q.customer_id,
+            q.customer_name,
+            q.customer_segment,
+            q.status,
+            q.header_fields,
+            q.total_net_price,
+            q.created_at,
+            q.updated_at,
+            COUNT(li.quote_line_id) AS line_item_count
+        FROM quotes q
+        LEFT JOIN quote_line_items li ON li.quote_id = q.quote_id AND li.tenant_id = q.tenant_id
+        WHERE q.tenant_id = %s
+        GROUP BY
+            q.quote_id,
+            q.customer_id,
+            q.customer_name,
+            q.customer_segment,
+            q.status,
+            q.header_fields,
+            q.total_net_price,
+            q.created_at,
+            q.updated_at
+        ORDER BY q.updated_at DESC
+        """,
+        (tenant_id,),
+    )
+    df = pd.DataFrame(rows)
     records = []
     for row in df.to_dict(orient="records"):
         header_fields = _safe_json_loads(row.get("header_fields"))
@@ -521,57 +372,33 @@ def list_quotes(tenant_id: str = "default") -> list[dict]:
 
 def get_quote(quote_id: str, tenant_id: str = "default") -> dict | None:
     _ensure_region_discount_schema()
-    if _tx_on_postgres():
-        quote_df = pd.DataFrame(pg_client.execute("SELECT * FROM quotes WHERE quote_id = %s AND tenant_id = %s", (quote_id, tenant_id)))
-    else:
-        quote_df = db_client.fetch_df("SELECT * FROM quotes WHERE quote_id = ? AND tenant_id = ?", (quote_id, tenant_id))
-    if quote_df.empty:
+    quote_rows = pg_client.execute("SELECT * FROM quotes WHERE quote_id = %s AND tenant_id = %s", (quote_id, tenant_id))
+    if not quote_rows:
         return None
+    quote_df = pd.DataFrame(quote_rows)
 
     quote = quote_df.iloc[0].to_dict()
     header_fields = _safe_json_loads(quote.get("header_fields"))
-    if _tx_on_postgres():
-        lines_df = pd.DataFrame(
-            pg_client.execute(
-                """
-                SELECT
-                    quote_line_id,
-                    sku,
-                    quantity,
-                    list_price,
-                    cost,
-                    discount_percent,
-                    customer_region_discount,
-                    net_price,
-                    margin,
-                    dynamic_fields
-                FROM quote_line_items
-                WHERE quote_id = %s AND tenant_id = %s
-                ORDER BY created_at
-                """,
-                (quote_id, tenant_id),
-            )
-        )
-    else:
-        lines_df = db_client.fetch_df(
-            """
-            SELECT
-                quote_line_id,
-                sku,
-                quantity,
-                list_price,
-                cost,
-                discount_percent,
-                customer_region_discount,
-                net_price,
-                margin,
-                dynamic_fields
-            FROM quote_line_items
-            WHERE quote_id = ? AND tenant_id = ?
-            ORDER BY created_at
-            """,
-            (quote_id, tenant_id),
-        )
+    lines_rows = pg_client.execute(
+        """
+        SELECT
+            quote_line_id,
+            sku,
+            quantity,
+            list_price,
+            cost,
+            discount_percent,
+            customer_region_discount,
+            net_price,
+            margin,
+            dynamic_fields
+        FROM quote_line_items
+        WHERE quote_id = %s AND tenant_id = %s
+        ORDER BY created_at
+        """,
+        (quote_id, tenant_id),
+    )
+    lines_df = pd.DataFrame(lines_rows)
 
     line_items = []
     for row in lines_df.to_dict(orient="records"):
@@ -646,137 +473,77 @@ def save_quote(payload: QuoteSaveRequest, tenant_id: str = "default") -> dict:
         "paymentTerms": payload.paymentTerms,
     }
 
-    if _tx_on_postgres():
+    pg_client.execute(
+        """
+        INSERT INTO quotes (
+            quote_id, tenant_id, customer_id, customer_name, customer_segment, status,
+            header_fields, total_list_price, total_net_price, total_cost, total_margin, updated_at
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (quote_id) DO UPDATE SET
+            customer_id = EXCLUDED.customer_id,
+            customer_name = EXCLUDED.customer_name,
+            customer_segment = EXCLUDED.customer_segment,
+            status = EXCLUDED.status,
+            header_fields = EXCLUDED.header_fields,
+            total_list_price = EXCLUDED.total_list_price,
+            total_net_price = EXCLUDED.total_net_price,
+            total_cost = EXCLUDED.total_cost,
+            total_margin = EXCLUDED.total_margin,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (
+            quote_id,
+            tenant_id,
+            payload.customerId or payload.customerName,
+            payload.customerName,
+            payload.customerSegment or "Enterprise",
+            "Draft",
+            json.dumps(header_fields),
+            totals["total_list_price"],
+            totals["total_net_price"],
+            totals["total_cost"],
+            totals["total_margin_amount"],
+        ),
+    )
+    pg_client.execute("DELETE FROM quote_line_items WHERE quote_id = %s AND tenant_id = %s", (quote_id, tenant_id))
+    for line in line_items:
         pg_client.execute(
             """
-            INSERT INTO quotes (
-                quote_id, tenant_id, customer_id, customer_name, customer_segment, status,
-                header_fields, total_list_price, total_net_price, total_cost, total_margin, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-            ON CONFLICT (quote_id) DO UPDATE SET
-                customer_id = EXCLUDED.customer_id,
-                customer_name = EXCLUDED.customer_name,
-                customer_segment = EXCLUDED.customer_segment,
-                status = EXCLUDED.status,
-                header_fields = EXCLUDED.header_fields,
-                total_list_price = EXCLUDED.total_list_price,
-                total_net_price = EXCLUDED.total_net_price,
-                total_cost = EXCLUDED.total_cost,
-                total_margin = EXCLUDED.total_margin,
-                updated_at = CURRENT_TIMESTAMP
+            INSERT INTO quote_line_items (
+                quote_line_id, quote_id, tenant_id, sku, quantity, list_price,
+                discount_percent, net_price, cost, margin, dynamic_fields, updated_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, CURRENT_TIMESTAMP)
             """,
             (
+                line["id"],
                 quote_id,
                 tenant_id,
-                payload.customerId or payload.customerName,
-                payload.customerName,
-                payload.customerSegment or "Enterprise",
-                "Draft",
-                json.dumps(header_fields),
-                totals["total_list_price"],
-                totals["total_net_price"],
-                totals["total_cost"],
-                totals["total_margin_amount"],
+                line["sku"],
+                line["quantity"],
+                line["listPrice"],
+                line["volumeDiscount"] / 100.0,
+                line["netPrice"],
+                line["cost"],
+                line["marginAmount"],
+                json.dumps(
+                    {
+                        "productName": line["productName"],
+                        "volumeDiscount": line["volumeDiscount"],
+                        "rebate": line["rebate"],
+                        "marginPercent": line["margin"],
+                        "totalValue": line["totalValue"],
+                    }
+                ),
             ),
         )
-        pg_client.execute("DELETE FROM quote_line_items WHERE quote_id = %s AND tenant_id = %s", (quote_id, tenant_id))
-        for line in line_items:
-            pg_client.execute(
-                """
-                INSERT INTO quote_line_items (
-                    quote_line_id, quote_id, tenant_id, sku, quantity, list_price,
-                    discount_percent, net_price, cost, margin, dynamic_fields, updated_at
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, CURRENT_TIMESTAMP)
-                """,
-                (
-                    line["id"],
-                    quote_id,
-                    tenant_id,
-                    line["sku"],
-                    line["quantity"],
-                    line["listPrice"],
-                    line["volumeDiscount"] / 100.0,
-                    line["netPrice"],
-                    line["cost"],
-                    line["marginAmount"],
-                    json.dumps(
-                        {
-                            "productName": line["productName"],
-                            "volumeDiscount": line["volumeDiscount"],
-                            "rebate": line["rebate"],
-                            "marginPercent": line["margin"],
-                            "totalValue": line["totalValue"],
-                        }
-                    ),
-                ),
-            )
-        _apply_customer_region_discount(quote_id, tenant_id)
-    else:
-        db_client.execute(
-            """
-            INSERT OR REPLACE INTO quotes (
-                quote_id, tenant_id, customer_id, customer_name, customer_segment, status,
-                header_fields, total_list_price, total_net_price, total_cost, total_margin, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            """,
-            (
-                quote_id,
-                tenant_id,
-                payload.customerId or payload.customerName,
-                payload.customerName,
-                payload.customerSegment or "Enterprise",
-                "Draft",
-                json.dumps(header_fields),
-                totals["total_list_price"],
-                totals["total_net_price"],
-                totals["total_cost"],
-                totals["total_margin_amount"],
-            ),
-        )
-
-        db_client.execute("DELETE FROM quote_line_items WHERE quote_id = ? AND tenant_id = ?", (quote_id, tenant_id))
-        for line in line_items:
-            db_client.execute(
-                """
-                INSERT INTO quote_line_items (
-                    quote_line_id, quote_id, tenant_id, sku, quantity, list_price,
-                    discount_percent, net_price, cost, margin, dynamic_fields, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                """,
-                (
-                    line["id"],
-                    quote_id,
-                    tenant_id,
-                    line["sku"],
-                    line["quantity"],
-                    line["listPrice"],
-                    line["volumeDiscount"] / 100.0,
-                    line["netPrice"],
-                    line["cost"],
-                    line["marginAmount"],
-                    json.dumps(
-                        {
-                            "productName": line["productName"],
-                            "volumeDiscount": line["volumeDiscount"],
-                            "rebate": line["rebate"],
-                            "marginPercent": line["margin"],
-                            "totalValue": line["totalValue"],
-                        }
-                    ),
-                ),
-            )
-        _apply_customer_region_discount(quote_id, tenant_id)
+    _apply_customer_region_discount(quote_id, tenant_id)
 
     return {"success": True, "data": {"id": quote_id, "totalValue": totals["total_net_price"]}}
 
 
 def delete_quote(quote_id: str, tenant_id: str = "default") -> dict:
-    if _tx_on_postgres():
-        pg_client.execute("DELETE FROM quote_line_items WHERE quote_id = %s AND tenant_id = %s", (quote_id, tenant_id))
-        pg_client.execute("DELETE FROM quotes WHERE quote_id = %s AND tenant_id = %s", (quote_id, tenant_id))
-    else:
-        db_client.execute("DELETE FROM quote_line_items WHERE quote_id = ? AND tenant_id = ?", (quote_id, tenant_id))
-        db_client.execute("DELETE FROM quotes WHERE quote_id = ? AND tenant_id = ?", (quote_id, tenant_id))
+    pg_client.execute("DELETE FROM quote_line_items WHERE quote_id = %s AND tenant_id = %s", (quote_id, tenant_id))
+    pg_client.execute("DELETE FROM quotes WHERE quote_id = %s AND tenant_id = %s", (quote_id, tenant_id))
     return {"success": True, "deletedQuoteId": quote_id}
 
 

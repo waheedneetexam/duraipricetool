@@ -13,14 +13,13 @@ from app.api.routes_master_data import router as master_data_router
 from app.api.routes_platform import router as platform_router
 from app.api.routes_quotes import router as quotes_router
 from app.api.routes_audit import router as audit_router
-from app.core.config import DB_ENGINE
 from app.db.postgres_client import pg_client
 from app.services.auth_service import ensure_auth_seed_data
 from app.services.health_service import build_health_payload
 
 app = FastAPI(
     title="Durai Pricing Tool",
-    description="Modular CPQ/PRO platform blueprint with DuckDB analytics and dynamic quoting.",
+    description="Modular CPQ/PRO platform blueprint with PostgreSQL analytics and dynamic quoting.",
     version="0.1.0",
 )
 
@@ -46,8 +45,7 @@ app.include_router(auth_router)
 
 @app.on_event("startup")
 def startup_init():
-    if DB_ENGINE in {"postgres", "hybrid"}:
-        pg_client.initialize_schema()
+    pg_client.initialize_schema()
     ensure_auth_seed_data()
 
 

@@ -1,7 +1,4 @@
 from datetime import datetime
-
-from app.core.config import DB_ENGINE
-from app.db.duckdb_client import db_client
 from app.db.postgres_client import pg_client
 from app.models.master_data import (
     Customer,
@@ -12,8 +9,6 @@ from app.models.master_data import (
 )
 
 
-def _tx_on_postgres() -> bool:
-    return DB_ENGINE in {"postgres", "hybrid"}
 
 
 def _now() -> datetime:
@@ -21,24 +16,15 @@ def _now() -> datetime:
 
 
 def _assert_tenant_ownership(table: str, id_column: str, id_value: str, tenant_id: str) -> None:
-    if _tx_on_postgres():
-        rows = pg_client.execute(f"SELECT tenant_id FROM {table} WHERE {id_column} = %s LIMIT 1", (id_value,))
-        if rows and rows[0].get("tenant_id") not in {tenant_id, None}:
-            raise ValueError(f"{table}.{id_column} belongs to another tenant")
-        return
-
-    row = db_client.execute(f"SELECT tenant_id FROM {table} WHERE {id_column} = ? LIMIT 1", (id_value,)).fetchone()
-    if row and row[0] not in {tenant_id, None}:
+    rows = pg_client.execute(f"SELECT tenant_id FROM {table} WHERE {id_column} = %s LIMIT 1", (id_value,))
+    if rows and rows[0].get("tenant_id") not in {tenant_id, None}:
         raise ValueError(f"{table}.{id_column} belongs to another tenant")
 
 
 def _fetch_all(table: str, columns: list[str], tenant_id: str) -> list[dict]:
     column_str = ", ".join(columns)
-    if _tx_on_postgres():
-        rows = pg_client.execute(f"SELECT {column_str} FROM {table} WHERE tenant_id = %s ORDER BY updated_at DESC", (tenant_id,))
-        return [dict(row) for row in rows]
-    df = db_client.fetch_df(f"SELECT {column_str} FROM {table} WHERE tenant_id = ? ORDER BY updated_at DESC", (tenant_id,))
-    return df.to_dict(orient="records")
+    rows = pg_client.execute(f"SELECT {column_str} FROM {table} WHERE tenant_id = %s ORDER BY updated_at DESC", (tenant_id,))
+    return [dict(row) for row in rows]
 
 
 def list_products(tenant_id: str = "default") -> list[dict]:
@@ -59,54 +45,34 @@ def list_sellers(tenant_id: str = "default") -> list[dict]:
 def upsert_product(product: Product, tenant_id: str = "default") -> dict:
     now = _now()
     _assert_tenant_ownership("products", "product_id", product.product_id, tenant_id)
-    if _tx_on_postgres():
-        pg_client.execute(
-            """
-            INSERT INTO products (
-                product_id, tenant_id, sku, name, description, family, category, price, active, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-            ON CONFLICT (product_id) DO UPDATE SET
-                tenant_id = EXCLUDED.tenant_id,
-                sku = EXCLUDED.sku,
-                name = EXCLUDED.name,
-                description = EXCLUDED.description,
-                family = EXCLUDED.family,
-                category = EXCLUDED.category,
-                price = EXCLUDED.price,
-                active = EXCLUDED.active,
-                updated_at = CURRENT_TIMESTAMP;
-            """,
-            (
-                product.product_id,
-                tenant_id,
-                product.sku,
-                product.name,
-                product.description,
-                product.family,
-                product.category,
-                product.price,
-                product.active,
-            ),
-        )
-    else:
-        db_client.execute(
-            """
-            INSERT OR REPLACE INTO products (
-                product_id, tenant_id, sku, name, description, family, category, price, active, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            """,
-            (
-                product.product_id,
-                tenant_id,
-                product.sku,
-                product.name,
-                product.description,
-                product.family,
-                product.category,
-                product.price,
-                product.active,
-            ),
-        )
+    pg_client.execute(
+        """
+        INSERT INTO products (
+            product_id, tenant_id, sku, name, description, family, category, price, active, updated_at
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (product_id) DO UPDATE SET
+            tenant_id = EXCLUDED.tenant_id,
+            sku = EXCLUDED.sku,
+            name = EXCLUDED.name,
+            description = EXCLUDED.description,
+            family = EXCLUDED.family,
+            category = EXCLUDED.category,
+            price = EXCLUDED.price,
+            active = EXCLUDED.active,
+            updated_at = CURRENT_TIMESTAMP;
+        """,
+        (
+            product.product_id,
+            tenant_id,
+            product.sku,
+            product.name,
+            product.description,
+            product.family,
+            product.category,
+            product.price,
+            product.active,
+        ),
+    )
     return product.model_dump()
 
 
@@ -120,233 +86,137 @@ def delete_product(product_id: str, tenant_id: str = "default") -> dict:
 
 def upsert_customer(customer: Customer, tenant_id: str = "default") -> dict:
     _assert_tenant_ownership("customers", "customer_id", customer.customer_id, tenant_id)
-    if _tx_on_postgres():
-        pg_client.execute(
-            """
-            INSERT INTO customers (
-                customer_id, tenant_id, account_number, name, segment, region, industry, active, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-            ON CONFLICT (customer_id) DO UPDATE SET
-                tenant_id = EXCLUDED.tenant_id,
-                account_number = EXCLUDED.account_number,
-                name = EXCLUDED.name,
-                segment = EXCLUDED.segment,
-                region = EXCLUDED.region,
-                industry = EXCLUDED.industry,
-                active = EXCLUDED.active,
-                updated_at = CURRENT_TIMESTAMP;
-            """,
-            (
-                customer.customer_id,
-                tenant_id,
-                customer.account_number,
-                customer.name,
-                customer.segment,
-                customer.region,
-                customer.industry,
-                customer.active,
-            ),
-        )
-    else:
-        db_client.execute(
-            """
-            INSERT OR REPLACE INTO customers (
-                customer_id, tenant_id, account_number, name, segment, region, industry, active, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            """,
-            (
-                customer.customer_id,
-                tenant_id,
-                customer.account_number,
-                customer.name,
-                customer.segment,
-                customer.region,
-                customer.industry,
-                customer.active,
-            ),
-        )
+    pg_client.execute(
+        """
+        INSERT INTO customers (
+            customer_id, tenant_id, account_number, name, segment, region, industry, active, updated_at
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (customer_id) DO UPDATE SET
+            tenant_id = EXCLUDED.tenant_id,
+            account_number = EXCLUDED.account_number,
+            name = EXCLUDED.name,
+            segment = EXCLUDED.segment,
+            region = EXCLUDED.region,
+            industry = EXCLUDED.industry,
+            active = EXCLUDED.active,
+            updated_at = CURRENT_TIMESTAMP;
+        """,
+        (
+            customer.customer_id,
+            tenant_id,
+            customer.account_number,
+            customer.name,
+            customer.segment,
+            customer.region,
+            customer.industry,
+            customer.active,
+        ),
+    )
     return customer.model_dump()
 
 
 def delete_customer(customer_id: str, tenant_id: str = "default") -> dict:
-    if _tx_on_postgres():
-        pg_client.execute("DELETE FROM customers WHERE customer_id = %s AND tenant_id = %s", (customer_id, tenant_id))
-    else:
-        db_client.execute("DELETE FROM customers WHERE customer_id = ? AND tenant_id = ?", (customer_id, tenant_id))
+    pg_client.execute("DELETE FROM customers WHERE customer_id = %s AND tenant_id = %s", (customer_id, tenant_id))
     return {"deleted": customer_id}
 
 
 def upsert_seller(seller: Seller, tenant_id: str = "default") -> dict:
     _assert_tenant_ownership("sellers", "seller_id", seller.seller_id, tenant_id)
-    if _tx_on_postgres():
-        pg_client.execute(
-            """
-            INSERT INTO sellers (
-                seller_id, tenant_id, name, territory, manager, active, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-            ON CONFLICT (seller_id) DO UPDATE SET
-                tenant_id = EXCLUDED.tenant_id,
-                name = EXCLUDED.name,
-                territory = EXCLUDED.territory,
-                manager = EXCLUDED.manager,
-                active = EXCLUDED.active,
-                updated_at = CURRENT_TIMESTAMP;
-            """,
-            (
-                seller.seller_id,
-                tenant_id,
-                seller.name,
-                seller.territory,
-                seller.manager,
-                seller.active,
-            ),
-        )
-    else:
-        db_client.execute(
-            """
-            INSERT OR REPLACE INTO sellers (
-                seller_id, tenant_id, name, territory, manager, active, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            """,
-            (
-                seller.seller_id,
-                tenant_id,
-                seller.name,
-                seller.territory,
-                seller.manager,
-                seller.active,
-            ),
-        )
+    pg_client.execute(
+        """
+        INSERT INTO sellers (
+            seller_id, tenant_id, name, territory, manager, active, updated_at
+        ) VALUES (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (seller_id) DO UPDATE SET
+            tenant_id = EXCLUDED.tenant_id,
+            name = EXCLUDED.name,
+            territory = EXCLUDED.territory,
+            manager = EXCLUDED.manager,
+            active = EXCLUDED.active,
+            updated_at = CURRENT_TIMESTAMP;
+        """,
+        (
+            seller.seller_id,
+            tenant_id,
+            seller.name,
+            seller.territory,
+            seller.manager,
+            seller.active,
+        ),
+    )
     return seller.model_dump()
 
 
 def delete_seller(seller_id: str, tenant_id: str = "default") -> dict:
-    if _tx_on_postgres():
-        pg_client.execute("DELETE FROM sellers WHERE seller_id = %s AND tenant_id = %s", (seller_id, tenant_id))
-    else:
-        db_client.execute("DELETE FROM sellers WHERE seller_id = ? AND tenant_id = ?", (seller_id, tenant_id))
+    pg_client.execute("DELETE FROM sellers WHERE seller_id = %s AND tenant_id = %s", (seller_id, tenant_id))
     return {"deleted": seller_id}
 
 
 def list_extensions(table: str, fk_column: str, fk_value: str, tenant_id: str = "default") -> list[dict]:
-    if _tx_on_postgres():
-        rows = pg_client.execute(
-            f"SELECT extension_id, attribute_key, attribute_value, created_at FROM {table} WHERE {fk_column} = %s AND tenant_id = %s",
-            (fk_value, tenant_id),
-        )
-        return [dict(row) for row in rows]
-    df = db_client.fetch_df(
-        f"SELECT extension_id, attribute_key, attribute_value, created_at FROM {table} WHERE {fk_column} = ? AND tenant_id = ?",
+    rows = pg_client.execute(
+        f"SELECT extension_id, attribute_key, attribute_value, created_at FROM {table} WHERE {fk_column} = %s AND tenant_id = %s",
         (fk_value, tenant_id),
     )
-    return df.to_dict(orient="records")
+    return [dict(row) for row in rows]
 
 
 def save_extension(table: str, fk_column: str, extension: ExtensionField, fk_value: str, tenant_id: str = "default") -> dict:
-    if _tx_on_postgres():
-        pg_client.execute(
-            f"""
-            INSERT INTO {table} (
-                extension_id, tenant_id, {fk_column}, attribute_key, attribute_value, created_at
-            ) VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-            ON CONFLICT (extension_id) DO UPDATE SET
-                tenant_id = EXCLUDED.tenant_id,
-                attribute_key = EXCLUDED.attribute_key,
-                attribute_value = EXCLUDED.attribute_value
-            """,
-            (extension.extension_id, tenant_id, fk_value, extension.attribute_key, extension.attribute_value),
-        )
-    else:
-        db_client.execute(
-            f"""
-            INSERT OR REPLACE INTO {table} (
-                extension_id, tenant_id, {fk_column}, attribute_key, attribute_value, created_at
-            ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            """,
-            (
-                extension.extension_id,
-                tenant_id,
-                fk_value,
-                extension.attribute_key,
-                extension.attribute_value,
-            ),
-        )
+    pg_client.execute(
+        f"""
+        INSERT INTO {table} (
+            extension_id, tenant_id, {fk_column}, attribute_key, attribute_value, created_at
+        ) VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (extension_id) DO UPDATE SET
+            tenant_id = EXCLUDED.tenant_id,
+            attribute_key = EXCLUDED.attribute_key,
+            attribute_value = EXCLUDED.attribute_value
+        """,
+        (extension.extension_id, tenant_id, fk_value, extension.attribute_key, extension.attribute_value),
+    )
     return extension.model_dump()
 
 
 def delete_extension(table: str, extension_id: str, tenant_id: str = "default") -> dict:
-    if _tx_on_postgres():
-        pg_client.execute(f"DELETE FROM {table} WHERE extension_id = %s AND tenant_id = %s", (extension_id, tenant_id))
-    else:
-        db_client.execute(f"DELETE FROM {table} WHERE extension_id = ? AND tenant_id = ?", (extension_id, tenant_id))
+    pg_client.execute(f"DELETE FROM {table} WHERE extension_id = %s AND tenant_id = %s", (extension_id, tenant_id))
     return {"deleted": extension_id}
 
 
 def list_references(product_id: str, tenant_id: str = "default") -> list[dict]:
-    if _tx_on_postgres():
-        rows = pg_client.execute(
-            """
-            SELECT reference_id, reference_type, reference_value, created_at
-            FROM product_references
-            WHERE product_id = %s AND tenant_id = %s
-            """,
-            (product_id, tenant_id),
-        )
-        return [dict(row) for row in rows]
-    df = db_client.fetch_df(
+    rows = pg_client.execute(
         """
         SELECT reference_id, reference_type, reference_value, created_at
         FROM product_references
-        WHERE product_id = ? AND tenant_id = ?
+        WHERE product_id = %s AND tenant_id = %s
         """,
         (product_id, tenant_id),
     )
-    return df.to_dict(orient="records")
+    return [dict(row) for row in rows]
 
 
 def save_reference(reference: ProductReference, tenant_id: str = "default") -> dict:
-    if _tx_on_postgres():
-        pg_client.execute(
-            """
-            INSERT INTO product_references (
-                reference_id, tenant_id, product_id, reference_type, reference_value, created_at
-            ) VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-            ON CONFLICT (reference_id) DO UPDATE SET
-                tenant_id = EXCLUDED.tenant_id,
-                reference_type = EXCLUDED.reference_type,
-                reference_value = EXCLUDED.reference_value
-            """,
-            (
-                reference.reference_id,
-                tenant_id,
-                reference.product_id,
-                reference.reference_type,
-                reference.reference_value,
-            ),
-        )
-    else:
-        db_client.execute(
-            """
-            INSERT OR REPLACE INTO product_references (
-                reference_id, tenant_id, product_id, reference_type, reference_value, created_at
-            ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            """,
-            (
-                reference.reference_id,
-                tenant_id,
-                reference.product_id,
-                reference.reference_type,
-                reference.reference_value,
-            ),
-        )
+    pg_client.execute(
+        """
+        INSERT INTO product_references (
+            reference_id, tenant_id, product_id, reference_type, reference_value, created_at
+        ) VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (reference_id) DO UPDATE SET
+            tenant_id = EXCLUDED.tenant_id,
+            reference_type = EXCLUDED.reference_type,
+            reference_value = EXCLUDED.reference_value
+        """,
+        (
+            reference.reference_id,
+            tenant_id,
+            reference.product_id,
+            reference.reference_type,
+            reference.reference_value,
+        ),
+    )
     return reference.model_dump()
 
 
 def delete_reference(reference_id: str, tenant_id: str = "default") -> dict:
-    if _tx_on_postgres():
-        pg_client.execute("DELETE FROM product_references WHERE reference_id = %s AND tenant_id = %s", (reference_id, tenant_id))
-    else:
-        db_client.execute("DELETE FROM product_references WHERE reference_id = ? AND tenant_id = ?", (reference_id, tenant_id))
+    pg_client.execute("DELETE FROM product_references WHERE reference_id = %s AND tenant_id = %s", (reference_id, tenant_id))
     return {"deleted": reference_id}
 
 
@@ -429,22 +299,13 @@ REAL_PRODUCT_NAMES = [
 
 
 def reset_master_data(tenant_id: str = "default") -> dict:
-    if _tx_on_postgres():
-        pg_client.execute("DELETE FROM product_references WHERE tenant_id = %s", (tenant_id,))
-        pg_client.execute("DELETE FROM product_extensions WHERE tenant_id = %s", (tenant_id,))
-        pg_client.execute("DELETE FROM customer_extensions WHERE tenant_id = %s", (tenant_id,))
-        pg_client.execute("DELETE FROM seller_extensions WHERE tenant_id = %s", (tenant_id,))
-        pg_client.execute("DELETE FROM products WHERE tenant_id = %s", (tenant_id,))
-        pg_client.execute("DELETE FROM customers WHERE tenant_id = %s", (tenant_id,))
-        pg_client.execute("DELETE FROM sellers WHERE tenant_id = %s", (tenant_id,))
-    else:
-        db_client.execute("DELETE FROM product_references WHERE tenant_id = ?", (tenant_id,))
-        db_client.execute("DELETE FROM product_extensions WHERE tenant_id = ?", (tenant_id,))
-        db_client.execute("DELETE FROM customer_extensions WHERE tenant_id = ?", (tenant_id,))
-        db_client.execute("DELETE FROM seller_extensions WHERE tenant_id = ?", (tenant_id,))
-        db_client.execute("DELETE FROM products WHERE tenant_id = ?", (tenant_id,))
-        db_client.execute("DELETE FROM customers WHERE tenant_id = ?", (tenant_id,))
-        db_client.execute("DELETE FROM sellers WHERE tenant_id = ?", (tenant_id,))
+    pg_client.execute("DELETE FROM product_references WHERE tenant_id = %s", (tenant_id,))
+    pg_client.execute("DELETE FROM product_extensions WHERE tenant_id = %s", (tenant_id,))
+    pg_client.execute("DELETE FROM customer_extensions WHERE tenant_id = %s", (tenant_id,))
+    pg_client.execute("DELETE FROM seller_extensions WHERE tenant_id = %s", (tenant_id,))
+    pg_client.execute("DELETE FROM products WHERE tenant_id = %s", (tenant_id,))
+    pg_client.execute("DELETE FROM customers WHERE tenant_id = %s", (tenant_id,))
+    pg_client.execute("DELETE FROM sellers WHERE tenant_id = %s", (tenant_id,))
     return {"cleared": True}
 
 

@@ -1,9 +1,6 @@
 from dataclasses import dataclass
-
-from app.core.config import DB_ENGINE
-from app.db.duckdb_client import db_client
+import pandas as pd
 from app.db.postgres_client import pg_client
-
 
 @dataclass
 class WorkflowDecision:
@@ -11,7 +8,6 @@ class WorkflowDecision:
     next_state: str
     required_approver_role: str | None
     reason: str
-
 
 class WorkflowEngine:
     def evaluate_transition(
@@ -23,29 +19,13 @@ class WorkflowEngine:
         requested_state: str,
         tenant_id: str = "default",
     ) -> WorkflowDecision:
-        if DB_ENGINE in {"postgres", "hybrid"}:
-            rules_df = self._fetch_rules_postgres(
-                current_state=current_state,
-                requested_state=requested_state,
-                customer_id=customer_id,
-                customer_segment=customer_segment,
-                tenant_id=tenant_id,
-            )
-        else:
-            rules_df = db_client.fetch_df(
-                """
-                SELECT *
-                FROM workflow_rules
-                WHERE active = TRUE
-                  AND tenant_id = ?
-                  AND state_from = ?
-                  AND state_to = ?
-                  AND (customer_id = ? OR customer_id IS NULL)
-                  AND (customer_segment = ? OR customer_segment IS NULL)
-                ORDER BY customer_id DESC NULLS LAST, customer_segment DESC NULLS LAST
-                """,
-                (tenant_id, current_state, requested_state, customer_id, customer_segment),
-            )
+        rules_df = self._fetch_rules_postgres(
+            current_state=current_state,
+            requested_state=requested_state,
+            customer_id=customer_id,
+            customer_segment=customer_segment,
+            tenant_id=tenant_id,
+        )
 
         if rules_df.empty:
             return WorkflowDecision(
@@ -105,8 +85,6 @@ class WorkflowEngine:
             """,
             (tenant_id, current_state, requested_state, customer_id, customer_segment),
         )
-        import pandas as pd
-
         return pd.DataFrame(rows)
 
     @staticmethod

@@ -1,4 +1,4 @@
-from app.db.duckdb_client import db_client
+from app.db.postgres_client import pg_client
 
 
 def question_to_sql(question: str) -> str:
@@ -34,5 +34,5 @@ def question_to_sql(question: str) -> str:
 
 def ask(question: str) -> dict:
     sql = question_to_sql(question)
-    result = db_client.fetch_df(sql).to_dict(orient="records")
+    result = pg_client.execute(sql)
     return {"generated_sql": sql.strip(), "result": result}

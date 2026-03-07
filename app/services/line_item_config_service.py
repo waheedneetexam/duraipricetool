@@ -2,8 +2,6 @@ import json
 import re
 from typing import Any
 
-from app.core.config import DB_ENGINE
-from app.db.duckdb_client import db_client
 from app.db.postgres_client import pg_client
 
 
@@ -186,10 +184,6 @@ DEFAULT_COLUMNS = [
 ]
 
 
-def _tx_on_postgres() -> bool:
-    return DB_ENGINE in {"postgres", "hybrid"}
-
-
 def _normalize_tenant_id(tenant_id: str | None) -> str:
     raw = (tenant_id or "").strip()
     return raw or DEFAULT_TENANT_ID
@@ -257,49 +251,6 @@ def _ensure_postgres_table() -> None:
         pg_client.execute(stmt)
 
 
-def _ensure_duckdb_table() -> None:
-    db_client.execute(
-        """
-        CREATE TABLE IF NOT EXISTS line_item_column_configs (
-            tenant_id VARCHAR,
-            column_key VARCHAR,
-            column_label VARCHAR,
-            visible BOOLEAN DEFAULT TRUE,
-            mandatory BOOLEAN DEFAULT FALSE,
-            editable BOOLEAN DEFAULT TRUE,
-            is_calculated BOOLEAN DEFAULT FALSE,
-            formula VARCHAR,
-            field_type VARCHAR DEFAULT 'text',
-            default_value VARCHAR,
-            width INTEGER,
-            options_json JSON,
-            validation_json JSON,
-            description VARCHAR,
-            category VARCHAR,
-            sort_order INTEGER DEFAULT 0,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        """
-    )
-    for stmt in (
-        "ALTER TABLE line_item_column_configs ADD COLUMN IF NOT EXISTS field_type VARCHAR",
-        "ALTER TABLE line_item_column_configs ADD COLUMN IF NOT EXISTS default_value VARCHAR",
-        "ALTER TABLE line_item_column_configs ADD COLUMN IF NOT EXISTS width INTEGER",
-        "ALTER TABLE line_item_column_configs ADD COLUMN IF NOT EXISTS options_json JSON",
-        "ALTER TABLE line_item_column_configs ADD COLUMN IF NOT EXISTS validation_json JSON",
-        "ALTER TABLE line_item_column_configs ADD COLUMN IF NOT EXISTS description VARCHAR",
-        "ALTER TABLE line_item_column_configs ADD COLUMN IF NOT EXISTS category VARCHAR",
-        "ALTER TABLE line_item_column_configs ADD COLUMN IF NOT EXISTS is_calculated BOOLEAN",
-        "ALTER TABLE line_item_column_configs ADD COLUMN IF NOT EXISTS formula VARCHAR",
-        "ALTER TABLE line_item_column_configs ADD COLUMN IF NOT EXISTS sort_order INTEGER",
-    ):
-        try:
-            db_client.execute(stmt)
-        except Exception:
-            # DuckDB extension mode/read-only can block schema mutation; creation covers fresh databases.
-            pass
-
-
 def _row_to_column_config(
     row: dict[str, Any],
     default_col: dict[str, Any] | None,
@@ -334,59 +285,31 @@ def get_line_item_column_config(tenant_id: str | None) -> dict[str, Any]:
     normalized_tenant_id = _normalize_tenant_id(tenant_id)
     defaults_by_key = _column_defaults_by_key()
 
-    rows: list[dict[str, Any]]
-    if _tx_on_postgres():
-        _ensure_postgres_table()
-        rows = pg_client.execute(
-            """
-            SELECT
-                column_key,
-                column_label,
-                visible,
-                mandatory,
-                editable,
-                is_calculated,
-                formula,
-                field_type,
-                default_value,
-                width,
-                options_json,
-                validation_json,
-                description,
-                category,
-                sort_order
-            FROM line_item_column_configs
-            WHERE tenant_id = %s
-            ORDER BY sort_order ASC
-            """,
-            (normalized_tenant_id,),
-        )
-    else:
-        _ensure_duckdb_table()
-        rows = db_client.fetch_df(
-            """
-            SELECT
-                column_key,
-                column_label,
-                visible,
-                mandatory,
-                editable,
-                is_calculated,
-                formula,
-                field_type,
-                default_value,
-                width,
-                options_json,
-                validation_json,
-                description,
-                category,
-                sort_order
-            FROM line_item_column_configs
-            WHERE tenant_id = ?
-            ORDER BY sort_order ASC
-            """,
-            (normalized_tenant_id,),
-        ).to_dict(orient="records")
+    _ensure_postgres_table()
+    rows = pg_client.execute(
+        """
+        SELECT
+            column_key,
+            column_label,
+            visible,
+            mandatory,
+            editable,
+            is_calculated,
+            formula,
+            field_type,
+            default_value,
+            width,
+            options_json,
+            validation_json,
+            description,
+            category,
+            sort_order
+        FROM line_item_column_configs
+        WHERE tenant_id = %s
+        ORDER BY sort_order ASC
+        """,
+        (normalized_tenant_id,),
+    )
 
     stored_by_key: dict[str, dict[str, Any]] = {}
     for row in rows:
@@ -574,84 +497,52 @@ def save_line_item_column_config(tenant_id: str | None, columns: list[dict[str, 
     if not validation_result["isValid"]:
         raise ValueError(json.dumps(validation_result))
 
-    if _tx_on_postgres():
-        _ensure_postgres_table()
-        for col in sanitized:
-            pg_client.execute(
-                """
-                INSERT INTO line_item_column_configs (
-                    tenant_id, column_key, column_label, visible, mandatory, editable,
-                    is_calculated, formula, field_type, default_value, width,
-                    options_json, validation_json, description, category, sort_order, updated_at
-                ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s, %s, CURRENT_TIMESTAMP
-                )
-                ON CONFLICT (tenant_id, column_key) DO UPDATE SET
-                    column_label = EXCLUDED.column_label,
-                    visible = EXCLUDED.visible,
-                    mandatory = EXCLUDED.mandatory,
-                    editable = EXCLUDED.editable,
-                    is_calculated = EXCLUDED.is_calculated,
-                    formula = EXCLUDED.formula,
-                    field_type = EXCLUDED.field_type,
-                    default_value = EXCLUDED.default_value,
-                    width = EXCLUDED.width,
-                    options_json = EXCLUDED.options_json,
-                    validation_json = EXCLUDED.validation_json,
-                    description = EXCLUDED.description,
-                    category = EXCLUDED.category,
-                    sort_order = EXCLUDED.sort_order,
-                    updated_at = CURRENT_TIMESTAMP
-                """,
-                (
-                    normalized_tenant_id,
-                    col["key"],
-                    col["label"],
-                    col["visible"],
-                    col["mandatory"],
-                    col["editable"],
-                    col["is_calculated"],
-                    col["formula"],
-                    col["field_type"],
-                    col["default_value"],
-                    col["width"],
-                    col["options_json"],
-                    col["validation_json"],
-                    col["description"],
-                    col["category"],
-                    col["sort_order"],
-                ),
+    _ensure_postgres_table()
+    for col in sanitized:
+        pg_client.execute(
+            """
+            INSERT INTO line_item_column_configs (
+                tenant_id, column_key, column_label, visible, mandatory, editable,
+                is_calculated, formula, field_type, default_value, width,
+                options_json, validation_json, description, category, sort_order, updated_at
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s, %s, CURRENT_TIMESTAMP
             )
-    else:
-        _ensure_duckdb_table()
-        db_client.execute("DELETE FROM line_item_column_configs WHERE tenant_id = ?", (normalized_tenant_id,))
-        for col in sanitized:
-            db_client.execute(
-                """
-                INSERT INTO line_item_column_configs (
-                    tenant_id, column_key, column_label, visible, mandatory, editable,
-                    is_calculated, formula, field_type, default_value, width,
-                    options_json, validation_json, description, category, sort_order, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                """,
-                (
-                    normalized_tenant_id,
-                    col["key"],
-                    col["label"],
-                    col["visible"],
-                    col["mandatory"],
-                    col["editable"],
-                    col["is_calculated"],
-                    col["formula"],
-                    col["field_type"],
-                    col["default_value"],
-                    col["width"],
-                    col["options_json"],
-                    col["validation_json"],
-                    col["description"],
-                    col["category"],
-                    col["sort_order"],
-                ),
-            )
+            ON CONFLICT (tenant_id, column_key) DO UPDATE SET
+                column_label = EXCLUDED.column_label,
+                visible = EXCLUDED.visible,
+                mandatory = EXCLUDED.mandatory,
+                editable = EXCLUDED.editable,
+                is_calculated = EXCLUDED.is_calculated,
+                formula = EXCLUDED.formula,
+                field_type = EXCLUDED.field_type,
+                default_value = EXCLUDED.default_value,
+                width = EXCLUDED.width,
+                options_json = EXCLUDED.options_json,
+                validation_json = EXCLUDED.validation_json,
+                description = EXCLUDED.description,
+                category = EXCLUDED.category,
+                sort_order = EXCLUDED.sort_order,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (
+                normalized_tenant_id,
+                col["key"],
+                col["label"],
+                col["visible"],
+                col["mandatory"],
+                col["editable"],
+                col["is_calculated"],
+                col["formula"],
+                col["field_type"],
+                col["default_value"],
+                col["width"],
+                col["options_json"],
+                col["validation_json"],
+                col["description"],
+                col["category"],
+                col["sort_order"],
+            ),
+        )
 
     return get_line_item_column_config(normalized_tenant_id)

@@ -4,15 +4,11 @@ from difflib import get_close_matches
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from app.core.config import DB_ENGINE
-from app.db.duckdb_client import db_client
 from app.db.postgres_client import pg_client
 
 DEFAULT_TENANT_ID = "default"
 
 
-def _tx_on_postgres() -> bool:
-    return DB_ENGINE in {"postgres", "hybrid"}
 
 
 def _normalize_tenant_id(tenant_id: str | None) -> str:
@@ -72,63 +68,10 @@ def _ensure_postgres_tables() -> None:
     )
 
 
-def _ensure_duckdb_tables() -> None:
-    db_client.execute(
-        """
-        CREATE TABLE IF NOT EXISTS field_logic_rules (
-            logic_id VARCHAR PRIMARY KEY,
-            tenant_id VARCHAR,
-            scope VARCHAR,
-            field_key VARCHAR,
-            natural_language_logic VARCHAR,
-            generated_code VARCHAR,
-            explanation VARCHAR,
-            dependencies_json JSON,
-            version INTEGER DEFAULT 1,
-            active BOOLEAN DEFAULT TRUE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        """
-    )
-    db_client.execute(
-        """
-        CREATE TABLE IF NOT EXISTS field_logic_validation_runs (
-            validation_id VARCHAR PRIMARY KEY,
-            tenant_id VARCHAR,
-            scope VARCHAR,
-            field_key VARCHAR,
-            status VARCHAR,
-            severity VARCHAR,
-            errors_json JSON,
-            warnings_json JSON,
-            generated_code VARCHAR,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        """
-    )
-    db_client.execute(
-        """
-        CREATE TABLE IF NOT EXISTS ai_pricing_configurations (
-            config_id VARCHAR PRIMARY KEY,
-            tenant_id VARCHAR,
-            template_text VARCHAR,
-            status VARCHAR DEFAULT 'draft',
-            summary VARCHAR,
-            confidence DOUBLE,
-            processed_result_json JSON,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        """
-    )
 
 
 def _ensure_tables() -> None:
-    if _tx_on_postgres():
-        _ensure_postgres_tables()
-    else:
-        _ensure_duckdb_tables()
+    _ensure_postgres_tables()
 
 
 def _get_table_columns() -> dict[str, set[str]]:
@@ -142,7 +85,7 @@ def _get_table_columns() -> dict[str, set[str]]:
                 continue
             columns.setdefault(table_name, set()).add(column_name)
 
-    # Prefer Postgres schema if reachable (authoritative for application data).
+    # Authoritative schema from Postgres.
     try:
         pg_rows = pg_client.execute(
             """
@@ -153,14 +96,7 @@ def _get_table_columns() -> dict[str, set[str]]:
         )
         add_rows(pg_rows)
     except Exception:
-        pg_rows = []
-
-    # If Postgres is not available, fall back to DuckDB schema.
-    if not columns:
-        duck_rows = db_client.fetch_df(
-            "SELECT table_name, column_name FROM information_schema.columns"
-        ).to_dict(orient="records")
-        add_rows(duck_rows)
+        pass
 
     return columns
 
@@ -738,46 +674,25 @@ def validate_field_logic(tenant_id: str | None, scope: str, field_key: str, logi
     severity = "error" if errors else ("warning" if warnings else "info")
     validation_id = str(uuid4())
 
-    if _tx_on_postgres():
-        pg_client.execute(
-            """
-            INSERT INTO field_logic_validation_runs (
-                validation_id, tenant_id, scope, field_key, status, severity,
-                errors_json, warnings_json, generated_code, created_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, CURRENT_TIMESTAMP)
-            """,
-            (
-                validation_id,
-                tenant,
-                normalized_scope,
-                normalized_field,
-                status,
-                severity,
-                json.dumps(errors),
-                json.dumps(warnings),
-                generated_code,
-            ),
-        )
-    else:
-        db_client.execute(
-            """
-            INSERT INTO field_logic_validation_runs (
-                validation_id, tenant_id, scope, field_key, status, severity,
-                errors_json, warnings_json, generated_code, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            """,
-            (
-                validation_id,
-                tenant,
-                normalized_scope,
-                normalized_field,
-                status,
-                severity,
-                json.dumps(errors),
-                json.dumps(warnings),
-                generated_code,
-            ),
-        )
+    pg_client.execute(
+        """
+        INSERT INTO field_logic_validation_runs (
+            validation_id, tenant_id, scope, field_key, status, severity,
+            errors_json, warnings_json, generated_code, created_at
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, CURRENT_TIMESTAMP)
+        """,
+        (
+            validation_id,
+            tenant,
+            normalized_scope,
+            normalized_field,
+            status,
+            severity,
+            json.dumps(errors),
+            json.dumps(warnings),
+            generated_code,
+        ),
+    )
 
     return {
         "validationId": validation_id,

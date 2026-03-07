@@ -8,7 +8,6 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 CSV_CHUNK_SIZE = 5000
 
-DB_ENGINE = os.getenv("DB_ENGINE", "postgres").lower()
 PG_DSN = os.getenv(
     "PG_DSN",
     "postgresql://postgres:postgres@127.0.0.1:5432/duraipricing",

@@ -7,13 +7,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from app.core.config import DB_ENGINE
 from app.constants.table_classification import VALID_TABLE_CATEGORIES
 from app.db.postgres_client import pg_client
-
-
-def _tx_on_postgres() -> bool:
-    return True
 
 
 @dataclass(frozen=True)
@@ -743,28 +738,16 @@ def delete_table_record(table_id: str, record_id: str, tenant_id: str) -> dict[s
     _ensure_tables()
     table = _table_def(table_id)
     has_tenant = _table_supports_tenant(table.table_name)
-    if _tx_on_postgres():
-        if has_tenant:
-            pg_client.execute(
-                f"DELETE FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()} AND tenant_id = {_sql_placeholder()}",
-                (record_id, tenant_id),
-            )
-        else:
-            pg_client.execute(
-                f"DELETE FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()}",
-                (record_id,),
-            )
+    if has_tenant:
+        pg_client.execute(
+            f"DELETE FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()} AND tenant_id = {_sql_placeholder()}",
+            (record_id, tenant_id),
+        )
     else:
-        if has_tenant:
-            db_client.execute(
-                f"DELETE FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()} AND tenant_id = {_sql_placeholder()}",
-                (record_id, tenant_id),
-            )
-        else:
-            db_client.execute(
-                f"DELETE FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()}",
-                (record_id,),
-            )
+        pg_client.execute(
+            f"DELETE FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()}",
+            (record_id,),
+        )
     return {"deleted": record_id}
 
 
