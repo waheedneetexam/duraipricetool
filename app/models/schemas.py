@@ -158,6 +158,14 @@ class AIPricingTemplateProcessRequest(BaseModel):
     template_text: str
 
 
+class OpenAIKeySaveRequest(BaseModel):
+    api_key: str
+
+
+class OpenAIKeyValidateRequest(BaseModel):
+    api_key: str
+
+
 class DataManagementImportRequest(BaseModel):
     data: list[dict[str, Any]] = Field(default_factory=list)
     update_duplicates: bool = True

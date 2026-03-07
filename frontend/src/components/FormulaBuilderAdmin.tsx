@@ -219,9 +219,19 @@ export function FormulaBuilderAdmin() {
         body: JSON.stringify(payload)
       });
       if (res.success) {
-        if (res.data.status === 'invalid' || (res.data.errors && res.data.errors.length > 0)) {
-          const errMsgs = res.data.errors.map((e: any) => typeof e === 'string' ? e : (e.message || 'Unknown error')).join('. ');
-          setMessage(`Validation Error: ${errMsgs}`);
+        const errors = Array.isArray(res.data?.errors) ? res.data.errors : [];
+        const warnings = Array.isArray(res.data?.warnings) ? res.data.warnings : [];
+        const formatMessages = (items: any[]) => items.map((e) => {
+          if (typeof e === 'string') return e;
+          const msg = e?.message || 'Unknown error';
+          const suggestion = e?.suggestion ? ` Suggestion: ${e.suggestion}` : '';
+          return `${msg}${suggestion}`;
+        }).join('. ');
+        const errMsgs = formatMessages(errors);
+        const warnMsgs = formatMessages(warnings);
+        if (res.data.status === 'invalid' || errors.length > 0) {
+          const details = warnMsgs ? ` Details: ${warnMsgs}` : '';
+          setMessage(`Validation Error: ${errMsgs || 'Unknown error'}${details}`);
           return;
         }
 
@@ -231,7 +241,7 @@ export function FormulaBuilderAdmin() {
           generated_code: code,
           dependencies: res.data.dependencies || {},
         });
-        setMessage('AI Logic generated successfully! Please test before saving.');
+        setMessage(warnMsgs ? `Generated with warnings: ${warnMsgs}` : 'AI Logic generated successfully! Please test before saving.');
       } else {
         setMessage(`Generation failed: ${res.error || 'Check connectivity or API keys'}`);
       }

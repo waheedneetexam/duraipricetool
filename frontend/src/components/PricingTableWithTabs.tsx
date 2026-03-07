@@ -11,6 +11,8 @@ type Props = {
 
 type QuoteResponse = { success: boolean; data: QuoteDetail };
 type TenantLineItemConfigResponse = { success: boolean; data: TenantLineItemConfig };
+type DebugRule = { scope?: string | null; field_key?: string; fieldKey?: string; generated_code?: string; generatedCode?: string };
+type RuleFormulaMeta = { formula: string; hasRule: boolean };
 
 const BASE_EDITABLE_KEYS: LineItemColumnKey[] = ['quantity', 'listPrice', 'cost', 'volumeDiscount', 'rebate'];
 const SAFE_FORMULA_ALLOWED = /^[0-9a-zA-Z_\s.+\-*/()%]*$/;
@@ -75,18 +77,25 @@ function getDynamicFields(line: PricingLineItem): Record<string, unknown> {
   return dynamic;
 }
 
-function getColumnValue(line: PricingLineItem, column: LineItemColumnConfig) {
-  if (column.isCalculated) {
-    if (!column.formula.trim()) {
+function isCalculatedColumn(column: LineItemColumnConfig, formulaOverride?: string) {
+  if (column.isCalculated) return true;
+  return Boolean((formulaOverride || '').trim());
+}
+
+function getColumnValue(line: PricingLineItem, column: LineItemColumnConfig, formulaOverride?: string) {
+  if (isCalculatedColumn(column, formulaOverride)) {
+    const formula = (formulaOverride || column.formula || '').trim();
+    if (!formula) {
       return line[column.key];
     }
-    return evaluateFormula(column.formula, buildFormulaContext(line));
+    return evaluateFormula(formula, buildFormulaContext(line));
   }
   return line[column.key];
 }
 
-function formatColumnDisplay(value: unknown, column: LineItemColumnConfig) {
-  if (column.isCalculated && typeof value === 'number') {
+function formatColumnDisplay(value: unknown, column: LineItemColumnConfig, isCalculatedOverride?: boolean) {
+  const isCalculated = isCalculatedOverride ?? column.isCalculated;
+  if (isCalculated && typeof value === 'number') {
     if (column.key === 'margin') return `${value.toFixed(2)}%`;
     return `$${value.toFixed(2)}`;
   }
@@ -147,6 +156,10 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
   const [saved, setSaved] = useState(false);
   const [productCatalog, setProductCatalog] = useState<MasterProduct[]>([]);
   const [customerCatalog, setCustomerCatalog] = useState<MasterCustomer[]>([]);
+  const [debugTenantId, setDebugTenantId] = useState('');
+  const [debugRuleCount, setDebugRuleCount] = useState(0);
+  const [debugScopeCount, setDebugScopeCount] = useState<{ line_item: number; other: number }>({ line_item: 0, other: 0 });
+  const [fieldLogicRules, setFieldLogicRules] = useState<DebugRule[]>([]);
   const canWriteQuotes = hasPermission('quotes.write');
 
   const tenantId = useMemo(() => {
@@ -158,6 +171,10 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
     if (!quoteId) return;
     void loadQuote(quoteId);
   }, [quoteId]);
+
+  useEffect(() => {
+    void loadRuleDebug();
+  }, []);
 
   useEffect(() => {
   const timer = setTimeout(() => {
@@ -173,6 +190,104 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
   useEffect(() => {
     void loadCustomerCatalog();
   }, []);
+
+  function normalizeFieldKey(key: string) {
+    return key
+      .replace(/([a-z])([A-Z])/g, '$1_$2')
+      .replace(/[^a-zA-Z0-9_]/g, '_')
+      .replace(/_+/g, '_')
+      .toLowerCase()
+      .replace(/^_+|_+$/g, '');
+  }
+
+  const ruleFormulaByKey = useMemo(() => {
+    const map = new Map<string, RuleFormulaMeta>();
+    fieldLogicRules.forEach((rule) => {
+      const fieldKeyRaw = rule.field_key || rule.fieldKey || '';
+      const fieldKey = String(fieldKeyRaw || '').trim();
+      if (!fieldKey) return;
+      const formula = String(rule.generated_code || rule.generatedCode || '').trim();
+      const setMeta = (key: string) => {
+        const normalized = normalizeFieldKey(key);
+        if (!normalized) return;
+        map.set(normalized, { formula, hasRule: true });
+      };
+      setMeta(fieldKey);
+      setMeta(normalizeFieldKey(fieldKey));
+      // also map camelCase to snake_case target and back
+      const camel = fieldKey.replace(/_([a-z])/g, (_, c) => String(c).toUpperCase());
+      setMeta(camel);
+      setMeta(normalizeFieldKey(camel));
+    });
+    return map;
+  }, [fieldLogicRules]);
+
+  function getRuleMetaForColumn(columnKey: string): RuleFormulaMeta {
+    const normalized = normalizeFieldKey(columnKey);
+    return ruleFormulaByKey.get(normalized) || { formula: '', hasRule: false };
+  }
+
+  function getRuleFormulaForColumn(columnKey: string) {
+    return getRuleMetaForColumn(columnKey).formula || '';
+  }
+
+  const debugFormulaList = useMemo(() => {
+    return lineItemColumns
+      .filter((col) => {
+        const ruleMeta = getRuleMetaForColumn(col.key);
+        const configFormula = (col.formula || '').trim();
+        return col.isCalculated || ruleMeta.hasRule || Boolean(configFormula);
+      })
+      .map((col) => {
+        const ruleMeta = getRuleMetaForColumn(col.key);
+        const configFormula = (col.formula || '').trim();
+        const formula = ruleMeta.formula || configFormula;
+        const source = ruleMeta.hasRule ? 'field_logic_rules' : 'line_item_config';
+        return {
+          key: col.key,
+          label: col.label,
+          formula: ruleMeta.hasRule && !ruleMeta.formula ? '' : formula,
+          source,
+        };
+      });
+  }, [lineItemColumns, ruleFormulaByKey]);
+
+  async function loadRuleDebug() {
+    try {
+      const me = await apiFetch<any>('/auth/me', { method: 'GET' });
+      if (me?.success && me.data?.tenant_id) {
+        setDebugTenantId(String(me.data.tenant_id));
+      }
+
+      const fetchRules = async (scope?: string, allTenants = false, includeInactive = false) => {
+        const params = new URLSearchParams();
+        if (scope) params.set('scope', scope);
+        if (allTenants) params.set('all_tenants', 'true');
+        if (includeInactive) params.set('include_inactive', 'true');
+        const query = params.toString() ? `?${params.toString()}` : '';
+        const res = await apiFetch<any>(`/admin/field-logic/list${query}`, { method: 'GET' });
+        if (!res.success || !Array.isArray(res.data)) return [] as DebugRule[];
+        return res.data as DebugRule[];
+      };
+
+      let rules = await fetchRules('line_item');
+      if (rules.length === 0) {
+        rules = await fetchRules();
+      }
+      if (rules.length === 0) {
+        rules = await fetchRules(undefined, true, true);
+      }
+
+      setFieldLogicRules(rules);
+      const lineItemCount = rules.filter((rule: DebugRule) => (rule.scope || 'line_item') === 'line_item').length;
+      const otherCount = rules.length - lineItemCount;
+      setDebugRuleCount(rules.length);
+      setDebugScopeCount({ line_item: lineItemCount, other: otherCount });
+    } catch {
+      setDebugRuleCount(0);
+      setDebugScopeCount({ line_item: 0, other: 0 });
+    }
+  }
 
   async function loadQuote(id: string) {
     try {
@@ -256,12 +371,25 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
     const totalAfterRebate = totalBeforeRebate - line.rebate;
     const netPrice = line.quantity > 0 ? totalAfterRebate / line.quantity : 0;
     const marginPct = totalAfterRebate > 0 ? ((totalAfterRebate - line.cost * line.quantity) / totalAfterRebate) * 100 : 0;
-    return {
+    let updated: PricingLineItem = {
       ...line,
       netPrice,
       margin: marginPct,
       totalValue: totalAfterRebate
     };
+    // Apply field_logic_rules / config formulas on top of defaults
+    lineItemColumns
+      .slice()
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+      .forEach((col) => {
+        const formulaOverride = getRuleFormulaForColumn(col.key);
+        if (!isCalculatedColumn(col, formulaOverride)) return;
+        const formula = (formulaOverride || col.formula || '').trim();
+        if (!formula) return;
+        const value = evaluateFormula(formula, buildFormulaContext(updated));
+        updated = { ...updated, [col.key]: value } as PricingLineItem;
+      });
+    return updated;
   }
 
   function applyLineFieldUpdate(line: PricingLineItem, field: LineItemColumnKey, rawValue: string): PricingLineItem {
@@ -336,8 +464,9 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
     for (let lineIndex = 0; lineIndex < lineItems.length; lineIndex += 1) {
       const line = lineItems[lineIndex];
       for (const col of mandatoryColumns) {
-        const value = getColumnValue(line, col);
-        if (col.isCalculated) {
+        const formulaOverride = getRuleFormulaForColumn(col.key);
+        const value = getColumnValue(line, col, formulaOverride);
+        if (isCalculatedColumn(col, formulaOverride)) {
           if (typeof value !== 'number' || Number.isNaN(value)) {
             return `Line ${lineIndex + 1}: "${col.label}" could not be calculated.`;
           }
@@ -445,10 +574,12 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
   }
 
   function renderCell(line: PricingLineItem, column: LineItemColumnConfig) {
-    const value = getColumnValue(line, column);
-    const editable = !column.isCalculated && column.editable;
+    const formulaOverride = getRuleFormulaForColumn(column.key);
+    const isCalculated = isCalculatedColumn(column, formulaOverride);
+    const value = getColumnValue(line, column, formulaOverride);
+    const editable = !isCalculated && column.editable;
     if (!editable) {
-      return <td className="readonly-cell">{formatColumnDisplay(value, column)}</td>;
+      return <td className="readonly-cell">{formatColumnDisplay(value, column, isCalculated)}</td>;
     }
 
     const storedValue = line[column.key];
@@ -505,6 +636,17 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
         </div>
       </div>
 
+      <div style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#64748b' }}>
+        Debug: tenant {debugTenantId || 'unknown'} • rules {debugRuleCount} • line_item {debugScopeCount.line_item} • other {debugScopeCount.other}
+      </div>
+      <div style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#64748b' }}>
+        {debugFormulaList.map((item) => (
+          <div key={item.key} style={{ marginBottom: '4px' }}>
+            {item.label} ({item.key}) → {item.formula || 'no formula'} [{item.source}]
+          </div>
+        ))}
+      </div>
+
       <div className="tabbar">
         <button className={activeTab === 'header' ? 'active' : ''} onClick={() => setActiveTab('header')}>Quote Configuration</button>
         <button className={activeTab === 'lineitems' ? 'active' : ''} onClick={() => setActiveTab('lineitems')}>Line Items ({lineItems.length})</button>
@@ -558,6 +700,15 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
 
       {activeTab === 'lineitems' && (
         <div className="lineitems-wrap">
+          <div style={{ marginBottom: '12px', padding: '8px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '12px', color: '#334155' }}>
+            <div style={{ fontWeight: 600, marginBottom: '6px' }}>Debug: Applied Formulas</div>
+            {debugFormulaList.length === 0 && <div>No calculated fields found.</div>}
+            {debugFormulaList.map((item) => (
+              <div key={item.key} style={{ marginBottom: '4px' }}>
+                {item.label} ({item.key}) → {item.formula || (item.source === 'field_logic_rules' ? 'no generated_code' : 'no formula')} [{item.source}]
+              </div>
+            ))}
+          </div>
           <table className="pricing-table">
             <thead>
               <tr>

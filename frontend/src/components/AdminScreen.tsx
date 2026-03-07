@@ -13,6 +13,7 @@ import { FormulaBuilderAdmin } from './FormulaBuilderAdmin';
 import { UserManagementAdmin } from './UserManagementAdmin';
 import { PlatformManagementAdmin } from './PlatformManagementAdmin';
 import { AuditLogAdmin } from './AuditLogAdmin';
+import { OpenAIKeyModal } from './OpenAIKeyModal';
 
 type ImportResult = { status: 'ok' | 'error'; message: string };
 type AdminTab = 'data' | 'table' | 'logic' | 'ai' | 'formula' | 'users' | 'platform' | 'audit';
@@ -72,11 +73,19 @@ PricingRules: []`);
   const canManageUsers = hasPermission('tenant.users.manage');
   const canManagePlatform = hasPermission('platform.tenants.manage');
   const canReadAudit = hasPermission('tenant.audit.read') || hasPermission('platform.audit.read');
+  const [showAdvancedMenus, setShowAdvancedMenus] = useState(false);
+  const [showOpenAiKeyModal, setShowOpenAiKeyModal] = useState(false);
 
   useEffect(() => {
     void loadLineItemConfig();
     void loadFieldLogicRules();
   }, [tenantId]);
+
+  useEffect(() => {
+    if (!showAdvancedMenus && (adminTab === 'logic' || adminTab === 'ai')) {
+      setAdminTab('table');
+    }
+  }, [showAdvancedMenus, adminTab]);
 
   const sampleCsv = useMemo(
     () =>
@@ -476,7 +485,7 @@ PricingRules: []`);
             { id: 'audit', label: 'Audit Log', hide: !canReadAudit },
             { id: 'data', label: 'Data' },
             { id: 'formula', label: 'Formula' }
-          ].filter(t => !t.hide).map(tab => (
+          ].filter(t => !t.hide).filter(t => showAdvancedMenus || (t.id !== 'logic' && t.id !== 'ai')).map(tab => (
             <button
               key={tab.id}
               className={`btn ${adminTab === tab.id ? 'btn-primary' : ''}`}
@@ -497,6 +506,26 @@ PricingRules: []`);
           ))}
 
           <div style={{ flex: 1 }} />
+
+          {adminTab === 'formula' && (
+            <button
+              onClick={() => setShowOpenAiKeyModal(true)}
+              disabled={loading || !canAdminManage}
+              type="button"
+              style={{
+                background: '#0f172a',
+                color: '#fff',
+                fontWeight: '700',
+                padding: '10px 16px',
+                fontSize: '13px',
+                border: 'none',
+                borderRadius: '8px',
+                boxShadow: '0 4px 6px -1px rgba(15, 23, 42, 0.2)'
+              }}
+            >
+              Manage OpenAI Key
+            </button>
+          )}
 
           <button
             onClick={runSyncOnce}
@@ -685,6 +714,13 @@ PricingRules: []`);
         </div>
       )}
 
+      {showOpenAiKeyModal && (
+        <OpenAIKeyModal
+          tenantId={tenantId}
+          onClose={() => setShowOpenAiKeyModal(false)}
+        />
+      )}
+
       {adminTab === 'logic' && (
         <div className="admin-layout">
           <div className="panel-card">
@@ -774,6 +810,16 @@ PricingRules: []`);
       {adminTab === 'data' && <DataManagementAdmin />}
 
       {result && <div className={result.status === 'ok' ? 'ok-box' : 'error-box'}>{result.message}</div>}
+
+      <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => setShowAdvancedMenus((prev) => !prev)}
+        >
+          {showAdvancedMenus ? 'Hide Advanced Menus' : 'Show Advanced Menus'}
+        </button>
+      </div>
     </section >
   );
 }

@@ -18,12 +18,20 @@ from app.models.schemas import (
     FieldLogicSaveRequest,
     FieldLogicValidateRequest,
     LineItemColumnConfigSaveRequest,
+    OpenAIKeySaveRequest,
+    OpenAIKeyValidateRequest,
 )
 from app.services.admin_config_service import (
     list_field_logic_rules,
     process_ai_pricing_template,
     save_field_logic_rule,
     validate_field_logic,
+)
+from app.services.ai_provider_service import (
+    delete_openai_api_key,
+    get_openai_key_status,
+    save_openai_api_key,
+    validate_openai_api_key,
 )
 from app.services.data_management_admin_service import (
     bulk_delete_table_records,
@@ -167,6 +175,40 @@ def post_ai_pricing_process_template(payload: AIPricingTemplateProcessRequest, c
     _require_perm(context, "admin.manage")
     try:
         data = process_ai_pricing_template(context.tenant_id, payload.template_text)
+        return {"success": True, "data": data}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@router.get("/ai-provider/openai-key")
+def get_openai_key_status_endpoint(context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "admin.manage")
+    data = get_openai_key_status(context.tenant_id)
+    return {"success": True, "data": data}
+
+
+@router.put("/ai-provider/openai-key")
+def put_openai_key(payload: OpenAIKeySaveRequest, context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "admin.manage")
+    try:
+        save_openai_api_key(context.tenant_id, payload.api_key)
+        return {"success": True, "data": {"configured": True}}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@router.delete("/ai-provider/openai-key")
+def delete_openai_key(context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "admin.manage")
+    delete_openai_api_key(context.tenant_id)
+    return {"success": True, "data": {"configured": False}}
+
+
+@router.post("/ai-provider/openai-key/validate")
+def post_validate_openai_key(payload: OpenAIKeyValidateRequest, context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "admin.manage")
+    try:
+        data = validate_openai_api_key(payload.api_key)
         return {"success": True, "data": data}
     except ValueError as exc:
         return {"success": False, "error": str(exc)}

@@ -1,463 +1,502 @@
 <!doctype html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Document Index - DuraiPricingTool</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      background: #f5f7fb;
-      color: #111827;
-    }
-
-    .wrap {
-      max-width: 1200px;
-      margin: 20px auto;
-      padding: 0 16px;
-    }
-
-    .card {
-      background: #fff;
-      border: 1px solid #d7dee7;
-      border-radius: 10px;
-      padding: 20px;
-    }
-
-    h1 {
-      margin-top: 0;
-    }
-
-    .meta {
-      color: #4b5563;
-      margin-bottom: 12px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    th,
-    td {
-      border: 1px solid #d7dee7;
-      padding: 10px;
-      text-align: left;
-      vertical-align: top;
-    }
-
-    th {
-      background: #eef6ff;
-    }
-
-    tr:nth-child(even) {
-      background: #fafcff;
-    }
-
-    a {
-      color: #0b63ce;
-      text-decoration: none;
-    }
-
-    a:hover {
-      text-decoration: underline;
-    }
-
-    code {
-      background: #f3f4f6;
-      border: 1px solid #e5e7eb;
-      border-radius: 4px;
-      padding: 1px 4px;
-    }
+    body { font-family: Arial, sans-serif; margin: 0; background: #f5f7fb; color: #111827; }
+    .wrap { max-width: 1200px; margin: 20px auto; padding: 0 16px; }
+    .card { background: #fff; border: 1px solid #d7dee7; border-radius: 10px; padding: 20px; }
+    h1 { margin-top: 0; }
+    .meta { color: #4b5563; margin-bottom: 12px; }
+    .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 10px; }
+    .filter-group { display: flex; align-items: center; gap: 8px; }
+    select { padding: 8px 12px; border-radius: 6px; border: 1px solid #d7dee7; background: #fff; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #d7dee7; padding: 10px; text-align: left; vertical-align: top; }
+    th { background: #eef6ff; cursor: pointer; user-select: none; }
+    th:hover { background: #e0eeff; }
+    tr:nth-child(even) { background: #fafcff; }
+    tr.hidden { display: none; }
+    a { color: #0b63ce; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 1px 4px; font-size: 0.9em; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+    .tag-foundation { background: #dcfce7; color: #166534; }
+    .tag-specifications { background: #dbeafe; color: #1e40af; }
+    .tag-guides { background: #fef9c3; color: #854d0e; }
+    .tag-implementation { background: #f3e8ff; color: #6b21a8; }
+    .tag-maintenance { background: #fee2e2; color: #991b1b; }
   </style>
 </head>
-
 <body>
   <div class="wrap">
     <div class="card">
       <h1>DuraiPricingTool Document Index</h1>
-      <p class="meta">Includes all discovered <code>.md</code> and <code>.html</code> files (excluding build/cache
-        folders), with markdown converted to HTML under <code>/library</code>.</p>
-      <p class="meta">Generated: 2026-03-05 08:05 UTC | Total entries: 35</p>
+      <p class="meta">Auto-generated on 2026-03-07 06:05 UTC. Entries: 39</p>
+      <div class="controls">
+        <div class="filter-group">
+          <label for="categoryFilter">Filter by Category:</label>
+          <select id="categoryFilter">
+            <option value="all">All Categories</option>
+            <option value="Foundation">Foundation</option>
+            <option value="Specifications">Specifications</option>
+            <option value="Guides">Guides</option>
+            <option value="Implementation">Implementation</option>
+            <option value="Maintenance">Maintenance</option>
+          </select>
+        </div>
+        <p class="meta" id="entryCount">Total visible: 39</p>
+      </div>
       <table>
         <thead>
           <tr>
-            <th>Title</th>
+            <th id="sort-title">Title ↕</th>
+            <th id="sort-category">Category ↕</th>
             <th>Description</th>
-            <th>Type</th>
-            <th id="createdHeader" style="cursor:pointer; user-select:none;">Created Date ▼</th>
+            <th id="sort-type">Type ↕</th>
+            <th id="sort-date">Created Date ▼</th>
             <th>Link</th>
-            <th>Source File</th>
           </tr>
         </thead>
         <tbody id="docsTableBody">
-          <tr>
-            <td>Admin & Audit Features — Implementation Report</td>
-            <td>Final report summarizing backend APIs, audit logging, frontend management tabs, and security hardening.
-            </td>
-            <td>HTML</td>
-            <td>2026-03-05 10:45 UTC</td>
-            <td><a href="/Library/Admin-Audit-Completion-Report.html" target="_blank" rel="noopener noreferrer">Open</a>
-            </td>
-            <td><code>Library/Admin-Audit-Completion-Report.html</code></td>
+          
+          <tr data-category="Foundation">
+            <td>DuraiPricingTool README</td>
+            <td><span class="tag tag-foundation">Foundation</span></td>
+            <td>Modular enterprise pricing foundation overview and architecture.</td>
+            <td>Markdown</td>
+            <td>2026-02-28</td>
+            <td><a href="/Documentation/STANDARDS.md" target="_blank">Open</a></td>
           </tr>
-          <tr>
-            <td>Multi-Tenant Implementation — Completion Sign-off</td>
-            <td>Summary of phase 1 & 2 multi-tenant foundation work.</td>
-            <td>HTML</td>
-            <td>2026-03-05 03:15 UTC</td>
-            <td><a href="/Library/Multi-Tenant-Implementation-Completed.html" target="_blank"
-                rel="noopener noreferrer">Open</a></td>
-            <td><code>Library/Multi-Tenant-Implementation-Completed.html</code></td>
-          </tr>
-          <tr>
-            <td>Authentication and Roles Comparison</td>
-            <td>Checked on: March 5, 2026</td>
-            <td>HTML</td>
-            <td>2026-03-05 02:44 UTC</td>
-            <td><a href="/Library/AuthenticationRoles.html" target="_blank" rel="noopener noreferrer">Open</a></td>
-            <td><code>Library/AuthenticationRoles.html</code></td>
-          </tr>
-          <tr>
-            <td>AI Pricing Engine Configuration - Technical Specification</td>
-            <td>Create an **AI Pricing Engine** that uses OpenAI GPT-4o to interpret natural language pricing
-              requirements from YAML templates and automatically configure quote header fields, line</td>
-            <td>Converted from .md</td>
-            <td>2026-03-04 17:22 UTC</td>
-            <td><a href="/library/docs/AIPricingEngineConfiguration.html" target="_blank"
-                rel="noopener noreferrer">Open</a></td>
-            <td><code>docs/AIPricingEngineConfiguration.md</code></td>
-          </tr>
-          <tr>
-            <td>Data Management Admin - Technical Specification</td>
-            <td>Create a **Data Management Admin** system that allows administrators to manage 9 master data tables
-              through CSV import, browse/edit data in a table manager interface, and maintain </td>
-            <td>Converted from .md</td>
-            <td>2026-03-04 18:43 UTC</td>
-            <td><a href="/library/docs/DataManagementAdmin.html" target="_blank" rel="noopener noreferrer">Open</a></td>
-            <td><code>docs/DataManagementAdmin.md</code></td>
-          </tr>
-          <tr>
-            <td>Error Fixes Applied</td>
-            <td>The console was showing MetaMask connection errors from a browser extension, which were unrelated to the
-              pricing application but could cause confusion.</td>
-            <td>Converted from .md</td>
-            <td>2026-03-04 17:22 UTC</td>
-            <td><a href="/library/docs/ERROR_FIXES.html" target="_blank" rel="noopener noreferrer">Open</a></td>
-            <td><code>docs/ERROR_FIXES.md</code></td>
-          </tr>
-          <tr>
-            <td>Error Fixes - Complete Resolution</td>
-            <td>The MetaMask browser extension errors have been completely resolved with a comprehensive error handling
-              system.</td>
-            <td>Converted from .md</td>
-            <td>2026-03-04 17:22 UTC</td>
-            <td><a href="/library/docs/ERROR_RESOLUTION.html" target="_blank" rel="noopener noreferrer">Open</a></td>
-            <td><code>docs/ERROR_RESOLUTION.md</code></td>
-          </tr>
-          <tr>
-            <td>Field Logic Manager - Complete Guide</td>
-            <td>The **Field Logic Manager** is an advanced AI-powered system that allows you to define detailed pricing
-              logic for individual fields using plain English. The system validates table </td>
-            <td>Converted from .md</td>
-            <td>2026-03-04 17:22 UTC</td>
-            <td><a href="/library/docs/FIELD_LOGIC_GUIDE.html" target="_blank" rel="noopener noreferrer">Open</a></td>
-            <td><code>docs/FIELD_LOGIC_GUIDE.md</code></td>
-          </tr>
-          <tr>
-            <td>Line Item Configurator - Technical Specification</td>
-            <td>Create a **Line Item Configurator** component that allows administrators to dynamically add, edit,
-              delete, and reorder fields in quote line items. Changes should be reflected immed</td>
-            <td>Converted from .md</td>
-            <td>2026-03-04 17:22 UTC</td>
-            <td><a href="/library/docs/LineItemConfiguration.html" target="_blank" rel="noopener noreferrer">Open</a>
-            </td>
-            <td><code>docs/LineItemConfiguration.md</code></td>
-          </tr>
-          <tr>
-            <td>AI Pricing Engine - Complete Guide</td>
-            <td>The AI Pricing Engine is a next-generation intelligent pricing configuration system that uses advanced
-              AI (GPT-4) to interpret your business requirements and automatically configur</td>
-            <td>Converted from .md</td>
-            <td>2026-03-04 17:22 UTC</td>
-            <td><a href="/library/docs/PRICING_ENGINE_GUIDE.html" target="_blank" rel="noopener noreferrer">Open</a>
-            </td>
-            <td><code>docs/PRICING_ENGINE_GUIDE.md</code></td>
-          </tr>
-          <tr>
-            <td>DuraiPricingTool Technical Blueprint</td>
-            <td>- Frontend: `React + TypeScript + AG Grid + Apache ECharts`</td>
-            <td>Converted from .md</td>
-            <td>2026-02-28 05:17 UTC</td>
-            <td><a href="/library/docs/TECHNICAL_BLUEPRINT.html" target="_blank" rel="noopener noreferrer">Open</a></td>
-            <td><code>docs/TECHNICAL_BLUEPRINT.md</code></td>
-          </tr>
-          <tr>
-            <td>Implementation: Formula &amp; Strategy Builder (Admin)</td>
-            <td>Implement two Admin modules:</td>
-            <td>Converted from .md</td>
-            <td>2026-03-02 10:41 UTC</td>
-            <td><a href="/library/Formula.html" target="_blank" rel="noopener noreferrer">Open</a></td>
-            <td><code>Formula.md</code></td>
-          </tr>
-          <tr>
-            <td>Durai Pricing Tool</td>
+
+          <tr data-category="Foundation">
+            <td>NEXT_AGENT_HANDOVER_PROMPT.md</td>
+            <td><span class="tag tag-foundation">Foundation</span></td>
             <td></td>
-            <td>HTML</td>
-            <td>2026-02-28 05:37 UTC</td>
-            <td><a href="/library/frontend/index.html" target="_blank" rel="noopener noreferrer">Open</a></td>
-            <td><code>frontend/index.html</code></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/NEXT_AGENT_HANDOVER_PROMPT.md" target="_blank">Open</a></td>
           </tr>
-          <tr>
-            <td>Authentication and Roles Comparison</td>
-            <td>Checked on: March 5, 2026</td>
-            <td>HTML</td>
-            <td>2026-03-05 02:44 UTC</td>
-            <td><a href="/library/frontend/public/AuthenticationRoles.html" target="_blank"
-                rel="noopener noreferrer">Open</a></td>
-            <td><code>frontend/public/AuthenticationRoles.html</code></td>
-          </tr>
-          <tr>
-            <td>DuraiPricingTool Business + UI Prompt</td>
+
+          <tr data-category="Foundation">
+            <td>HANDOVER_PROMPT.md</td>
+            <td><span class="tag tag-foundation">Foundation</span></td>
             <td></td>
-            <td>HTML</td>
-            <td>2026-02-28 13:46 UTC</td>
-            <td><a href="/library/frontend/public/business-prompt.html" target="_blank"
-                rel="noopener noreferrer">Open</a></td>
-            <td><code>frontend/public/business-prompt.html</code></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/HANDOVER_PROMPT.md" target="_blank">Open</a></td>
           </tr>
-          <tr>
-            <td>DuraiPricingTool Master Prompt</td>
+
+          <tr data-category="Foundation">
+            <td>formula.md</td>
+            <td><span class="tag tag-foundation">Foundation</span></td>
             <td></td>
-            <td>HTML</td>
-            <td>2026-02-28 13:48 UTC</td>
-            <td><a href="/library/frontend/public/master-prompt.html" target="_blank" rel="noopener noreferrer">Open</a>
-            </td>
-            <td><code>frontend/public/master-prompt.html</code></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/formula.md" target="_blank">Open</a></td>
           </tr>
-          <tr>
-            <td>Multi-Tenant Login and Roles Plan</td>
-            <td>You can implement multi-tenant login and role-based access in DuraiPricingTool. Plan below is structured
-              for your current FastAPI + React stack.</td>
-            <td>HTML</td>
-            <td>2026-03-05 02:45 UTC</td>
-            <td><a href="/Library/MultiTenant.html" target="_blank" rel="noopener noreferrer">Open</a>
-            </td>
-            <td><code>Library/MultiTenant.html</code></td>
-          </tr>
-          <tr>
-            <td>Pharma Client Implementation Report</td>
-            <td>Client profile: Global pharmaceutical manufacturer with multi-region production plants and regional
-              customer quoting needs. Platform: DuraiPricingTool (FastAPI + DuckDB/Postgres hy</td>
-            <td>HTML</td>
-            <td>2026-03-05 02:22 UTC</td>
-            <td><a href="/library/frontend/public/Pharma-Client-Implementation.html" target="_blank"
-                rel="noopener noreferrer">Open</a></td>
-            <td><code>frontend/public/Pharma-Client-Implementation.html</code></td>
-          </tr>
-          <tr>
-            <td>DuraiPricingTool Prompt</td>
+
+          <tr data-category="Foundation">
+            <td>Master-Prompt.md</td>
+            <td><span class="tag tag-foundation">Foundation</span></td>
             <td></td>
-            <td>HTML</td>
-            <td>2026-02-28 13:45 UTC</td>
-            <td><a href="/library/frontend/public/prompt.html" target="_blank" rel="noopener noreferrer">Open</a></td>
-            <td><code>frontend/public/prompt.html</code></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Foundation/Master-Prompt.md" target="_blank">Open</a></td>
           </tr>
-          <tr>
-            <td>Master Prompt: Build, Setup, and Deploy DuraiPricingTool End-to-End</td>
-            <td>Use this prompt with an engineering assistant to execute a complete setup from scratch through
-              production deployment.</td>
-            <td>Converted from .md</td>
-            <td>2026-02-28 13:43 UTC</td>
-            <td><a href="/library/frontend/public/prompt.html" target="_blank" rel="noopener noreferrer">Open</a></td>
-            <td><code>frontend/public/prompt.md</code></td>
+
+          <tr data-category="Foundation">
+            <td>Setup-Prompt.md</td>
+            <td><span class="tag tag-foundation">Foundation</span></td>
+            <td></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Foundation/Setup-Prompt.md" target="_blank">Open</a></td>
           </tr>
-          <tr>
-            <td>First Week Plan - Selenium Automation Foundation</td>
-            <td>Set up a stable Selenium automation baseline for the DuraiPricingTool web app and prepare regional
-              pharma test data for quote processing scenarios.</td>
-            <td>Converted from .md</td>
-            <td>2026-03-05 02:32 UTC</td>
-            <td><a href="/library/ImplementationPlan/FirstWeek.html" target="_blank" rel="noopener noreferrer">Open</a>
-            </td>
-            <td><code>ImplementationPlan/FirstWeek.md</code></td>
+
+          <tr data-category="Foundation">
+            <td>README.md</td>
+            <td><span class="tag tag-foundation">Foundation</span></td>
+            <td></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Foundation/README.md" target="_blank">Open</a></td>
           </tr>
-          <tr>
-            <td>Fourth Week Plan - Pilot Hardening, Reporting, and Operationalization</td>
-            <td>Harden Selenium coverage for pilot readiness and produce operational reporting for rollout decisions.
-            </td>
-            <td>Converted from .md</td>
-            <td>2026-03-05 02:32 UTC</td>
-            <td><a href="/library/ImplementationPlan/FourthWeek.html" target="_blank" rel="noopener noreferrer">Open</a>
-            </td>
-            <td><code>ImplementationPlan/FourthWeek.md</code></td>
+
+          <tr data-category="Foundation">
+            <td>Technical Blueprint</td>
+            <td><span class="tag tag-foundation">Foundation</span></td>
+            <td>Detailed technical architecture of the DuraiPricingTool platform.</td>
+            <td>Markdown</td>
+            <td>2026-02-28</td>
+            <td><a href="/Documentation/Foundation/TECHNICAL_BLUEPRINT.md" target="_blank">Open</a></td>
           </tr>
-          <tr>
-            <td>Pharma Client Implementation Report</td>
-            <td>Client profile: Global pharmaceutical manufacturer with multi-region production plants and regional
-              customer quoting needs. Platform: DuraiPricingTool (FastAPI + DuckDB/Postgres hy</td>
-            <td>HTML</td>
-            <td>2026-03-05 02:19 UTC</td>
-            <td><a href="/library/ImplementationPlan/Pharma-Client-Implementation.html" target="_blank"
-                rel="noopener noreferrer">Open</a></td>
-            <td><code>ImplementationPlan/Pharma-Client-Implementation.html</code></td>
+
+          <tr data-category="Specifications">
+            <td>AIPricingEngineConfiguration.md</td>
+            <td><span class="tag tag-specifications">Specifications</span></td>
+            <td></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Specifications/AIPricingEngineConfiguration.md" target="_blank">Open</a></td>
           </tr>
-          <tr>
-            <td>Second Week Plan - Admin Configuration Automation</td>
-            <td>Automate Admin workflows needed to configure quote-processing foundations for a multi-region pharma
-              client.</td>
-            <td>Converted from .md</td>
-            <td>2026-03-05 02:32 UTC</td>
-            <td><a href="/library/ImplementationPlan/SecondWeek.html" target="_blank" rel="noopener noreferrer">Open</a>
-            </td>
-            <td><code>ImplementationPlan/SecondWeek.md</code></td>
+
+          <tr data-category="Specifications">
+            <td>TableManager.md</td>
+            <td><span class="tag tag-specifications">Specifications</span></td>
+            <td></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Specifications/TableManager.md" target="_blank">Open</a></td>
           </tr>
-          <tr>
-            <td>Third Week Plan - Quote Processing and Workflow Automation</td>
-            <td>Automate quote-processing journeys for different regional clients, including approvals and exception
-              routing.</td>
-            <td>Converted from .md</td>
-            <td>2026-03-05 02:32 UTC</td>
-            <td><a href="/library/ImplementationPlan/ThirdWeek.html" target="_blank" rel="noopener noreferrer">Open</a>
-            </td>
-            <td><code>ImplementationPlan/ThirdWeek.md</code></td>
+
+          <tr data-category="Specifications">
+            <td>DuckDB to MySQL Migration Plan (Postgres for Audit/Change Logs)</td>
+            <td><span class="tag tag-specifications">Specifications</span></td>
+            <td>Analysis and migration plan to move transactional data from DuckDB to MySQL while keeping audit/change logs in Postgres, including tradeoffs.</td>
+            <td>Markdown</td>
+            <td>2026-03-07</td>
+            <td><a href="/Documentation/Specifications/Database-Migration-Plan.md" target="_blank">Open</a></td>
           </tr>
-          <tr>
-            <td>Multi-Tenant Login and Roles Plan</td>
-            <td>You can implement multi-tenant login and role-based access in DuraiPricingTool. Plan below is structured
-              for your current FastAPI + React stack.</td>
-            <td>HTML</td>
-            <td>2026-03-05 02:45 UTC</td>
-            <td><a href="/Library/MultiTenant.html" target="_blank" rel="noopener noreferrer">Open</a></td>
-            <td><code>Library/MultiTenant.html</code></td>
+
+          <tr data-category="Specifications">
+            <td>LineItemConfiguration.md</td>
+            <td><span class="tag tag-specifications">Specifications</span></td>
+            <td></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Specifications/LineItemConfiguration.md" target="_blank">Open</a></td>
           </tr>
-          <tr>
-            <td>Master Prompt: Build, Setup, and Deploy DuraiPricingTool End-to-End</td>
-            <td>Use this prompt with an engineering assistant to execute a complete setup from scratch through
-              production deployment.</td>
-            <td>Converted from .md</td>
-            <td>2026-02-28 13:27 UTC</td>
-            <td><a href="/library/Prompt.html" target="_blank" rel="noopener noreferrer">Open</a></td>
-            <td><code>Prompt.md</code></td>
+
+          <tr data-category="Specifications">
+            <td>DataManagementAdmin.md</td>
+            <td><span class="tag tag-specifications">Specifications</span></td>
+            <td></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Specifications/DataManagementAdmin.md" target="_blank">Open</a></td>
           </tr>
-          <tr>
-            <td>DuraiPricingTool</td>
-            <td>Modular enterprise pricing foundation (CPQ/PRO) with DuckDB analytics, chunked CSV ingestion, dynamic
-              quote formulas, and configurable workflows.</td>
-            <td>Converted from .md</td>
-            <td>2026-02-28 07:11 UTC</td>
-            <td><a href="/library/README.html" target="_blank" rel="noopener noreferrer">Open</a></td>
-            <td><code>README.md</code></td>
+
+          <tr data-category="Guides">
+            <td>PRICING_ENGINE_GUIDE.md</td>
+            <td><span class="tag tag-guides">Guides</span></td>
+            <td></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Guides/PRICING_ENGINE_GUIDE.md" target="_blank">Open</a></td>
           </tr>
-          <tr>
-            <td>Table Manager Screen Implementation Plan</td>
-            <td>Implement only the `Admin -&gt; Table Manager` screen in the existing React + FastAPI app, without
-              changing other modules.</td>
-            <td>Converted from .md</td>
-            <td>2026-03-04 01:08 UTC</td>
-            <td><a href="/library/TableManager.html" target="_blank" rel="noopener noreferrer">Open</a></td>
-            <td><code>TableManager.md</code></td>
+
+          <tr data-category="Guides">
+            <td>FIELD_LOGIC_GUIDE.md</td>
+            <td><span class="tag tag-guides">Guides</span></td>
+            <td></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Guides/FIELD_LOGIC_GUIDE.md" target="_blank">Open</a></td>
           </tr>
-          <tr>
-            <td>Validation Documentation</td>
-            <td>Implement the new Admin capabilities using the provided specifications so that:</td>
-            <td>Converted from .md</td>
-            <td>2026-03-04 17:25 UTC</td>
-            <td><a href="/library/validation_documentation.html" target="_blank" rel="noopener noreferrer">Open</a></td>
-            <td><code>validation_documentation.md</code></td>
+
+          <tr data-category="Guides">
+            <td>Formula.md</td>
+            <td><span class="tag tag-guides">Guides</span></td>
+            <td></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Guides/Formula.md" target="_blank">Open</a></td>
           </tr>
-          <tr>
-            <td>SuperAdmin vs TenantAdmin Responsibilities</td>
-            <td>Role capabilities and boundaries for multi-tenant administration.</td>
-            <td>HTML</td>
-            <td>2026-03-05 02:50 UTC</td>
-            <td><a href="/Library/SuperAdmin-TenantAdmin.html" target="_blank" rel="noopener noreferrer">Open</a></td>
-            <td><code>Library/SuperAdmin-TenantAdmin.html</code></td>
+
+          <tr data-category="Implementation">
+            <td>FourthWeek.md</td>
+            <td><span class="tag tag-implementation">Implementation</span></td>
+            <td></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Implementation/FourthWeek.md" target="_blank">Open</a></td>
           </tr>
-          <tr>
+
+          <tr data-category="Implementation">
+            <td>FirstWeek.md</td>
+            <td><span class="tag tag-implementation">Implementation</span></td>
+            <td></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Implementation/FirstWeek.md" target="_blank">Open</a></td>
+          </tr>
+
+          <tr data-category="Implementation">
+            <td>MCP Layer Setup — Phase 1 AI Context</td>
+            <td><span class="tag tag-implementation">Implementation</span></td>
+            <td>Configuration of Model Context Protocol servers for PostgreSQL schema access and filesystem read access to enable AI-driven pricing logic.</td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Implementation/MCP-SETUP-PLAN.md" target="_blank">Open</a></td>
+          </tr>
+
+          <tr data-category="Implementation">
+            <td>Admin-Data.md</td>
+            <td><span class="tag tag-implementation">Implementation</span></td>
+            <td></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Implementation/Admin-Data.md" target="_blank">Open</a></td>
+          </tr>
+
+          <tr data-category="Implementation">
+            <td>SecondWeek.md</td>
+            <td><span class="tag tag-implementation">Implementation</span></td>
+            <td></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Implementation/SecondWeek.md" target="_blank">Open</a></td>
+          </tr>
+
+          <tr data-category="Implementation">
+            <td>LineItem_Formula_Runtime_Plan.md</td>
+            <td><span class="tag tag-implementation">Implementation</span></td>
+            <td></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Implementation/LineItem_Formula_Runtime_Plan.md" target="_blank">Open</a></td>
+          </tr>
+
+          <tr data-category="Implementation">
+            <td>ThirdWeek.md</td>
+            <td><span class="tag tag-implementation">Implementation</span></td>
+            <td></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Implementation/ThirdWeek.md" target="_blank">Open</a></td>
+          </tr>
+
+          <tr data-category="Maintenance">
+            <td>ERROR_FIXES.md</td>
+            <td><span class="tag tag-maintenance">Maintenance</span></td>
+            <td></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Maintenance/ERROR_FIXES.md" target="_blank">Open</a></td>
+          </tr>
+
+          <tr data-category="Maintenance">
+            <td>ERROR_RESOLUTION.md</td>
+            <td><span class="tag tag-maintenance">Maintenance</span></td>
+            <td></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Maintenance/ERROR_RESOLUTION.md" target="_blank">Open</a></td>
+          </tr>
+
+          <tr data-category="Maintenance">
+            <td>validation_documentation.md</td>
+            <td><span class="tag tag-maintenance">Maintenance</span></td>
+            <td></td>
+            <td>Markdown</td>
+            <td>2026-03-06</td>
+            <td><a href="/Documentation/Maintenance/validation_documentation.md" target="_blank">Open</a></td>
+          </tr>
+
+          <tr data-category="Implementation">
             <td>Development Tenant Phase 1 Progress</td>
-            <td>Backend implementation update for multi-tenant login and role-based access.</td>
+            <td><span class="tag tag-implementation">Implementation</span></td>
+            <td>HTML Documentation Report</td>
             <td>HTML</td>
-            <td>2026-03-05 03:00 UTC</td>
-            <td><a href="/Library/Development-Tenant-Phase-1.html" target="_blank" rel="noopener noreferrer">Open</a>
-            </td>
-            <td><code>Library/Development-Tenant-Phase-1.html</code></td>
+            <td>2026-03-05 00:00 UTC</td>
+            <td><a href="/Library/Development-Tenant-Phase-1.html" target="_blank">Open</a></td>
           </tr>
-          <tr>
-            <td>Development Tenant Phase 2 Progress</td>
-            <td>Frontend phase update: login, tenant switcher, token refresh on 401, and action-level role guards.</td>
+
+          <tr data-category="Implementation">
+            <td>Admin & Audit Phase Completion Report</td>
+            <td><span class="tag tag-implementation">Implementation</span></td>
+            <td>HTML Documentation Report</td>
             <td>HTML</td>
-            <td>2026-03-05 03:13 UTC</td>
-            <td><a href="/Library/Development-Tenant-Phase-2.html" target="_blank" rel="noopener noreferrer">Open</a>
-            </td>
-            <td><code>Library/Development-Tenant-Phase-2.html</code></td>
+            <td>2026-03-05 00:00 UTC</td>
+            <td><a href="/Library/Admin-Audit-Completion-Report.html" target="_blank">Open</a></td>
           </tr>
-          <tr>
+
+          <tr data-category="Implementation">
+            <td>Pharma Client Implementation Report</td>
+            <td><span class="tag tag-implementation">Implementation</span></td>
+            <td>HTML Documentation Report</td>
+            <td>HTML</td>
+            <td>2026-03-06 00:00 UTC</td>
+            <td><a href="/Library/Pharma-Client-Implementation.html" target="_blank">Open</a></td>
+          </tr>
+
+          <tr data-category="Implementation">
+            <td>SuperAdmin & TenantAdmin — Implementation Plan</td>
+            <td><span class="tag tag-implementation">Implementation</span></td>
+            <td>HTML Documentation Report</td>
+            <td>HTML</td>
+            <td>2026-03-05 00:00 UTC</td>
+            <td><a href="/Library/SuperAdmin-TenantAdmin-Plan.html" target="_blank">Open</a></td>
+          </tr>
+
+          <tr data-category="Implementation">
+            <td>Multi-Tenant Login and Roles Plan</td>
+            <td><span class="tag tag-implementation">Implementation</span></td>
+            <td>HTML Documentation Report</td>
+            <td>HTML</td>
+            <td>2026-03-05 00:00 UTC</td>
+            <td><a href="/Library/MultiTenant.html" target="_blank">Open</a></td>
+          </tr>
+
+          <tr data-category="Implementation">
             <td>Admin How To Get Started</td>
-            <td>Reference steps for onboarding and configuring new tenants.</td>
+            <td><span class="tag tag-implementation">Implementation</span></td>
+            <td>HTML Documentation Report</td>
             <td>HTML</td>
-            <td>2026-03-05 03:28 UTC</td>
-            <td><a href="/Library/Admin-How-to-Get-Started.html" target="_blank" rel="noopener noreferrer">Open</a></td>
-            <td><code>Library/Admin-How-to-Get-Started.html</code></td>
+            <td>2026-03-05 00:00 UTC</td>
+            <td><a href="/Library/Admin-How-to-Get-Started.html" target="_blank">Open</a></td>
           </tr>
-          <tr>
-            <td>SuperAdmin &amp; TenantAdmin — Implementation Plan</td>
-            <td>Phase-by-phase plan: gap analysis, backend API routes, frontend tabs, and hard restrictions for
-              role-based administration.</td>
+
+          <tr data-category="Implementation">
+            <td>Development Tenant Phase 2 Progress</td>
+            <td><span class="tag tag-implementation">Implementation</span></td>
+            <td>HTML Documentation Report</td>
             <td>HTML</td>
-            <td>2026-03-05 06:12 UTC</td>
-            <td><a href="/Library/SuperAdmin-TenantAdmin-Plan.html" target="_blank" rel="noopener noreferrer">Open</a>
-            </td>
-            <td><code>Library/SuperAdmin-TenantAdmin-Plan.html</code></td>
+            <td>2026-03-05 00:00 UTC</td>
+            <td><a href="/Library/Development-Tenant-Phase-2.html" target="_blank">Open</a></td>
+          </tr>
+
+          <tr data-category="Implementation">
+            <td>Authentication and Roles Comparison</td>
+            <td><span class="tag tag-implementation">Implementation</span></td>
+            <td>HTML Documentation Report</td>
+            <td>HTML</td>
+            <td>2026-03-05 00:00 UTC</td>
+            <td><a href="/Library/AuthenticationRoles.html" target="_blank">Open</a></td>
+          </tr>
+
+          <tr data-category="Implementation">
+            <td>SuperAdmin vs TenantAdmin Responsibilities</td>
+            <td><span class="tag tag-implementation">Implementation</span></td>
+            <td>HTML Documentation Report</td>
+            <td>HTML</td>
+            <td>2026-03-05 00:00 UTC</td>
+            <td><a href="/Library/SuperAdmin-TenantAdmin.html" target="_blank">Open</a></td>
+          </tr>
+
+          <tr data-category="Implementation">
+            <td>Multi-Tenant Implementation Status and Phase-3 Checklist</td>
+            <td><span class="tag tag-implementation">Implementation</span></td>
+            <td>HTML Documentation Report</td>
+            <td>HTML</td>
+            <td>2026-03-05 00:00 UTC</td>
+            <td><a href="/Library/Multi-Tenant-Implementation-Completed.html" target="_blank">Open</a></td>
+          </tr>
+
+          <tr data-category="Foundation">
+            <td>business-prompt.html</td>
+            <td><span class="tag tag-foundation">Foundation</span></td>
+            <td>Business + UI Prompt Blueprint</td>
+            <td>HTML</td>
+            <td>2026-02-28</td>
+            <td><a href="/frontend/public/business-prompt.html" target="_blank">Open</a></td>
+          </tr>
+
+          <tr data-category="Foundation">
+            <td>prompt.html</td>
+            <td><span class="tag tag-foundation">Foundation</span></td>
+            <td>Setup & Deploy Prompt</td>
+            <td>HTML</td>
+            <td>2026-02-28</td>
+            <td><a href="/frontend/public/prompt.html" target="_blank">Open</a></td>
+          </tr>
+
+          <tr data-category="Maintenance">
+            <td>system-control.html</td>
+            <td><span class="tag tag-maintenance">Maintenance</span></td>
+            <td>System Control Commands</td>
+            <td>HTML</td>
+            <td>2026-03-05</td>
+            <td><a href="/frontend/public/system-control.html" target="_blank">Open</a></td>
           </tr>
         </tbody>
       </table>
     </div>
   </div>
-
   <script>
     (function () {
       const tbody = document.getElementById('docsTableBody');
-      const createdHeader = document.getElementById('createdHeader');
-      if (!tbody || !createdHeader) return;
-
-      let desc = true; // newest first by default
-
+      const categoryFilter = document.getElementById('categoryFilter');
+      const entryCount = document.getElementById('entryCount');
+      const headers = {
+        title: document.getElementById('sort-title'),
+        category: document.getElementById('sort-category'),
+        type: document.getElementById('sort-type'),
+        date: document.getElementById('sort-date')
+      };
+      let sortState = { key: 'date', desc: true };
       function parseCreatedDate(text) {
-        // format: YYYY-MM-DD HH:mm UTC
-        const m = text.trim().match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})\s+UTC$/);
+        const m = text.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
         if (!m) return 0;
-        const [_, y, mo, d, h, mi] = m;
-        return Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi));
+        return new Date(m[0]).getTime();
       }
-
-      function sortByCreated() {
+      function updateTable() {
         const rows = Array.from(tbody.querySelectorAll('tr'));
-        rows.sort((a, b) => {
-          const aText = (a.children[3]?.textContent || '').trim();
-          const bText = (b.children[3]?.textContent || '').trim();
-          const aTs = parseCreatedDate(aText);
-          const bTs = parseCreatedDate(bText);
-          return desc ? (bTs - aTs) : (aTs - bTs);
+        const filter = categoryFilter.value;
+        let visibleCount = 0;
+        rows.forEach(row => {
+          const rowCat = row.getAttribute('data-category');
+          if (filter === 'all' || rowCat === filter) {
+            row.classList.remove('hidden');
+            visibleCount++;
+          } else {
+            row.classList.add('hidden');
+          }
         });
-
+        rows.sort((a, b) => {
+          let aVal, bVal;
+          switch(sortState.key) {
+            case 'title':
+              aVal = a.children[0].textContent.trim().toLowerCase();
+              bVal = b.children[0].textContent.trim().toLowerCase();
+              break;
+            case 'category':
+              aVal = a.children[1].textContent.trim().toLowerCase();
+              bVal = b.children[1].textContent.trim().toLowerCase();
+              break;
+            case 'type':
+              aVal = a.children[3].textContent.trim().toLowerCase();
+              bVal = b.children[3].textContent.trim().toLowerCase();
+              break;
+            case 'date':
+              aVal = parseCreatedDate(a.children[4].textContent);
+              bVal = parseCreatedDate(b.children[4].textContent);
+              break;
+          }
+          if (aVal < bVal) return sortState.desc ? 1 : -1;
+          if (aVal > bVal) return sortState.desc ? -1 : 1;
+          return 0;
+        });
         const frag = document.createDocumentFragment();
         rows.forEach(r => frag.appendChild(r));
         tbody.appendChild(frag);
-        createdHeader.textContent = desc ? 'Created Date ▼' : 'Created Date ▲';
+        Object.keys(headers).forEach(k => {
+          const base = headers[k].textContent.split(' ')[0];
+          if (sortState.key === k) {
+            headers[k].textContent = base + (sortState.desc ? ' ▼' : ' ▲');
+          } else {
+            headers[k].textContent = base + ' ↕';
+          }
+        });
+        entryCount.textContent = `Total visible: ${visibleCount}`;
       }
-
-      createdHeader.addEventListener('click', function () {
-        desc = !desc;
-        sortByCreated();
+      categoryFilter.addEventListener('change', updateTable);
+      Object.keys(headers).forEach(k => {
+        headers[k].addEventListener('click', () => {
+          if (sortState.key === k) {
+            sortState.desc = !sortState.desc;
+          } else {
+            sortState.key = k;
+            sortState.desc = false;
+          }
+          updateTable();
+        });
       });
-
-      sortByCreated();
+      updateTable();
     })();
   </script>
-
 </body>
-
 </html>

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin How To Get Started</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f7f8fb;color:#1f2937;margin:0;padding:0}
+.wrap{max-width:960px;margin:24px auto;padding:0 20px}
+.card{background:#fff;border-radius:12px;border:1px solid #d8e3ef;padding:24px;box-shadow:0 8px 24px rgba(15,23,42,.08);}
+h1{font-size:1.8rem;margin-top:0}
+h2{color:#0f766e;margin-top:24px}
+ol{margin-left:20px}
+.code{background:#f1f5f9;border:1px solid #cbd5f5;border-radius:6px;padding:10px;font-family:"SFMono-Regular","Consolas",monospace;}
+ul{margin-left:20px}
+.link{color:#0b63ce}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>Admin How To Get Started</h1>
+    <p>This reference captures the steps for a newly onboarded admin to bring up the multi-tenant pricing platform.</p>
+    <h2>1. Initial Access and Verification</h2>
+    <ol>
+      <li>Ensure you have a <strong>Tenant Admin</strong> or <strong>SuperAdmin</strong> role via the auth console.</li>
+      <li>Visit <code>/auth/login</code> with your assigned email/password and confirm you can call <code>/auth/me</code>.</li>
+      <li>Switch tenants (if multi) using the drop-down in the header; it triggers the <code>X-Tenant-ID</code> header on future calls.</li>
+    </ol>
+    <h2>2. Tenant Configuration Checklist</h2>
+    <ol>
+      <li>Open <code>Admin &gt; Table Manager</code> and load the defaults (line item, logic, AI templates).</li>
+      <li><strong>Seed master data</strong> for the new tenant when data is not yet available: <code>/admin/seed/sample-data?row_count=1000</code>.</li>
+      <li>Run the workflow seeder <code>/admin/seed/workflow-rules</code> to populate tenant-specific approvals.</li>
+      <li>If ingestion is required, upload first CSV chunk through the <code>CSV Upload</code> panel (tenant context is automatic).</li>
+    </ol>
+    <h2>3. Creating and Configuring a New Tenant</h2>
+    <ol>
+      <li>Create the tenant record in the database (<code>tenants</code> table) and ensure <code>tenant_id</code> is unique.</li>
+      <li>Assign the bootstrap SuperAdmin via <code>user_tenant_roles</code> referencing the new tenant.</li>
+      <li>Create master data entries (products/customers/sellers) with <code>tenant_id</code> set to the new tenant when using <code>/master</code> APIs.</li>
+      <li>Upload tenant-specific line item config and field logic (tabs in Admin screen) — this is now tenant bound.</li>
+    </ol>
+    <h2>4. Operational Steps for a New Tenant</h2>
+    <ul>
+      <li>Publish scope: ensure <code>quotes</code> and <code>workflow_rules</code> have tenant filters applied.</li>
+      <li>Set pricing rules/state machine: use <code>/admin/line-item-config</code> and <code>/admin/field-logic</code>.</li>
+      <li>Run analytics smoke via <code>/analytics/waterfall</code> (tenant_id sent automatically). If data is not yet seeded, use CSV or sample-data seeder.</li>
+      <li>Document tenant-specific KPIs; the platform’s embedded waterfall and KPI widgets provide summary data when seeded.</li>
+    </ul>
+    <h2>5. Troubleshooting</h2>
+    <ul>
+      <li>If a call returns <code>403 Missing permission</code>, confirm your role includes the required permission flag (<code>admin.manage</code> or <code>quotes.write</code>).</li>
+      <li>Use <code>/auth/refresh</code> automatically handled by the UI; if you observe sticky 401s, clear local storage and log in again.</li>
+      <li>Double-check tenant header by viewing <code>X-Tenant-ID</code> in browser devtools when saving configs.</li>
+    </ul>
+    <p class="links">Related docs: <a class="link" href="/library/Development-Tenant-Phase-1.html">Phase 1</a> · <a class="link" href="/library/Development-Tenant-Phase-2.html">Phase 2</a> · <a class="link" href="/library/Multi-Tenant-Implementation-Completed.html">Phase 3</a></p>
+  </div>
+</div>
+</body>
+</html>

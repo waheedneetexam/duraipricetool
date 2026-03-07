@@ -218,7 +218,13 @@ def validate_field_logic(tenant_id: str | None, scope: str, field_key: str, logi
     
     try:
         if not errors:
-            ai_res = generate_field_logic(normalized_scope, normalized_field, logic, list(known_column_names))
+            ai_res = generate_field_logic(
+                normalized_scope,
+                normalized_field,
+                logic,
+                list(known_column_names),
+                tenant_id=tenant,
+            )
             generated_code = ai_res["generated_code"]
             for col in ai_res["dependencies"].get("columns", []):
                 if col not in dependencies["columns"]:
@@ -473,7 +479,7 @@ def process_ai_pricing_template(tenant_id: str | None, template_text: str) -> di
     from app.services.ai_service import evaluate_pricing_template
     
     try:
-        ai_result = evaluate_pricing_template(template)
+        ai_result = evaluate_pricing_template(template, tenant_id=tenant)
         summary = ai_result["summary"]
         confidence = ai_result["confidence"]
         detected = ai_result["sectionsDetected"]

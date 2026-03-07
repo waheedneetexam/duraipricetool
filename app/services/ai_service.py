@@ -1,15 +1,38 @@
 import json
 import logging
+import re
+
 from openai import OpenAI
+
 from app.core.config import OPENAI_API_KEY
+from app.services.ai_provider_service import get_openai_api_key
 
 logger = logging.getLogger(__name__)
 
-def evaluate_pricing_template(template_text: str) -> dict:
-    if not OPENAI_API_KEY:
-        raise ValueError("OPENAI_API_KEY is not configured in .env")
-        
-    client = OpenAI(api_key=OPENAI_API_KEY)
+
+def _redact_secrets(message: str) -> str:
+    if not message:
+        return message
+    # Redact any API-like tokens that might appear in provider errors.
+    message = re.sub(r"\bsk-[A-Za-z0-9]{8,}\b", "sk-***", message)
+    message = re.sub(r"\brk-[A-Za-z0-9]{8,}\b", "rk-***", message)
+    return message
+
+def _resolve_openai_key(tenant_id: str | None) -> str | None:
+    if tenant_id:
+        key_row = get_openai_api_key(tenant_id)
+        key = (key_row.get("api_key") or "").strip()
+        if key:
+            return key
+    return OPENAI_API_KEY
+
+
+def evaluate_pricing_template(template_text: str, tenant_id: str | None = None) -> dict:
+    api_key = _resolve_openai_key(tenant_id)
+    if not api_key:
+        raise ValueError("OpenAI API key is not configured for this tenant.")
+
+    client = OpenAI(api_key=api_key)
     
     prompt = f"""
     You are an AI pricing logic generator for a B2B SaaS quoting engine.
@@ -49,14 +72,22 @@ def evaluate_pricing_template(template_text: str) -> dict:
             }
         }
     except Exception as e:
-        logger.error(f"Failed to process template via AI: {e}")
-        raise ValueError("Failed to process template via AI.")
+        err_msg = _redact_secrets(str(e))
+        logger.error("Failed to process template via AI: %s", err_msg)
+        raise ValueError(err_msg or "Failed to process template via AI.")
 
-def generate_field_logic(scope: str, field_key: str, logic_text: str, available_columns: list[str]) -> dict:
-    if not OPENAI_API_KEY:
-        raise ValueError("OPENAI_API_KEY is not configured in .env")
-        
-    client = OpenAI(api_key=OPENAI_API_KEY)
+def generate_field_logic(
+    scope: str,
+    field_key: str,
+    logic_text: str,
+    available_columns: list[str],
+    tenant_id: str | None = None,
+) -> dict:
+    api_key = _resolve_openai_key(tenant_id)
+    if not api_key:
+        raise ValueError("OpenAI API key is not configured for this tenant.")
+
+    client = OpenAI(api_key=api_key)
     
     prompt = f"""
     You are an AI generating Python AST-compatible mathematical formulas for a pricing engine.
@@ -94,5 +125,6 @@ def generate_field_logic(scope: str, field_key: str, logic_text: str, available_
             }
         }
     except Exception as e:
-        logger.error(f"Failed to generate logic via AI: {e}")
-        raise ValueError("Failed to generate logic via AI.")
+        err_msg = _redact_secrets(str(e))
+        logger.error("Failed to generate logic via AI: %s", err_msg)
+        raise ValueError(err_msg or "Failed to generate logic via AI.")

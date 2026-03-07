@@ -42,6 +42,8 @@ out/
 .env.test.local
 .env.production.local
 .env.backend
+
+.openapikey
 # Cache
 .cache/
 .parcel-cache/

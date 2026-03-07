@@ -145,6 +145,15 @@ CREATE TABLE IF NOT EXISTS ai_pricing_configurations (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS ai_provider_keys (
+    tenant_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    api_key TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (tenant_id, provider)
+);
+
 CREATE TABLE IF NOT EXISTS products (
     product_id TEXT PRIMARY KEY,
     sku TEXT,
@@ -416,4 +425,3 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 CREATE INDEX IF NOT EXISTS idx_audit_log_tenant ON audit_log (actor_tenant_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_time ON audit_log (created_at_epoch DESC);
-
