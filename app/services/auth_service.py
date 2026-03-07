@@ -13,7 +13,6 @@ from app.core.config import (
     AUTH_BOOTSTRAP_PASSWORD,
     AUTH_BOOTSTRAP_TENANT,
     AUTH_SECRET,
-    DB_ENGINE,
     REFRESH_TOKEN_TTL_DAYS,
 )
 from app.db.postgres_client import pg_client
