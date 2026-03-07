@@ -1,0 +1,10 @@
+Customer,Customer Segment,Lineitem,List Price,List Price Table,Product Cost Table
+Customer ID ,Segment Name,Customer Segment Discount,Invoice Price,Product ID,Product ID
+Segment ID ,Discount ,,Pocket Price,ListPrice,Product Cost 
+,Segment ID,,,,
+,,,,,
+,,,,,
+,,,,,
+,List Price,Invoice Price,Pocket Price,,
+,From List Price Table,Calculate Customer Segment Discount and Apply on List Price,Invoice Price - Product Cost,,
+,100,95,,,
