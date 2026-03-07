@@ -89,6 +89,9 @@ export function DataManagementAdmin() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showTableModal, setShowTableModal] = useState(false);
   const [showRecordsModal, setShowRecordsModal] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState('');
+  const [rulesOpen, setRulesOpen] = useState(true);
+  const [mappingOpen, setMappingOpen] = useState(true);
 
   const reloadStats = () => {
     if (selectedTableId) {
@@ -256,55 +259,42 @@ export function DataManagementAdmin() {
           overflow: 'hidden',
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', alignItems: 'center', gap: '18px' }}>
           <div>
-            <p style={{ margin: 0, fontSize: '12px', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#94a3b8' }}>Data Management</p>
-            <h2 style={{ margin: '6px 0 0', fontSize: '32px', fontWeight: 700 }}>43 Tables · {filteredTableList.length} visible</h2>
+            <p style={{ margin: 0, fontSize: '12px', letterSpacing: '0.3em', textTransform: 'uppercase', color: '#94a3b8' }}>Home / Data Management / {selectedTable?.displayName ?? 'Product Hierarchies'}</p>
+            <h1 style={{ margin: '6px 0 0', fontSize: '32px', fontWeight: 700 }}>Table: {selectedTable?.displayName ?? 'Product Hierarchies'}</h1>
           </div>
-          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', color: '#cbd5f5' }}>Master Data</span>
-              <span className="status-dot online" />
-            </div>
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', color: '#cbd5f5' }}>Transactional</span>
-              <span className="status-dot online" />
-            </div>
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-              <input
-                className="form-input"
-                placeholder="Search tables..."
-                style={{ width: '220px', padding: '8px 12px', borderRadius: '10px', border: '1px solid #475569', background: '#1f2937', color: '#fff' }}
-                value={sidebarSearch}
-                onChange={(e) => setSidebarSearch(e.target.value)}
-              />
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #475569', background: '#1f2937', color: '#fff' }}
-              >
-                <option value="all">All classifications</option>
-                {CATEGORY_OPTIONS.map(({ value, label }) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-              <button
-                className="btn btn-primary"
-                onClick={() => setShowCreateModal(true)}
-                style={{ borderRadius: '10px', padding: '10px 18px', background: '#c084fc', color: '#0f172a' }}
-              >
-                + New Table
-              </button>
-            </div>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button className="btn btn-primary" style={{ background: '#0ea5e9', borderRadius: '10px', padding: '12px 20px' }}>Save</button>
+            <button className="btn btn-ghost" style={{ borderRadius: '10px', padding: '12px 20px', borderColor: '#d1d5db', color: '#fff' }} onClick={() => setShowRecordsModal(true)} disabled={!selectedTable}>View Data</button>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px' }}>
-            {categoryBreakdown.map(({ key, label, count }) => (
-              <div key={key} style={{ padding: '12px 16px', borderRadius: '18px', border: '1px solid rgba(255,255,255,0.2)', background: '#111827' }}>
-                <p style={{ margin: 0, fontSize: '12px', color: '#a5b4fc' }}>{label}</p>
-                <p style={{ margin: '6px 0 0', fontSize: '20px', fontWeight: 700 }}>{count}</p>
-              </div>
+        </div>
+        <div style={{ marginTop: '20px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <input
+            className="form-input"
+            placeholder="Search tables..."
+            style={{ width: '220px', padding: '8px 12px', borderRadius: '10px', border: '1px solid #475569', background: '#111827', color: '#fff' }}
+            value={sidebarSearch}
+            onChange={(e) => setSidebarSearch(e.target.value)}
+          />
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #475569', background: '#111827', color: '#fff' }}
+          >
+            <option value="all">All classifications</option>
+            {CATEGORY_OPTIONS.map(({ value, label }) => (
+              <option key={value} value={value}>{label}</option>
             ))}
-          </div>
+          </select>
+        </div>
+        <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
+          {categoryBreakdown.map(({ key, label, count }) => (
+            <div key={key} style={{ padding: '12px 16px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.2)', background: '#111827' }}>
+              <p style={{ margin: 0, fontSize: '12px', color: '#a5b4fc' }}>{label}</p>
+              <p style={{ margin: '6px 0 0', fontSize: '18px', fontWeight: 700 }}>{count}</p>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -417,55 +407,91 @@ export function DataManagementAdmin() {
                 </div>
               </div>
             </div>
-            <div style={{ background: '#fff', borderRadius: '18px', padding: '24px', border: '1px dashed #94a3b8' }}>
+            <div style={{ background: '#fff', borderRadius: '18px', padding: '24px', border: '1px dashed #94a3b8', boxShadow: '0 8px 30px rgba(15,23,42,0.15)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <div>
-                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Step 2 · Import & Validate · Primary point</p>
-                  <h4 style={{ margin: '6px 0 0', fontSize: '18px' }}>Drag & drop or click to upload data</h4>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Step 2 · Import & Validate</p>
+                  <h4 style={{ margin: '6px 0 0', fontSize: '20px' }}>Primary focal point</h4>
                 </div>
                 <span className="status-dot online" />
               </div>
-              <div style={{ minHeight: '140px', borderRadius: '16px', border: '2px dashed #94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px', color: '#475569', fontSize: '15px' }}>
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1f2937" strokeWidth="1.5">
-                  <path d="M12 3v13"></path>
-                  <path d="M8 9l4-4 4 4"></path>
-                  <path d="M5 17v2h14v-2"></path>
+              <div style={{ minHeight: '160px', borderRadius: '16px', border: '2px dashed #64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '10px', color: '#475569', fontSize: '15px', background: '#f8fafc' }}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="1.8">
+                  <path d="M12 4v12"></path>
+                  <path d="M6 10l6-6 6 6"></path>
+                  <path d="M5 18h14"></path>
                 </svg>
-                <span>Limit: 100MB · CSV / Excel / JSON</span>
-                <CsvUpload selectedTableId={selectedTableId} onUploadComplete={reloadStats} embedded={true} />
+                <strong style={{ fontSize: '16px', color: '#0f172a' }}>{uploadedFileName ? `File uploaded: ${uploadedFileName}` : 'Drag & Drop or Click to Upload Data File'}</strong>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>Limit: 100MB · CSV / Excel / JSON</span>
+                <CsvUpload
+                  selectedTableId={selectedTableId}
+                  onUploadComplete={(name) => {
+                    setUploadedFileName(name);
+                    reloadStats();
+                  }}
+                  embedded={true}
+                />
               </div>
             </div>
-          <div style={{ background: '#fff', borderRadius: '18px', padding: '20px', border: '1px solid #e2e8f0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <div>
-                <p style={{ margin: 0, fontSize: '12px', color: '#64748b', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Step 3 · Collapsed progress</p>
-                <h4 style={{ margin: '6px 0 0', fontSize: '18px' }}>Validation rules & mapping</h4>
-              </div>
-                <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#475569' }}>
-                  <span>Validate</span>
-                  <span>Map</span>
-                  <span>Import</span>
+            <div style={{ background: '#fff', borderRadius: '18px', padding: '20px', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Step 3 · Validation Progress</p>
+                  <h4 style={{ margin: '6px 0 0', fontSize: '18px' }}>Validation rules & mapping</h4>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: '#475569' }}>
+                  {['Validate', 'Map Columns', 'Import'].map((step, idx) => (
+                    <span key={step} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <strong style={{ color: idx === 0 ? '#0ea5e9' : '#64748b' }}>●</strong>
+                      {step}
+                      {idx < 2 && <span style={{ margin: '0 6px' }}>→</span>}
+                    </span>
+                  ))}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                <div style={{ flex: '1 1 220px', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', minWidth: '220px' }}>
-                  <p style={{ margin: 0, fontSize: '13px', color: '#475569' }}>Validation rules</p>
-                  <ul style={{ margin: '10px 0 0 0', padding: 0, listStyle: 'none', fontSize: '13px', color: '#0f172a' }}>
-                    <li>#1 · Null check · Status: Pending</li>
-                    <li>#2 · Duplicate check · Status: Ready</li>
-                  </ul>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setRulesOpen(!rulesOpen)}>
+                    <span style={{ fontWeight: 600 }}>Validation rules</span>
+                    <span>{rulesOpen ? '−' : '+'}</span>
+                  </div>
+                  {rulesOpen && (
+                    <ul style={{ marginTop: '10px', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                      {[
+                        { id: 1, label: 'Null check', status: 'Pending' },
+                        { id: 2, label: 'Duplicate check', status: 'Ready' },
+                      ].map((rule) => (
+                        <li key={rule.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>{rule.id}. {rule.label}</span>
+                          <span style={{ fontSize: '11px', color: '#10b981' }}>{rule.status}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
-                <div style={{ flex: '1 1 220px', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', minWidth: '220px' }}>
-                  <p style={{ margin: 0, fontSize: '13px', color: '#475569' }}>Mapping</p>
-                  <ul style={{ margin: '10px 0 0 0', padding: 0, listStyle: 'none', fontSize: '13px', color: '#0f172a' }}>
-                    <li>Column Rule · Product SKU → sku</li>
-                    <li>Column Rule · Region → region_id</li>
-                  </ul>
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setMappingOpen(!mappingOpen)}>
+                    <span style={{ fontWeight: 600 }}>Mapping</span>
+                    <span>{mappingOpen ? '−' : '+'}</span>
+                  </div>
+                  {mappingOpen && (
+                    <ul style={{ marginTop: '10px', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                      {[
+                        { name: 'Product SKU', target: 'sku' },
+                        { name: 'Region', target: 'region_id' },
+                      ].map((map) => (
+                        <li key={map.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>{map.name}</span>
+                          <span>{map.target}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
               <div style={{ marginTop: '16px', display: 'flex', gap: '10px' }}>
-                <button className="btn btn-primary btn-xs">Validate & Prep Import</button>
-                <button className="btn btn-xs">Clear form</button>
+                <button className="btn btn-primary btn-xs">Validate and Prepare Import</button>
+                <button className="btn btn-xs">Clear Form</button>
               </div>
             </div>
           </div>

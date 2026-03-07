@@ -5,7 +5,7 @@ import { MappingModal } from './MappingModal';
 
 type CsvUploadProps = {
     selectedTableId: string;
-    onUploadComplete: () => void;
+    onUploadComplete: (fileName: string) => void;
     embedded?: boolean;
 };
 
@@ -129,12 +129,12 @@ export function CsvUpload({ selectedTableId, onUploadComplete, embedded }: CsvUp
             });
 
             const data = await response.json();
-            if (data.success) {
-                setResult(data.data);
-                onUploadComplete();
-            } else {
-                setErrorMsg(data.error || 'Upload failed');
-            }
+                if (data.success) {
+                    setResult(data.data);
+                    onUploadComplete(csvFile?.name ?? '');
+                } else {
+                    setErrorMsg(data.error || 'Upload failed');
+                }
         } catch (err) {
             setErrorMsg(String(err));
         } finally {
