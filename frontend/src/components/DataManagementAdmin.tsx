@@ -256,52 +256,55 @@ export function DataManagementAdmin() {
           overflow: 'hidden',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '24px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div>
             <p style={{ margin: 0, fontSize: '12px', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#94a3b8' }}>Data Management</p>
-            <h2 style={{ margin: '6px 0 0', fontSize: '32px', fontWeight: 700 }}>43 tables · {filteredTableList.length} visible</h2>
-            <p style={{ marginTop: '10px', maxWidth: '520px', color: '#cbd5f5', fontSize: '15px' }}>Centrally manage your schemas, imports, and business-critical validations. Select any table to inspect its schema, stats, and classification.</p>
+            <h2 style={{ margin: '6px 0 0', fontSize: '32px', fontWeight: 700 }}>43 Tables · {filteredTableList.length} visible</h2>
           </div>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <div style={{ background: '#1f2937', borderRadius: '12px', padding: '10px 18px', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ fontSize: '12px', color: '#94a3b8' }}>Search</div>
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <span style={{ fontSize: '13px', color: '#cbd5f5' }}>Master Data</span>
+              <span className="status-dot online" />
+            </div>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <span style={{ fontSize: '13px', color: '#cbd5f5' }}>Transactional</span>
+              <span className="status-dot online" />
+            </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
               <input
                 className="form-input"
                 placeholder="Search tables..."
-                style={{ marginTop: '6px', width: '220px', padding: '8px 10px', borderRadius: '10px', fontSize: '14px' }}
+                style={{ width: '220px', padding: '8px 12px', borderRadius: '10px', border: '1px solid #475569', background: '#1f2937', color: '#fff' }}
                 value={sidebarSearch}
                 onChange={(e) => setSidebarSearch(e.target.value)}
               />
-            </div>
-            <div style={{ background: '#1f2937', borderRadius: '12px', padding: '10px 18px', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ fontSize: '12px', color: '#94a3b8' }}>Category filter</div>
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                style={{ marginTop: '6px', width: '160px', padding: '8px 10px', borderRadius: '10px', border: '1px solid #475569', background: '#0f172a', color: '#fff' }}
+                style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #475569', background: '#1f2937', color: '#fff' }}
               >
-                <option value="all">All Classifications</option>
+                <option value="all">All classifications</option>
                 {CATEGORY_OPTIONS.map(({ value, label }) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
               </select>
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowCreateModal(true)}
+                style={{ borderRadius: '10px', padding: '10px 18px', background: '#c084fc', color: '#0f172a' }}
+              >
+                + New Table
+              </button>
             </div>
-            <button
-              className="btn btn-primary"
-              onClick={() => setShowCreateModal(true)}
-              style={{ background: '#c084fc', color: '#0f172a', borderRadius: '12px', padding: '12px 20px', fontWeight: 700 }}
-            >
-              + New Table
-            </button>
           </div>
-        </div>
-        <div style={{ marginTop: '24px', display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
-          {categoryBreakdown.map(({ key, label, count }) => (
-            <div key={key} style={{ flex: '1 1 120px', minWidth: '120px', padding: '14px 16px', borderRadius: '12px', background: 'rgba(15,23,42,0.75)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>{label}</p>
-              <p style={{ margin: '4px 0 0', fontSize: '22px', fontWeight: 700 }}>{count}</p>
-            </div>
-          ))}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px' }}>
+            {categoryBreakdown.map(({ key, label, count }) => (
+              <div key={key} style={{ padding: '12px 16px', borderRadius: '18px', border: '1px solid rgba(255,255,255,0.2)', background: '#111827' }}>
+                <p style={{ margin: 0, fontSize: '12px', color: '#a5b4fc' }}>{label}</p>
+                <p style={{ margin: '6px 0 0', fontSize: '20px', fontWeight: 700 }}>{count}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -374,68 +377,103 @@ export function DataManagementAdmin() {
             ))}
           </div>
 
-          <div className="panel-card" style={{ padding: '18px', borderRadius: '14px', background: '#fff', border: '1px solid #e2e8f0' }}>
-            <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h4 style={{ margin: 0, fontSize: '16px' }}>Database Classification</h4>
-                <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>Update the bucket for the active table.</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ background: '#fff', borderRadius: '18px', padding: '20px', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Step 1 · Database Classification</p>
+                  <h4 style={{ margin: '6px 0 4px', fontSize: '18px' }}>{selectedTable?.displayName ?? 'Select a table'}</h4>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontSize: '12px', color: '#0f172a' }}>Last update: {statsByTable[selectedTableId]?.lastUpdated ? new Date(statsByTable[selectedTableId]!.lastUpdated!).toLocaleString() : '—'}</span>
+                  <div style={{ marginTop: '4px', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    <button className="btn btn-xs" style={{ borderRadius: '10px', border: '1px solid #cbd5e1' }} onClick={() => setShowTableModal(true)}>Preview schema</button>
+                    <button className="btn btn-xs" style={{ borderRadius: '10px' }} onClick={() => setShowRecordsModal(true)} disabled={!selectedTableId}>View data</button>
+                  </div>
+                </div>
               </div>
-              <span style={{ fontSize: '12px', color: '#0f172a' }}>{categoryLabel[getEffectiveCategory(selectedTableId)] ?? 'Uncategorized'}</span>
+              <div style={{ display: 'flex', gap: '14px', marginTop: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <select
+                  value={classificationDraft}
+                  onChange={(e) => setClassificationDraft(e.target.value)}
+                  style={{ flex: '1 1 240px', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+                >
+                  {CATEGORY_OPTIONS.map(({ value, label }) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+                <button
+                  className="btn btn-primary"
+                  onClick={updateTableCategory}
+                  disabled={categorySaving || classificationDraft === getEffectiveCategory(selectedTableId)}
+                  style={{ borderRadius: '10px', padding: '10px 18px' }}
+                >
+                  {categorySaving ? 'Saving...' : 'Save'}
+                </button>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {['Schema integrity', 'Quality rules', 'Authorization'].map((tag) => (
+                    <span key={tag} style={{ background: '#eef2ff', color: '#312e81', padding: '6px 12px', borderRadius: '999px', fontSize: '12px' }}>{tag}</span>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <select
-                value={classificationDraft}
-                onChange={(e) => setClassificationDraft(e.target.value)}
-                style={{ flex: '1 1 240px', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '14px' }}
-              >
-                {CATEGORY_OPTIONS.map(({ value, label }) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-              <button
-                className="btn btn-primary"
-                onClick={updateTableCategory}
-                disabled={categorySaving || classificationDraft === getEffectiveCategory(selectedTableId)}
-                style={{ borderRadius: '10px', padding: '10px 18px' }}
-              >
-                {categorySaving ? 'Saving...' : 'Save'}
-              </button>
-              <button
-                className="btn btn-ghost btn-xs"
-                onClick={() => setShowTableModal(true)}
-                style={{ borderRadius: '10px', padding: '10px 18px', border: '1px solid #cbd5e1' }}
-              >
-                Preview schema
-              </button>
-              <button
-                className="btn btn-primary btn-xs"
-                onClick={() => setShowRecordsModal(true)}
-                style={{ borderRadius: '10px', padding: '10px 18px', background: '#0f172a', borderColor: '#0f172a', color: '#fff' }}
-                disabled={!selectedTableId}
-              >
-                View data
-              </button>
+            <div style={{ background: '#fff', borderRadius: '18px', padding: '24px', border: '1px dashed #94a3b8' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Step 2 · Import & Validate · Primary point</p>
+                  <h4 style={{ margin: '6px 0 0', fontSize: '18px' }}>Drag & drop or click to upload data</h4>
+                </div>
+                <span className="status-dot online" />
+              </div>
+              <div style={{ minHeight: '140px', borderRadius: '16px', border: '2px dashed #94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px', color: '#475569', fontSize: '15px' }}>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1f2937" strokeWidth="1.5">
+                  <path d="M12 3v13"></path>
+                  <path d="M8 9l4-4 4 4"></path>
+                  <path d="M5 17v2h14v-2"></path>
+                </svg>
+                <span>Limit: 100MB · CSV / Excel / JSON</span>
+                <CsvUpload selectedTableId={selectedTableId} onUploadComplete={reloadStats} embedded={true} />
+              </div>
+            </div>
+          <div style={{ background: '#fff', borderRadius: '18px', padding: '20px', border: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <div>
+                <p style={{ margin: 0, fontSize: '12px', color: '#64748b', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Step 3 · Collapsed progress</p>
+                <h4 style={{ margin: '6px 0 0', fontSize: '18px' }}>Validation rules & mapping</h4>
+              </div>
+                <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#475569' }}>
+                  <span>Validate</span>
+                  <span>Map</span>
+                  <span>Import</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 220px', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', minWidth: '220px' }}>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#475569' }}>Validation rules</p>
+                  <ul style={{ margin: '10px 0 0 0', padding: 0, listStyle: 'none', fontSize: '13px', color: '#0f172a' }}>
+                    <li>#1 · Null check · Status: Pending</li>
+                    <li>#2 · Duplicate check · Status: Ready</li>
+                  </ul>
+                </div>
+                <div style={{ flex: '1 1 220px', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', minWidth: '220px' }}>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#475569' }}>Mapping</p>
+                  <ul style={{ margin: '10px 0 0 0', padding: 0, listStyle: 'none', fontSize: '13px', color: '#0f172a' }}>
+                    <li>Column Rule · Product SKU → sku</li>
+                    <li>Column Rule · Region → region_id</li>
+                  </ul>
+                </div>
+              </div>
+              <div style={{ marginTop: '16px', display: 'flex', gap: '10px' }}>
+                <button className="btn btn-primary btn-xs">Validate & Prep Import</button>
+                <button className="btn btn-xs">Clear form</button>
+              </div>
             </div>
           </div>
-
-          <div className="panel-card" style={{ padding: '20px', borderRadius: '16px', background: '#fff', border: '1px solid #e2e8f0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <div>
-                <h4 style={{ margin: 0, fontSize: '16px' }}>Import & Validate</h4>
-                <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>Drop CSV files here to trigger automatic validation before import.</p>
-              </div>
-              <span className="status-dot online" />
+          {selectedTable && (
+            <div style={{ background: '#fff', borderRadius: '18px', padding: '16px', border: '1px solid #e2e8f0' }}>
+              <TableManager table={selectedTable} embedded={true} onDataLoad={reloadStats} />
             </div>
-            <CsvUpload
-              selectedTableId={selectedTableId}
-              onUploadComplete={reloadStats}
-              embedded={true}
-            />
-            <div style={{ marginTop: '14px', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
-              <button className="btn btn-xs">Configure rules</button>
-              <button className="btn btn-xs">Column mapping</button>
-            </div>
-          </div>
+          )}
         </div>
 
       </div>
