@@ -1,8 +1,10 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch, hasPermission } from '../api/client';
 import type { MasterCustomer, MasterProduct, PricingLineItem, QuoteDetail, TenantLineItemConfig } from '../api/types';
 import { DEFAULT_LINE_ITEM_COLUMNS, type LineItemColumnConfig, type LineItemColumnKey } from '../constants/lineItemColumns';
 import { LineItemAnalytics } from './LineItemAnalytics';
+import { CustomerSelectModal } from './CustomerSelectModal';
+import { ProductSelectModal } from './ProductSelectModal';
 
 type Props = {
   quoteId?: string;
@@ -62,8 +64,12 @@ function buildFormulaContext(line: PricingLineItem): Record<string, number> {
     margin: line.margin ?? 0,
     totalValue: line.totalValue ?? 0,
   };
+  const regionDiscount =
+    Number((line as any).customerRegionDiscount ?? (line as any).customer_region_discount ?? 0);
   context.list_price = context.listPrice;
   context.discount_percent = context.volumeDiscount;
+  context.customerRegionDiscount = regionDiscount;
+  context.customer_region_discount = regionDiscount;
   return context;
 }
 
@@ -161,6 +167,11 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
   const [debugScopeCount, setDebugScopeCount] = useState<{ line_item: number; other: number }>({ line_item: 0, other: 0 });
   const [fieldLogicRules, setFieldLogicRules] = useState<DebugRule[]>([]);
   const canWriteQuotes = hasPermission('quotes.write');
+  const lastSavedCustomerRef = useRef('');
+  const autoSaveTimerRef = useRef<number | null>(null);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [activeProductLineId, setActiveProductLineId] = useState<string | null>(null);
 
   const tenantId = useMemo(() => {
     const raw = customerId.trim();
@@ -190,6 +201,30 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
   useEffect(() => {
     void loadCustomerCatalog();
   }, []);
+
+  useEffect(() => {
+    if (!canWriteQuotes) return;
+    const hasCustomer = customerId.trim() || customerName.trim();
+    if (!hasCustomer) return;
+    const customerKey = `${customerId}|${customerName}|${customerSegment}`;
+    if (lastSavedCustomerRef.current === customerKey) return;
+
+    if (autoSaveTimerRef.current) {
+      window.clearTimeout(autoSaveTimerRef.current);
+    }
+    autoSaveTimerRef.current = window.setTimeout(() => {
+      if (saving) return;
+      const validationError = validateMandatoryFields();
+      if (validationError) return;
+      void saveQuote();
+    }, 600);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        window.clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [customerId, customerName, customerSegment, lineItems, saving, canWriteQuotes]);
 
   function normalizeFieldKey(key: string) {
     return key
@@ -299,6 +334,7 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
       setCustomerName(q.customerName || '');
       setCustomerId(q.customerId || '');
       setCustomerSegment(q.customerSegment || 'Enterprise');
+      lastSavedCustomerRef.current = `${q.customerId || ''}|${q.customerName || ''}|${q.customerSegment || 'Enterprise'}`;
       setProductHierarchy(q.productHierarchy || '');
       setSalesOrg(q.salesOrg || '');
       setRegion(q.region || '');
@@ -348,21 +384,6 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
     } catch {
       setCustomerCatalog([]);
     }
-  }
-
-  function handleCustomerNameChange(value: string) {
-    setCustomerName(value);
-    const normalized = value.trim().toLowerCase();
-    if (!normalized) return;
-
-    const matchedCustomer = customerCatalog.find(
-      (customer) => String(customer.name ?? '').trim().toLowerCase() === normalized
-    );
-    if (!matchedCustomer) return;
-
-    if (matchedCustomer.customer_id) setCustomerId(matchedCustomer.customer_id);
-    if (matchedCustomer.segment) setCustomerSegment(matchedCustomer.segment);
-    if (matchedCustomer.region) setRegion(matchedCustomer.region);
   }
 
   function computeLine(line: PricingLineItem): PricingLineItem {
@@ -533,6 +554,7 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
         setCurrentQuoteId(response.data.id);
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);
+        lastSavedCustomerRef.current = `${customerId}|${customerName}|${customerSegment}`;
       }
     } catch (err) {
       setError(String(err));
@@ -554,15 +576,31 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
 
   const averageMargin = totals.total > 0 ? totals.weightedMargin / totals.total : 0;
 
-  const availableProducts = useMemo(
-    () => productCatalog.filter((product) => product.active ?? true),
-    [productCatalog]
-  );
+  function handleCustomerSelect(customer: MasterCustomer) {
+    setCustomerName(customer.name || '');
+    if (customer.customer_id) setCustomerId(customer.customer_id);
+    if (customer.segment) setCustomerSegment(customer.segment);
+    if (customer.region) setRegion(customer.region);
+    setShowCustomerModal(false);
+  }
 
-  const availableCustomers = useMemo(
-    () => customerCatalog.filter((customer) => customer.active ?? true),
-    [customerCatalog]
-  );
+  function handleProductSelect(product: MasterProduct) {
+    if (!activeProductLineId) return;
+    setLineItems((prev) =>
+      prev.map((line) => {
+        if (line.id !== activeProductLineId) return line;
+        const updated: PricingLineItem = {
+          ...line,
+          productName: product.name,
+          sku: product.sku,
+          listPrice: typeof product.price === 'number' ? product.price : line.listPrice,
+        };
+        return computeLine(updated);
+      })
+    );
+    setShowProductModal(false);
+    setActiveProductLineId(null);
+  }
 
   const visibleColumns = useMemo(
     () => [...lineItemColumns].sort((a, b) => a.sortOrder - b.sortOrder).filter((col) => col.visible),
@@ -584,24 +622,21 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
 
     const storedValue = line[column.key];
     if (column.key === 'productName') {
-      const datalistId = `product-options-${line.id}`;
       return (
         <td>
           <input
             type="text"
-            list={availableProducts.length ? datalistId : undefined}
             value={String(storedValue ?? '')}
             required={column.mandatory}
             disabled={!canWriteQuotes}
-            onChange={(e) => updateLine(line.id, column.key, e.target.value)}
+            onClick={() => {
+              if (!canWriteQuotes) return;
+              setActiveProductLineId(line.id);
+              setShowProductModal(true);
+            }}
+            readOnly
+            placeholder="Click to select product"
           />
-          {availableProducts.length > 0 && (
-            <datalist id={datalistId}>
-              {availableProducts.map((product) => (
-                <option key={product.product_id} value={product.name} />
-              ))}
-            </datalist>
-          )}
         </td>
       );
     }
@@ -672,16 +707,10 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
                 Customer Name
                 <input
                   value={customerName}
-                  list={availableCustomers.length ? 'customer-options' : undefined}
-                  onChange={(e) => handleCustomerNameChange(e.target.value)}
+                  onClick={() => setShowCustomerModal(true)}
+                  readOnly
+                  placeholder="Click to select a customer"
                 />
-                {availableCustomers.length > 0 && (
-                  <datalist id="customer-options">
-                    {availableCustomers.map((customer) => (
-                      <option key={customer.customer_id} value={customer.name} />
-                    ))}
-                  </datalist>
-                )}
               </label>
               <label>Customer ID<input value={customerId} onChange={(e) => setCustomerId(e.target.value)} /></label>
               <label>Customer Segment<input value={customerSegment} onChange={(e) => setCustomerSegment(e.target.value)} /></label>
@@ -742,6 +771,25 @@ export function PricingTableWithTabs({ quoteId, onBack }: Props) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {showCustomerModal && (
+        <CustomerSelectModal
+          customers={customerCatalog}
+          onSelect={handleCustomerSelect}
+          onClose={() => setShowCustomerModal(false)}
+        />
+      )}
+
+      {showProductModal && (
+        <ProductSelectModal
+          products={productCatalog}
+          onSelect={handleProductSelect}
+          onClose={() => {
+            setShowProductModal(false);
+            setActiveProductLineId(null);
+          }}
+        />
       )}
 
       {error && <div className="error-box">{error}</div>}

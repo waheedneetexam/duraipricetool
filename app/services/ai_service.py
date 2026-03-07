@@ -81,6 +81,7 @@ def generate_field_logic(
     field_key: str,
     logic_text: str,
     available_columns: list[str],
+    available_schema: dict[str, list[str]] | None = None,
     tenant_id: str | None = None,
 ) -> dict:
     api_key = _resolve_openai_key(tenant_id)
@@ -89,15 +90,19 @@ def generate_field_logic(
 
     client = OpenAI(api_key=api_key)
     
+    schema_block = json.dumps(available_schema or {}, indent=2)
     prompt = f"""
     You are an AI generating Python AST-compatible mathematical formulas for a pricing engine.
     Target Field: {scope}.{field_key}
     Available Columns/Variables: {available_columns}
+    Available Tables and Columns (JSON): {schema_block}
     
     Natural Language Logic: "{logic_text}"
     
     Your task is to translate the natural language into a pure math string formula that can be evaluated using standard operators (+, -, *, /), constants, and variables.
     Supported variables are ONLY the ones provided in Available Columns wrapper.
+    If the logic mentions joins between tables, assume the correct row-level values are already available as columns listed above.
+    If a required column is missing from Available Columns, return an empty formula and explain which column(s) are missing.
     Do NOT output any markdown, ONLY output a valid JSON object.
     
     Format:
@@ -128,3 +133,71 @@ def generate_field_logic(
         err_msg = _redact_secrets(str(e))
         logger.error("Failed to generate logic via AI: %s", err_msg)
         raise ValueError(err_msg or "Failed to generate logic via AI.")
+
+
+def generate_sql_draft(
+    scope: str,
+    field_key: str,
+    logic_text: str,
+    available_schema: dict[str, list[str]],
+    available_columns: list[str],
+    join_hints: list[str] | None = None,
+    tenant_id: str | None = None,
+) -> dict:
+    api_key = _resolve_openai_key(tenant_id)
+    if not api_key:
+        raise ValueError("OpenAI API key is not configured for this tenant.")
+
+    client = OpenAI(api_key=api_key)
+
+    schema_block = json.dumps(available_schema or {}, indent=2)
+    hints_block = "\\n".join(join_hints or [])
+    prompt = f"""
+    You are an AI SQL generator for a pricing engine. Generate a single SELECT query for PostgreSQL.
+    Target Field: {scope}.{field_key}
+    Available Tables and Columns (JSON): {schema_block}
+    Available Columns/Variables: {available_columns}
+    Join Hints (if useful):
+    {hints_block}
+
+    Natural Language Logic: "{logic_text}"
+
+    Rules:
+    - Use ONLY the tables/columns in the provided schema.
+    - Prefer table and column names exactly as given (snake_case).
+    - If you cannot construct the query due to missing columns, return an empty sql string and list missing columns.
+    - If joins are described, include them.
+    - If a formula can be expressed for the target field, provide it as a pure math expression using available columns.
+    - Do NOT output markdown. Return a JSON object only.
+
+    Output JSON schema:
+    {{
+      "sql": "string",
+      "tables": ["table1", "table2"],
+      "columns": ["col1", "col2"],
+      "formula": "string",
+      "missing_columns": ["colA", "colB"],
+      "notes": "string"
+    }}
+    """
+
+    try:
+        response = client.chat.completions.create(
+            model='gpt-4o',
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+            temperature=0.0
+        )
+        data = json.loads(response.choices[0].message.content)
+        return {
+            "sql": data.get("sql", "") or "",
+            "tables": data.get("tables", []) or [],
+            "columns": data.get("columns", []) or [],
+            "formula": data.get("formula", "") or "",
+            "missing_columns": data.get("missing_columns", []) or [],
+            "notes": data.get("notes", "") or "",
+        }
+    except Exception as e:
+        err_msg = _redact_secrets(str(e))
+        logger.error("Failed to generate SQL via AI: %s", err_msg)
+        raise ValueError(err_msg or "Failed to generate SQL via AI.")

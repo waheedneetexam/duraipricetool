@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS quote_line_items (
     quantity INTEGER,
     list_price DOUBLE,
     discount_percent DOUBLE,
+    customer_region_discount DOUBLE,
     net_price DOUBLE,
     cost DOUBLE,
     margin DOUBLE,
@@ -241,6 +242,8 @@ CREATE TABLE IF NOT EXISTS regions (
     countries VARCHAR,
     currency VARCHAR,
     timezone VARCHAR,
+    discount_percent DOUBLE,
+    tenant_id VARCHAR DEFAULT 'default',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -293,11 +296,14 @@ CREATE TABLE IF NOT EXISTS pricing_rules (
 
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
 ALTER TABLE quote_line_items ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
+ALTER TABLE quote_line_items ADD COLUMN IF NOT EXISTS customer_region_discount DOUBLE;
 ALTER TABLE workflow_rules ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
 ALTER TABLE historical_transactions ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
 ALTER TABLE products ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
 ALTER TABLE sellers ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
+ALTER TABLE regions ADD COLUMN IF NOT EXISTS discount_percent DOUBLE;
+ALTER TABLE regions ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
 ALTER TABLE product_extensions ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
 ALTER TABLE customer_extensions ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
 ALTER TABLE seller_extensions ADD COLUMN IF NOT EXISTS tenant_id VARCHAR DEFAULT 'default';
@@ -378,6 +384,15 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     expires_at_epoch BIGINT,
     revoked BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS table_classifications (
+    table_name VARCHAR NOT NULL,
+    category VARCHAR NOT NULL,
+    tenant_id VARCHAR DEFAULT 'default',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (table_name, tenant_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_app_users_email ON app_users (email);

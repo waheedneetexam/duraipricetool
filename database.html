@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DuraiPricingTool Data Classification</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; color: #0f172a; }
+    h1, h2 { margin: 0 0 8px 0; }
+    h2 { margin-top: 24px; }
+    p { margin: 6px 0 12px 0; color: #334155; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; font-size: 14px; }
+    th { background: #f8fafc; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #eef2ff; color: #3730a3; }
+    ul { margin: 6px 0 12px 18px; }
+    .note { background: #fffbeb; border: 1px solid #fde68a; padding: 10px 12px; border-radius: 8px; color: #92400e; }
+    code { background: #f1f5f9; padding: 1px 4px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Database Classification (Master / Transactional / Configuration / Metadata / Organization)</h1>
+  <p>This document categorizes the current database tables and provides guidance on how to distinguish the categories without changing existing behavior.</p>
+
+  <h2>1) Master Data</h2>
+  <p>Relatively stable reference entities used across transactions.</p>
+  <table>
+    <tr><th>Table</th><th>Notes</th></tr>
+    <tr><td>products</td><td>Core product master.</td></tr>
+    <tr><td>customers</td><td>Customer master.</td></tr>
+    <tr><td>sellers</td><td>Seller master.</td></tr>
+    <tr><td>regions</td><td>Region master.</td></tr>
+    <tr><td>currencies</td><td>Currency master.</td></tr>
+    <tr><td>product_costs</td><td>Cost master by region/time.</td></tr>
+    <tr><td>product_hierarchies</td><td>Product hierarchy reference.</td></tr>
+    <tr><td>product_references</td><td>Cross‑references / mapping.</td></tr>
+    <tr><td>product_extensions</td><td>Product custom attributes.</td></tr>
+    <tr><td>customer_extensions</td><td>Customer custom attributes.</td></tr>
+    <tr><td>seller_extensions</td><td>Seller custom attributes.</td></tr>
+    <tr><td>sales_orgs</td><td>Sales organization reference.</td></tr>
+  </table>
+
+  <h2>2) Transactional Data</h2>
+  <p>Records that represent business events or line items. High volume, time‑based.</p>
+  <table>
+    <tr><th>Table</th><th>Notes</th></tr>
+    <tr><td>quotes</td><td>Quote header transactions.</td></tr>
+    <tr><td>quote_line_items</td><td>Quote line items.</td></tr>
+    <tr><td>historical_transactions</td><td>Historical sales/transaction history.</td></tr>
+  </table>
+
+  <h2>3) Configuration Data</h2>
+  <p>Rules, formulas, and settings that drive behavior.</p>
+  <table>
+    <tr><th>Table</th><th>Notes</th></tr>
+    <tr><td>line_item_column_configs</td><td>UI/behavior configuration for line items.</td></tr>
+    <tr><td>field_logic_rules</td><td>Formula Builder rules.</td></tr>
+    <tr><td>field_logic_validation_runs</td><td>Validation results (operational config metadata).</td></tr>
+    <tr><td>workflow_rules</td><td>Approval/workflow rules.</td></tr>
+    <tr><td>pricing_rules</td><td>Pricing policy rules.</td></tr>
+    <tr><td>discount_tiers</td><td>Tiered discounts by policy.</td></tr>
+    <tr><td>formula_definitions</td><td>Stored formulas (legacy/config).</td></tr>
+    <tr><td>ai_pricing_configurations</td><td>AI configuration settings.</td></tr>
+    <tr><td>ai_provider_keys</td><td>AI provider keys (secure config).</td></tr>
+  </table>
+
+  <h2>4) Metadata</h2>
+  <p>System bookkeeping and operational metadata.</p>
+  <table>
+    <tr><th>Table</th><th>Notes</th></tr>
+    <tr><td>sync_state</td><td>Sync cursors/state.</td></tr>
+    <tr><td>audit_log</td><td>Audit events.</td></tr>
+  </table>
+
+  <h2>5) Organization / Security Data</h2>
+  <p>Tenancy and security model data.</p>
+  <table>
+    <tr><th>Table</th><th>Notes</th></tr>
+    <tr><td>tenants</td><td>Tenant/org master.</td></tr>
+    <tr><td>app_users</td><td>Application users.</td></tr>
+    <tr><td>roles</td><td>Role definitions.</td></tr>
+    <tr><td>permissions</td><td>Permission definitions.</td></tr>
+    <tr><td>role_permissions</td><td>Role→permission links.</td></tr>
+    <tr><td>user_tenant_roles</td><td>User→tenant→role links.</td></tr>
+    <tr><td>refresh_tokens</td><td>Auth/session tokens.</td></tr>
+  </table>
+
+  <h2>6) Classification Catalog</h2>
+  <p>Admin-controlled table that records how each table is categorized.</p>
+  <table>
+    <tr><th>Table</th><th>Notes</th></tr>
+    <tr><td>table_classifications</td><td>Stores `table_name`, `category`, and `tenant_id`. Managed via Data Management Admin and ensures the dropdown reflects the latest classification.</td></tr>
+  </table>
+  <p>The combination of `table_name` and `tenant_id` is the primary key. Each row persists the chosen bucket from <code>master_data</code>, <code>transactional_data</code>, <code>configuration_data</code>, <code>metadata</code>, or <code>organization_data</code>. Timestamps (`created_at`, `updated_at`) capture when a category was last refreshed.</p>
+  <p>To update a classification, use the Data Management Admin UI or call the admin endpoints directly:</p>
+  <ul>
+    <li><code>GET /admin/data/table-classifications</code> (permission <code>master_data.read</code>) returns the active mapping for the tenant.</li>
+    <li><code>PUT /admin/data/table-classifications/{table_name}</code> (permission <code>master_data.manage</code>) saves a new bucket.</li>
+    <li>The frontend dropdown reads <code>app/constants/table_classification.ts</code> to render the same five buckets and keeps the display in sync with the database table.</li>
+  </ul>
+  <p>Every new table created for a tenant should have its classification saved here and the corresponding category documented in this file.</p>
+
+  <h2>How to Distinguish the Categories</h2>
+  <ul>
+    <li><span class="pill">Master</span> Low‑change reference data. Usually referenced by transactions. Primary IDs are stable.</li>
+    <li><span class="pill">Transactional</span> Time‑series records representing events. High volume. Usually has <code>created_at</code>/<code>updated_at</code>.</li>
+    <li><span class="pill">Configuration</span> Rules/settings that change system behavior. Edited by admins.</li>
+    <li><span class="pill">Metadata</span> System‑level operational info (sync/audit).</li>
+    <li><span class="pill">Organization</span> Tenancy, users, roles, and permissions.</li>
+  </ul>
+
+  <h2>Non‑Breaking Code Changes (Recommended)</h2>
+  <div class="note">
+    Avoid moving tables or renaming columns. Add classification in code and docs only.
+  </div>
+  <ul>
+    <li>Add a static classification map (documentation only). Example file: <code>app/data/data_classification.py</code>.</li>
+    <li>If you want to use it in the UI later, load it in a read‑only endpoint without altering existing endpoints.</li>
+    <li>Prefer additive changes: new columns, new tables, or new views. Avoid altering existing queries.</li>
+    <li>Use a feature flag for any new behavior (e.g., <code>ENABLE_DATA_CATALOG</code>).</li>
+    <li>Keep all current API contracts unchanged while adding new ones.</li>
+  </ul>
+
+  <h2>Where to Update If You Add New Tables</h2>
+  <ul>
+    <li><code>app/db/postgres_schema.sql</code></li>
+    <li><code>app/db/schema.sql</code> (DuckDB schema if needed in future)</li>
+    <li><code>app/data/data_classification.py</code> (documentation map)</li>
+    <li>This file: <code>readme.html</code></li>
+  </ul>
+</body>
+</html>

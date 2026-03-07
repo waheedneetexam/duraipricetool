@@ -17,15 +17,20 @@ from app.models.schemas import (
     DataManagementRecordPayload,
     FieldLogicSaveRequest,
     FieldLogicValidateRequest,
+    FieldLogicSqlDraftRequest,
     LineItemColumnConfigSaveRequest,
     OpenAIKeySaveRequest,
     OpenAIKeyValidateRequest,
+    TableClassificationSaveRequest,
 )
 from app.services.admin_config_service import (
     list_field_logic_rules,
     process_ai_pricing_template,
     save_field_logic_rule,
     validate_field_logic,
+    get_public_schema_columns,
+    build_sql_draft,
+    build_sql_draft_vanna,
 )
 from app.services.ai_provider_service import (
     delete_openai_api_key,
@@ -137,6 +142,17 @@ def post_field_logic_validate(payload: FieldLogicValidateRequest, context: AuthC
     return {"success": True, "data": data}
 
 
+@router.post("/field-logic/sql-draft")
+def post_field_logic_sql_draft(payload: FieldLogicSqlDraftRequest, context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "admin.manage")
+    provider = (payload.provider or "openai").lower()
+    if provider == "vanna":
+        data = build_sql_draft_vanna(context.tenant_id, payload.scope, payload.field_key, payload.logic_text)
+    else:
+        data = build_sql_draft(context.tenant_id, payload.scope, payload.field_key, payload.logic_text)
+    return {"success": True, "data": data}
+
+
 @router.post("/field-logic/save")
 def post_field_logic_save(payload: FieldLogicSaveRequest, context: AuthContext = Depends(require_auth)):
     try:
@@ -187,6 +203,13 @@ def get_openai_key_status_endpoint(context: AuthContext = Depends(require_auth))
     return {"success": True, "data": data}
 
 
+@router.get("/schema/columns")
+def get_public_schema_columns_endpoint(context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "admin.manage")
+    data = get_public_schema_columns()
+    return {"success": True, "data": {"tables": data}}
+
+
 @router.put("/ai-provider/openai-key")
 def put_openai_key(payload: OpenAIKeySaveRequest, context: AuthContext = Depends(require_auth)):
     _require_perm(context, "admin.manage")
@@ -218,6 +241,22 @@ def post_validate_openai_key(payload: OpenAIKeyValidateRequest, context: AuthCon
 def get_data_table_schemas(context: AuthContext = Depends(require_auth)):
     _require_perm(context, "master_data.read")
     return {"success": True, "data": get_table_schemas(tenant_id=context.tenant_id)}
+
+
+@router.get("/data/table-classifications")
+def get_table_classifications_endpoint(context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "master_data.read")
+    return {"success": True, "data": get_table_classifications(context.tenant_id)}
+
+
+@router.put("/data/table-classifications/{table_name}")
+def put_table_classification(table_name: str, payload: TableClassificationSaveRequest, context: AuthContext = Depends(require_auth)):
+    _require_perm(context, "master_data.manage")
+    try:
+        save_table_classification(table_name, payload.category, tenant_id=context.tenant_id)
+        return {"success": True, "data": {"table": table_name, "category": payload.category}}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
 
 
 @router.post("/data/table-schemas")

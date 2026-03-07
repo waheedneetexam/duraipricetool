@@ -4,6 +4,7 @@ import type { DataTableDefinition } from '../constants/dataManagementTables';
 import { TableManager } from './TableManager';
 import { CsvUpload } from './CsvUpload';
 import { CreateTableModal } from './CreateTableModal';
+import { DATA_CLASSIFICATION } from '../data/dataClassification';
 
 type SchemasResponse = { success: boolean; data: Record<string, DataTableDefinition> };
 type StatsResponse = { success: boolean; data: { totalRecords: number; lastUpdated: string | null } };
@@ -15,6 +16,10 @@ export function DataManagementAdmin() {
   const [statsByTable, setStatsByTable] = useState<Record<string, { totalRecords: number; lastUpdated: string | null }>>({});
   const [sidebarSearch, setSidebarSearch] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [tableCategories, setTableCategories] = useState<Record<string, string>>({});
+  const [classificationDraft, setClassificationDraft] = useState('master_data');
+  const [categorySaving, setCategorySaving] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
   const reloadStats = () => {
     if (selectedTableId) {
@@ -26,16 +31,51 @@ export function DataManagementAdmin() {
     void loadSchemas();
   }, []);
 
+  useEffect(() => {
+    void loadTableClassifications();
+  }, []);
+
   const tableList = useMemo(() => Object.values(schemas), [schemas]);
+  const fallbackCategoryMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    Object.entries(DATA_CLASSIFICATION).forEach(([cat, tables]) => {
+      tables.forEach((tableName) => {
+        map[tableName] = cat;
+      });
+    });
+    return map;
+  }, []);
+
+  const categoryLabel: Record<string, string> = {
+    master_data: 'Master Data',
+    transactional_data: 'Transactional Data',
+    configuration_data: 'Configuration Data',
+    metadata: 'Metadata',
+    organization_data: 'Organization Data',
+  };
+
+  const CATEGORY_OPTIONS = Object.entries(categoryLabel).map(([value, label]) => ({ value, label }));
+
+  const getEffectiveCategory = (tableId: string) => tableCategories[tableId] || fallbackCategoryMap[tableId] || 'master_data';
+
   const filteredTableList = useMemo(() => {
-    return tableList.filter(t =>
-      t.displayName.toLowerCase().includes(sidebarSearch.toLowerCase()) ||
-      t.id.toLowerCase().includes(sidebarSearch.toLowerCase())
-    );
-  }, [tableList, sidebarSearch]);
+    return tableList.filter((t) => {
+      const matchesSearch =
+        t.displayName.toLowerCase().includes(sidebarSearch.toLowerCase()) ||
+        t.id.toLowerCase().includes(sidebarSearch.toLowerCase());
+      const category = getEffectiveCategory(t.id);
+      const matchesCategory = selectedCategory === 'all' ? true : category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [tableList, sidebarSearch, selectedCategory, tableCategories, fallbackCategoryMap]);
 
   const selectedTable = schemas[selectedTableId];
   const selectedStats = statsByTable[selectedTableId];
+
+  useEffect(() => {
+    if (!selectedTableId) return;
+    setClassificationDraft(getEffectiveCategory(selectedTableId));
+  }, [selectedTableId, tableCategories, fallbackCategoryMap]);
 
   async function loadSchemas() {
     try {
@@ -81,6 +121,38 @@ export function DataManagementAdmin() {
     }
   }
 
+  async function loadTableClassifications() {
+    try {
+      const response = await apiFetch<{ success: boolean; data: Record<string, string> }>('/admin/data/table-classifications');
+      if (response.success) {
+        setTableCategories(response.data);
+      }
+    } catch (err) {
+      setMessage(String(err));
+    }
+  }
+
+  async function updateTableCategory() {
+    if (!selectedTableId) return;
+    setCategorySaving(true);
+    try {
+      const response = await apiFetch<{ success: boolean; error?: string }>(`/admin/data/table-classifications/${encodeURIComponent(selectedTableId)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ category: classificationDraft }),
+      });
+      if (response.success) {
+        await loadTableClassifications();
+        setMessage('Table classification updated.');
+      } else {
+        setMessage(response.error || 'Failed to update classification.');
+      }
+    } catch (err) {
+      setMessage(String(err));
+    } finally {
+      setCategorySaving(false);
+    }
+  }
+
   useEffect(() => {
     tableList.forEach((table) => {
       if (!statsByTable[table.id]) {
@@ -106,6 +178,19 @@ export function DataManagementAdmin() {
               value={sidebarSearch}
               onChange={(e) => setSidebarSearch(e.target.value)}
             />
+          </div>
+          <div>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px', background: '#fff' }}
+            >
+              <option value="all">All Classifications</option>
+              {CATEGORY_OPTIONS.map(({ value, label }) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+            <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: '#64748b' }}>Filter by database classification</p>
           </div>
           <button
             className="btn btn-primary"
@@ -149,6 +234,7 @@ export function DataManagementAdmin() {
                     <span>{table.isDynamic ? '✨' : '🗄️'}</span>
                     <span>{table.displayName}</span>
                   </div>
+                  <span style={{ fontSize: '11px', color: '#64748b' }}>{categoryLabel[getEffectiveCategory(table.id)] ?? 'Uncategorized'}</span>
                   {table.isDynamic && (
                     <button
                       className="btn btn-xs"
@@ -176,7 +262,38 @@ export function DataManagementAdmin() {
         </aside>
 
         {/* Column 2: Main Data Workspace (Data Grid) */}
-        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, minHeight: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, minHeight: 0, gap: '12px' }}>
+          <div className="panel-card" style={{ padding: '16px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '16px', color: '#1e293b' }}>Database Classification</h4>
+                <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>
+                  Assign a category to the selected table.
+                </p>
+              </div>
+              <span style={{ fontSize: '12px', color: '#0f172a' }}>{categoryLabel[getEffectiveCategory(selectedTableId)] ?? 'Uncategorized'}</span>
+            </div>
+            <div style={{ marginTop: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <select
+                value={classificationDraft}
+                onChange={(e) => setClassificationDraft(e.target.value)}
+                style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+              >
+                {CATEGORY_OPTIONS.map(({ value, label }) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+              <button
+                className="btn btn-primary btn-xs"
+                onClick={updateTableCategory}
+                disabled={categorySaving || classificationDraft === getEffectiveCategory(selectedTableId)}
+                style={{ padding: '8px 14px', borderRadius: '8px' }}
+              >
+                {categorySaving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+
           {selectedTable && (
             <TableManager
               table={selectedTable}

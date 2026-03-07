@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Any
 
 from app.core.config import DB_ENGINE
+from app.constants.table_classification import VALID_TABLE_CATEGORIES
 from app.db.duckdb_client import db_client
 from app.db.postgres_client import pg_client
 
@@ -216,6 +217,22 @@ TABLE_DEFS: dict[str, TableDef] = {
 
 def _sql_placeholder() -> str:
     return "%s" if _tx_on_postgres() else "?"
+
+_TABLE_COLUMNS_CACHE: dict[str, set[str]] = {}
+
+
+def _get_table_columns(table_name: str) -> set[str]:
+    if table_name in _TABLE_COLUMNS_CACHE:
+        return _TABLE_COLUMNS_CACHE[table_name]
+    query = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = %s"
+    rows = _execute(query, (table_name,))
+    cols = {row["column_name"].lower() for row in rows}
+    _TABLE_COLUMNS_CACHE[table_name] = cols
+    return cols
+
+
+def _table_supports_tenant(table_name: str) -> bool:
+    return "tenant_id" in _get_table_columns(table_name)
 
 
 def _execute(query: str, params: tuple | list | None = None) -> list[dict[str, Any]]:
@@ -600,9 +617,15 @@ def import_table_data(table_id: str, rows: list[dict[str, Any]], tenant_id: str,
             skipped += 1
             continue
 
+        has_tenant = _table_supports_tenant(table.table_name)
+        params = [pk]
+        where_clause = f"{table.primary_key} = {_sql_placeholder()}"
+        if has_tenant:
+            where_clause += f" AND tenant_id = {_sql_placeholder()}"
+            params.append(tenant_id)
         exists = _execute(
-            f"SELECT {table.primary_key} FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()} AND tenant_id = {_sql_placeholder()} LIMIT 1",
-            (pk, tenant_id),
+            f"SELECT {table.primary_key} FROM {table.table_name} WHERE {where_clause} LIMIT 1",
+            tuple(params),
         )
         if exists and not update_duplicates:
             skipped += 1
@@ -639,7 +662,11 @@ def list_table_data(
     table = _table_def(table_id)
     field_names = [f.name for f in table.fields]
     select_cols = ", ".join(field_names)
-    rows = _execute(f"SELECT {select_cols} FROM {table.table_name} WHERE tenant_id = {_sql_placeholder()}", (tenant_id,))
+    has_tenant = _table_supports_tenant(table.table_name)
+    if has_tenant:
+        rows = _execute(f"SELECT {select_cols} FROM {table.table_name} WHERE tenant_id = {_sql_placeholder()}", (tenant_id,))
+    else:
+        rows = _execute(f"SELECT {select_cols} FROM {table.table_name}")
 
     if search.strip():
         needle = search.strip().lower()
@@ -677,9 +704,15 @@ def list_table_data(
 def get_table_record(table_id: str, record_id: str, tenant_id: str) -> dict[str, Any] | None:
     _ensure_tables()
     table = _table_def(table_id)
+    has_tenant = _table_supports_tenant(table.table_name)
+    where_clause = f"{table.primary_key} = {_sql_placeholder()}"
+    params: list[Any] = [record_id]
+    if has_tenant:
+        where_clause += f" AND tenant_id = {_sql_placeholder()}"
+        params.append(tenant_id)
     rows = _execute(
-        f"SELECT * FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()} AND tenant_id = {_sql_placeholder()} LIMIT 1",
-        (record_id, tenant_id),
+        f"SELECT * FROM {table.table_name} WHERE {where_clause} LIMIT 1",
+        tuple(params),
     )
     return rows[0] if rows else None
 
@@ -704,7 +737,6 @@ def save_table_record(table_id: str, record_id: str, payload: dict[str, Any], te
 
     if not allow_missing_pk:
         normalized[table.primary_key] = record_id
-    normalized["tenant_id"] = tenant_id
     pk = normalized.get(table.primary_key)
     if pk is None or str(pk).strip() == "":
         raise ValueError("Primary key value is required")
@@ -714,7 +746,12 @@ def save_table_record(table_id: str, record_id: str, payload: dict[str, Any], te
     if errs:
         raise ValueError(str(errs))
 
-    cols = [f.name for f in table.fields] + ["tenant_id"]
+    has_tenant = _table_supports_tenant(table.table_name)
+    if has_tenant:
+        normalized["tenant_id"] = tenant_id
+    cols = [f.name for f in table.fields]
+    if has_tenant:
+        cols.append("tenant_id")
     values = [normalized.get(col) for col in cols]
     placeholders = ", ".join([_sql_placeholder()] * len(cols))
     col_list = ", ".join(cols)
@@ -732,7 +769,10 @@ def save_table_record(table_id: str, record_id: str, payload: dict[str, Any], te
             tuple(values),
         )
     else:
-        db_client.execute(f"DELETE FROM {table.table_name} WHERE {table.primary_key} = ? AND tenant_id = ?", (pk, tenant_id))
+        if has_tenant:
+            db_client.execute(f"DELETE FROM {table.table_name} WHERE {table.primary_key} = ? AND tenant_id = ?", (pk, tenant_id))
+        else:
+            db_client.execute(f"DELETE FROM {table.table_name} WHERE {table.primary_key} = ?", (pk,))
         db_client.execute(
             f"INSERT INTO {table.table_name} ({col_list}, updated_at) VALUES ({placeholders}, CURRENT_TIMESTAMP)",
             tuple(values),
@@ -743,16 +783,29 @@ def save_table_record(table_id: str, record_id: str, payload: dict[str, Any], te
 def delete_table_record(table_id: str, record_id: str, tenant_id: str) -> dict[str, Any]:
     _ensure_tables()
     table = _table_def(table_id)
+    has_tenant = _table_supports_tenant(table.table_name)
     if _tx_on_postgres():
-        pg_client.execute(
-            f"DELETE FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()} AND tenant_id = {_sql_placeholder()}",
-            (record_id, tenant_id),
-        )
+        if has_tenant:
+            pg_client.execute(
+                f"DELETE FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()} AND tenant_id = {_sql_placeholder()}",
+                (record_id, tenant_id),
+            )
+        else:
+            pg_client.execute(
+                f"DELETE FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()}",
+                (record_id,),
+            )
     else:
-        db_client.execute(
-            f"DELETE FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()} AND tenant_id = {_sql_placeholder()}",
-            (record_id, tenant_id),
-        )
+        if has_tenant:
+            db_client.execute(
+                f"DELETE FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()} AND tenant_id = {_sql_placeholder()}",
+                (record_id, tenant_id),
+            )
+        else:
+            db_client.execute(
+                f"DELETE FROM {table.table_name} WHERE {table.primary_key} = {_sql_placeholder()}",
+                (record_id,),
+            )
     return {"deleted": record_id}
 
 
@@ -772,7 +825,11 @@ def bulk_delete_table_records(table_id: str, ids: list[str], tenant_id: str) -> 
 def get_table_stats(table_id: str, tenant_id: str) -> dict[str, Any]:
     _ensure_tables()
     table = _table_def(table_id)
-    rows = _execute(f"SELECT * FROM {table.table_name} WHERE tenant_id = {_sql_placeholder()}", (tenant_id,))
+    has_tenant = _table_supports_tenant(table.table_name)
+    if has_tenant:
+        rows = _execute(f"SELECT * FROM {table.table_name} WHERE tenant_id = {_sql_placeholder()}", (tenant_id,))
+    else:
+        rows = _execute(f"SELECT * FROM {table.table_name}")
     total = len(rows)
     field_stats: dict[str, Any] = {}
 
@@ -809,3 +866,50 @@ def get_table_stats(table_id: str, tenant_id: str) -> dict[str, Any]:
         "lastUpdated": latest,
         "fieldStats": field_stats,
     }
+
+
+def get_table_classifications(tenant_id: str = "default") -> dict[str, str]:
+    if _tx_on_postgres():
+        rows = pg_client.execute(
+            """
+            SELECT table_name, category
+            FROM table_classifications
+            WHERE tenant_id = %s
+            """,
+            (tenant_id,),
+        )
+        return {row["table_name"]: row["category"] for row in rows}
+    df = db_client.fetch_df(
+        """
+        SELECT table_name, category
+        FROM table_classifications
+        WHERE tenant_id = ?
+        """,
+        (tenant_id,),
+    )
+    return {row["table_name"]: row["category"] for row in df.to_dict(orient="records")}
+
+
+def save_table_classification(table_name: str, category: str, tenant_id: str = "default") -> None:
+    if category not in VALID_TABLE_CATEGORIES:
+        raise ValueError(f"Unknown category '{category}'")
+
+    if _tx_on_postgres():
+        pg_client.execute(
+            """
+            INSERT INTO table_classifications (table_name, category, tenant_id, updated_at)
+            VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+            ON CONFLICT (table_name, tenant_id) DO UPDATE SET
+                category = EXCLUDED.category,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (table_name, category, tenant_id),
+        )
+    else:
+        db_client.execute(
+            """
+            INSERT OR REPLACE INTO table_classifications (table_name, category, tenant_id, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            """,
+            (table_name, category, tenant_id),
+        )

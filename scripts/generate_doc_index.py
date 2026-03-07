@@ -242,6 +242,29 @@ def main():
             <td><a href="/{path}" target="_blank">Open</a></td>
           </tr>""")
 
+    # Root-level HTML docs (manual list)
+    root_docs = [
+        ("database.html", "Foundation", "Database classification reference", "HTML"),
+        ("Protocol.md", "Foundation", "Project protocol (AI handover)", "Markdown"),
+    ]
+    for path, cat, desc, dtype in root_docs:
+        if os.path.exists(path):
+            if dtype == "Markdown":
+                meta = extract_md_metadata(path)
+                meta["category"] = cat
+            else:
+                meta = extract_html_metadata(path)
+                meta["category"] = cat
+            meta["description"] = desc
+            rows.append(f"""
+          <tr data-category="{meta['category']}">
+            <td>{meta['title']}</td>
+            <td><span class="tag tag-{meta['category'].lower()}">{meta['category']}</span></td>
+            <td>{meta['description']}</td>
+            <td>{dtype}</td>
+            <td>{meta['created']}</td>
+            <td><a href="/{path}" target="_blank">Open</a></td>
+          </tr>""")
     # Other known doc locations
     extra_docs = [
         ('frontend/public/business-prompt.html', 'Foundation', 'Business + UI Prompt Blueprint', 'HTML'),

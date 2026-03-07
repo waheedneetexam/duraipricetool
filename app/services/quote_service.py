@@ -1,4 +1,5 @@
 import json
+import logging
 from uuid import uuid4
 
 import pandas as pd
@@ -19,9 +20,118 @@ DEFAULT_LINE_FORMULAS = [
     {"target_field": "margin", "expression": "(net_price - cost) * quantity"},
 ]
 
+logger = logging.getLogger(__name__)
+
 
 def _tx_on_postgres() -> bool:
     return DB_ENGINE in {"postgres", "hybrid"}
+
+
+def _column_exists(table: str, column: str) -> bool:
+    try:
+        if _tx_on_postgres():
+            rows = pg_client.execute(
+                """
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = %s
+                  AND column_name = %s
+                LIMIT 1
+                """,
+                (table, column),
+            )
+            return bool(rows)
+        df = db_client.fetch_df(
+            """
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'main'
+              AND table_name = ?
+              AND column_name = ?
+            LIMIT 1
+            """,
+            (table, column),
+        )
+        return not df.empty
+    except Exception:
+        return False
+
+
+def _ensure_region_discount_schema() -> None:
+    try:
+        if _tx_on_postgres():
+            pg_client.execute(
+                "ALTER TABLE quote_line_items ADD COLUMN IF NOT EXISTS customer_region_discount NUMERIC"
+            )
+            pg_client.execute(
+                "ALTER TABLE regions ADD COLUMN IF NOT EXISTS discount_percent NUMERIC"
+            )
+            pg_client.execute(
+                "ALTER TABLE regions ADD COLUMN IF NOT EXISTS tenant_id TEXT"
+            )
+        else:
+            db_client.execute(
+                "ALTER TABLE quote_line_items ADD COLUMN IF NOT EXISTS customer_region_discount DOUBLE"
+            )
+            db_client.execute(
+                "ALTER TABLE regions ADD COLUMN IF NOT EXISTS discount_percent DOUBLE"
+            )
+            db_client.execute(
+                "ALTER TABLE regions ADD COLUMN IF NOT EXISTS tenant_id VARCHAR"
+            )
+    except Exception:
+        # Best-effort; missing columns will be handled by fallback logic.
+        pass
+
+
+def _apply_customer_region_discount(quote_id: str, tenant_id: str) -> None:
+    _ensure_region_discount_schema()
+    join_parts: list[str] = []
+    customer_tenant_clause = " AND c.tenant_id = q.tenant_id" if _column_exists("customers", "tenant_id") else ""
+    join_parts.append(f"JOIN customers c ON q.customer_id = c.customer_id{customer_tenant_clause}")
+
+    region_join = ""
+    discount_expr = "0"
+    if _column_exists("regions", "discount_percent"):
+        discount_expr = "COALESCE(r.discount_percent, 0)"
+        if _column_exists("customers", "region_id") and _column_exists("regions", "region_id"):
+            tenant_clause = " AND r.tenant_id = q.tenant_id" if _column_exists("regions", "tenant_id") else ""
+            region_join = f"LEFT JOIN regions r ON c.region_id = r.region_id{tenant_clause}"
+        elif _column_exists("customers", "region") and _column_exists("regions", "name"):
+            tenant_clause = " AND r.tenant_id = q.tenant_id" if _column_exists("regions", "tenant_id") else ""
+            region_join = f"LEFT JOIN regions r ON c.region = r.name{tenant_clause}"
+        elif _column_exists("customers", "region") and _column_exists("regions", "id"):
+            tenant_clause = " AND r.tenant_id = q.tenant_id" if _column_exists("regions", "tenant_id") else ""
+            region_join = f"LEFT JOIN regions r ON c.region = r.id{tenant_clause}"
+
+    if region_join:
+        join_parts.append(region_join)
+
+    query = f"""
+        UPDATE quote_line_items qli
+        SET customer_region_discount =
+            (qli.list_price - (qli.list_price * {discount_expr} / 100.0))
+        FROM quotes q
+        {' '.join(join_parts)}
+        WHERE qli.quote_id = q.quote_id
+          AND qli.tenant_id = q.tenant_id
+          AND q.quote_id = {{quote_id_param}}
+          AND q.tenant_id = {{tenant_id_param}}
+    """
+    try:
+        if _tx_on_postgres():
+            pg_client.execute(
+                query.format(quote_id_param="%s", tenant_id_param="%s"),
+                (quote_id, tenant_id),
+            )
+        else:
+            db_client.execute(
+                query.format(quote_id_param="?", tenant_id_param="?"),
+                (quote_id, tenant_id),
+            )
+    except Exception as exc:
+        logger.warning("Failed to apply customer region discount for quote %s: %s", quote_id, exc)
 
 
 def _get_active_formulas(tenant_id: str) -> list[dict]:
@@ -239,6 +349,7 @@ def _persist_quote(payload: QuoteCalculationRequest, line_items: list[dict], tot
                     json.dumps(item["dynamic_fields"]),
                 ),
             )
+        _apply_customer_region_discount(header.quote_id, tenant_id)
     else:
         db_client.execute(
             """
@@ -285,6 +396,7 @@ def _persist_quote(payload: QuoteCalculationRequest, line_items: list[dict], tot
                     json.dumps(item["dynamic_fields"]),
                 ),
             )
+        _apply_customer_region_discount(header.quote_id, tenant_id)
 
 
 def _embedded_analytics(customer_id: str, quote_quantity: int, tenant_id: str = "default") -> dict:
@@ -408,6 +520,7 @@ def list_quotes(tenant_id: str = "default") -> list[dict]:
 
 
 def get_quote(quote_id: str, tenant_id: str = "default") -> dict | None:
+    _ensure_region_discount_schema()
     if _tx_on_postgres():
         quote_df = pd.DataFrame(pg_client.execute("SELECT * FROM quotes WHERE quote_id = %s AND tenant_id = %s", (quote_id, tenant_id)))
     else:
@@ -428,6 +541,7 @@ def get_quote(quote_id: str, tenant_id: str = "default") -> dict | None:
                     list_price,
                     cost,
                     discount_percent,
+                    customer_region_discount,
                     net_price,
                     margin,
                     dynamic_fields
@@ -448,6 +562,7 @@ def get_quote(quote_id: str, tenant_id: str = "default") -> dict | None:
                 list_price,
                 cost,
                 discount_percent,
+                customer_region_discount,
                 net_price,
                 margin,
                 dynamic_fields
@@ -461,6 +576,9 @@ def get_quote(quote_id: str, tenant_id: str = "default") -> dict | None:
     line_items = []
     for row in lines_df.to_dict(orient="records"):
         dynamic_fields = _safe_json_loads(row.get("dynamic_fields"))
+        customer_region_discount = float(row.get("customer_region_discount") or 0.0)
+        if "customerRegionDiscount" not in dynamic_fields:
+            dynamic_fields["customerRegionDiscount"] = customer_region_discount
         quantity = float(row.get("quantity") or 0.0)
         net_price = float(row.get("net_price") or 0.0)
         total_value = float(dynamic_fields.get("totalValue", net_price * quantity))
@@ -481,6 +599,7 @@ def get_quote(quote_id: str, tenant_id: str = "default") -> dict | None:
                 "cost": float(row.get("cost") or 0.0),
                 "volumeDiscount": float(dynamic_fields.get("volumeDiscount", (row.get("discount_percent") or 0.0) * 100)),
                 "rebate": float(dynamic_fields.get("rebate", 0.0)),
+                "customerRegionDiscount": customer_region_discount,
                 "netPrice": net_price,
                 "margin": margin_percent,
                 "totalValue": total_value,
@@ -591,6 +710,7 @@ def save_quote(payload: QuoteSaveRequest, tenant_id: str = "default") -> dict:
                     ),
                 ),
             )
+        _apply_customer_region_discount(quote_id, tenant_id)
     else:
         db_client.execute(
             """
@@ -645,6 +765,7 @@ def save_quote(payload: QuoteSaveRequest, tenant_id: str = "default") -> dict:
                     ),
                 ),
             )
+        _apply_customer_region_discount(quote_id, tenant_id)
 
     return {"success": True, "data": {"id": quote_id, "totalValue": totals["total_net_price"]}}
 

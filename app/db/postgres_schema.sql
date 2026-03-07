@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS quote_line_items (
     quantity INTEGER,
     list_price DOUBLE PRECISION,
     discount_percent DOUBLE PRECISION,
+    customer_region_discount NUMERIC,
     net_price DOUBLE PRECISION,
     cost DOUBLE PRECISION,
     margin DOUBLE PRECISION,
@@ -252,6 +253,8 @@ CREATE TABLE IF NOT EXISTS regions (
     countries TEXT,
     currency TEXT,
     timezone TEXT,
+    discount_percent NUMERIC,
+    tenant_id TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -362,6 +365,15 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS table_classifications (
+    table_name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    tenant_id TEXT NOT NULL DEFAULT 'default',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (table_name, tenant_id)
+);
+
 ALTER TABLE products ADD COLUMN IF NOT EXISTS cost NUMERIC;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS unit_of_measure TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS country TEXT;
@@ -369,6 +381,7 @@ ALTER TABLE customers ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS credit_limit NUMERIC;
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
 ALTER TABLE quote_line_items ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
+ALTER TABLE quote_line_items ADD COLUMN IF NOT EXISTS customer_region_discount NUMERIC;
 ALTER TABLE workflow_rules ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
 ALTER TABLE historical_transactions ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
 ALTER TABLE products ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
@@ -381,6 +394,7 @@ ALTER TABLE product_references ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL 
 ALTER TABLE product_hierarchies ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
 ALTER TABLE sales_orgs ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
 ALTER TABLE regions ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
+ALTER TABLE regions ADD COLUMN IF NOT EXISTS discount_percent NUMERIC;
 ALTER TABLE currencies ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
 ALTER TABLE product_costs ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
 ALTER TABLE discount_tiers ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';

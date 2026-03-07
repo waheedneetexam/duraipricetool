@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../api/client';
+import { SqlDraftModal } from './SqlDraftModal';
 
 type FormulaNavTab = 'formulas';
 
@@ -28,6 +29,8 @@ export function FormulaBuilderAdmin() {
   const [debugTenantId, setDebugTenantId] = useState<string>('');
   const [debugRuleCount, setDebugRuleCount] = useState<number>(0);
   const [debugScopeCount, setDebugScopeCount] = useState<{ line_item: number; other: number }>({ line_item: 0, other: 0 });
+  const [schemaTables, setSchemaTables] = useState<Record<string, string[]>>({});
+  const [showSqlDraft, setShowSqlDraft] = useState(false);
   const loadTokenRef = useRef(0);
   const lastUserSelectRef = useRef(0);
 
@@ -38,6 +41,7 @@ export function FormulaBuilderAdmin() {
 
   useEffect(() => {
     void fetchDebugTenant();
+    void fetchSchemaContext();
     loadRules();
   }, []);
 
@@ -49,6 +53,17 @@ export function FormulaBuilderAdmin() {
       }
     } catch {
       setDebugTenantId('');
+    }
+  }
+
+  async function fetchSchemaContext() {
+    try {
+      const res = await apiFetch<any>('/admin/schema/columns', { method: 'GET' });
+      if (res?.success && res.data?.tables) {
+        setSchemaTables(res.data.tables || {});
+      }
+    } catch {
+      setSchemaTables({});
     }
   }
 
@@ -331,8 +346,22 @@ export function FormulaBuilderAdmin() {
     }
   }
 
+  function applyFormulaFromSql(formula: string) {
+    if (!formula || !activeRule) return;
+    updateActiveRule({ generated_code: formula, explanation: 'AI Generated (SQL Draft)' });
+    setMessage('Formula applied from SQL draft.');
+  }
+
+  const formatColumnPreview = (cols: string[]) => {
+    if (!cols || cols.length === 0) return 'No columns found.';
+    const preview = cols.slice(0, 10);
+    const suffix = cols.length > preview.length ? ` … +${cols.length - preview.length} more` : '';
+    return `${preview.join(', ')}${suffix}`;
+  };
+
   return (
-    <div className="formula-layout-v3">
+    <>
+      <div className="formula-layout-v3">
       {/* COLUMN 1: Rule Explorer */}
       <section className="fb-panel">
         <div className="fb-panel-header">
@@ -386,6 +415,9 @@ export function FormulaBuilderAdmin() {
             <div className="workspace-actions">
               <button className="btn-test" type="button" onClick={runTest}>Test Run</button>
               <button className="btn-deploy" type="button" onClick={saveRule}>Deploy Rule</button>
+              <button className="btn btn-xs" type="button" onClick={() => setShowSqlDraft(true)} disabled={!activeRule}>
+                SQL Preview
+              </button>
               <button className="btn-ai-gen" type="button" onClick={generateAILogic} disabled={isGenerating}>
                 {isGenerating ? 'Generating...' : '✨ Generate with AI'}
               </button>
@@ -412,16 +444,24 @@ export function FormulaBuilderAdmin() {
             <h5 style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>
               ℹ️ Data Context Reference
             </h5>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '12px' }}>
-              <div>
-                <strong style={{ color: '#475569' }}>quote_line_items</strong>
-                <p style={{ margin: '4px 0', color: '#64748b' }}>Live quote variables: <code style={{ color: '#0ea5e9' }}>net_price</code>, <code style={{ color: '#0ea5e9' }}>list_price</code>, <code style={{ color: '#0ea5e9' }}>cost</code>, <code style={{ color: '#0ea5e9' }}>quantity</code>, <code style={{ color: '#0ea5e9' }}>margin</code>.</p>
+            {Object.keys(schemaTables).length === 0 ? (
+              <p style={{ margin: '4px 0', color: '#64748b', fontSize: '12px' }}>
+                No schema metadata found. Ensure the database is reachable and try again.
+              </p>
+            ) : (
+              <div style={{ maxHeight: '220px', overflowY: 'auto', paddingRight: '6px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '12px' }}>
+                  {Object.entries(schemaTables).map(([table, cols]) => (
+                    <div key={table}>
+                      <strong style={{ color: '#475569' }}>{table}</strong>
+                      <p style={{ margin: '4px 0', color: '#64748b' }}>
+                        {formatColumnPreview(cols)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div>
-                <strong style={{ color: '#475569' }}>products</strong>
-                <p style={{ margin: '4px 0', color: '#64748b' }}>Catalog data: <code style={{ color: '#0ea5e9' }}>sku</code>, <code style={{ color: '#0ea5e9' }}>category</code>, <code style={{ color: '#0ea5e9' }}>family</code>, <code style={{ color: '#0ea5e9' }}>name</code>.</p>
-              </div>
-            </div>
+            )}
             <p style={{ margin: '8px 0 0 0', fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>Tip: Use these names in your logical description for more accurate formula generation.</p>
           </div>
 
@@ -502,6 +542,16 @@ export function FormulaBuilderAdmin() {
           </div>
         </div>
       </section>
-    </div>
+      </div>
+      {showSqlDraft && activeRule && (
+        <SqlDraftModal
+          scope={activeRule.scope}
+          fieldKey={activeRule.field_key}
+          logicText={activeRule.logic_text}
+          onApplyFormula={applyFormulaFromSql}
+          onClose={() => setShowSqlDraft(false)}
+        />
+      )}
+    </>
   );
 }

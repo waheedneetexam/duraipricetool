@@ -136,6 +136,10 @@ class LineItemColumnConfigSaveRequest(BaseModel):
     columns: list[LineItemColumnConfig] = Field(default_factory=list)
 
 
+class TableClassificationSaveRequest(BaseModel):
+    category: str
+
+
 class FieldLogicValidateRequest(BaseModel):
     tenant_id: str = "default"
     scope: str = "line_item"
@@ -151,6 +155,14 @@ class FieldLogicSaveRequest(BaseModel):
     generated_code: str = ""
     explanation: str = ""
     dependencies: dict[str, Any] = Field(default_factory=dict)
+
+
+class FieldLogicSqlDraftRequest(BaseModel):
+    tenant_id: str = "default"
+    scope: str = "line_item"
+    field_key: str
+    logic_text: str
+    provider: str | None = None
 
 
 class AIPricingTemplateProcessRequest(BaseModel):

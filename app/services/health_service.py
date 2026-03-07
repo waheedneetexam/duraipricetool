@@ -4,10 +4,7 @@ import re
 import subprocess
 from typing import Any
 
-import duckdb
-
-from app.core.config import DB_ENGINE, DUCKDB_PATH
-from app.db.duckdb_client import db_client
+from app.core.config import DB_ENGINE
 from app.db.postgres_client import pg_client
 
 
@@ -71,37 +68,8 @@ def check_postgres_health() -> dict:
         return {"status": "error", "error": str(exc), "duration_ms": duration_ms}
 
 
-def check_duckdb_health() -> dict:
-    info = {
-        "status": "ok",
-        "path": str(DUCKDB_PATH),
-        "read_only_mode": db_client.read_only,
-        "connection_available": db_client.conn is not None,
-        "concurrency_lock": "read_only" if db_client.read_only else "unlocked",
-    }
-
-    start = time.monotonic()
-    try:
-        if db_client.conn is not None:
-            db_client.execute("SELECT 1 AS ok")
-        else:
-            with duckdb.connect(str(DUCKDB_PATH), read_only=True) as conn:
-                conn.execute("SELECT 1 AS ok")
-        info["duration_ms"] = int((time.monotonic() - start) * 1000)
-    except Exception as exc:  # pragma: no cover - health guard
-        info["status"] = "error"
-        err = str(exc)
-        info["error"] = err
-        pid = _extract_pid_from_error(err)
-        if pid is not None:
-            info["lock_holder"] = _describe_process(pid)
-        info["duration_ms"] = int((time.monotonic() - start) * 1000)
-
-    return info
-
-
 def check_sync_health() -> dict:
-    if DB_ENGINE not in {"postgres", "hybrid"}:
+    if DB_ENGINE != "hybrid":
         return {"status": "skipped", "reason": f"DB_ENGINE={DB_ENGINE} (syncs disabled)"}
 
     start = time.monotonic()
@@ -153,10 +121,11 @@ def build_health_payload(start_time: datetime) -> dict:
             "uptime_seconds": api_uptime,
             "db_engine": DB_ENGINE,
         },
-        "duckdb": check_duckdb_health(),
     }
 
-    if DB_ENGINE in {"postgres", "hybrid"}:
+    if DB_ENGINE == "postgres":
+        components["postgres"] = check_postgres_health()
+    elif DB_ENGINE == "hybrid":
         components["postgres"] = check_postgres_health()
         components["pg_to_duck_sync"] = check_sync_health()
 
