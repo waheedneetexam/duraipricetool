@@ -247,93 +247,83 @@ export function DataManagementAdmin() {
   }, [tableList.length]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '20px', padding: '10px' }}>
+      {/* Dynamic Header / Hero Area */}
       <div
-        className="panel-card"
+        className="premium-card"
         style={{
-          padding: '24px 32px',
-          background: '#0f172a',
-          borderRadius: '20px',
+          padding: '28px 36px',
+          background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)',
+          borderRadius: 'var(--radius-xl)',
           color: '#f8fafc',
           position: 'relative',
           overflow: 'hidden',
+          boxShadow: '0 20px 50px rgba(15, 23, 42, 0.2)'
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', alignItems: 'center', gap: '18px' }}>
+        <div style={{ position: 'absolute', top: '-50px', right: '-50px', width: '200px', height: '200px', background: 'radial-gradient(circle, rgba(79, 70, 229, 0.2) 0%, transparent 70%)', filter: 'blur(40px)' }} />
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', alignItems: 'center', gap: '20px', position: 'relative', zIndex: 1 }}>
           <div>
-            <p style={{ margin: 0, fontSize: '12px', letterSpacing: '0.3em', textTransform: 'uppercase', color: '#94a3b8' }}>Home / Data Management / {selectedTable?.displayName ?? 'Product Hierarchies'}</p>
-            <h1 style={{ margin: '6px 0 0', fontSize: '32px', fontWeight: 700 }}>Table: {selectedTable?.displayName ?? 'Product Hierarchies'}</h1>
+            <p style={{ margin: 0, fontSize: '11px', letterSpacing: '0.25em', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 600 }}>
+              Home / Data Management / <span style={{ color: '#fff' }}>{selectedTable?.displayName ?? 'Tables'}</span>
+            </p>
+            <h1 style={{ margin: '8px 0 0', fontSize: '36px', fontWeight: 800, letterSpacing: '-0.02em' }}>{selectedTable?.displayName ?? 'Data Management'}</h1>
           </div>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <button className="btn btn-primary" style={{ background: '#0ea5e9', borderRadius: '10px', padding: '12px 20px' }}>Save</button>
-            <button className="btn btn-ghost" style={{ borderRadius: '10px', padding: '12px 20px', borderColor: '#d1d5db', color: '#fff' }} onClick={() => setShowRecordsModal(true)} disabled={!selectedTable}>View Data</button>
+            <button className="btn btn-primary" style={{ borderRadius: '12px', padding: '12px 24px', fontWeight: 700, fontSize: '14px', border: 'none', background: 'var(--primary)', boxShadow: '0 4px 15px var(--primary-glow)' }}>Save Changes</button>
+            <button className="btn btn-ghost" style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', borderRadius: '12px', padding: '12px 24px', fontWeight: 600 }} onClick={() => setShowRecordsModal(true)} disabled={!selectedTable}>View Records</button>
+            <button className="btn btn-ghost" style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: '#94a3b8' }} onClick={reloadStats}>↻</button>
           </div>
         </div>
-        <div style={{ marginTop: '20px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <input
-            className="form-input"
-            placeholder="Search tables..."
-            style={{ width: '220px', padding: '8px 12px', borderRadius: '10px', border: '1px solid #475569', background: '#111827', color: '#fff' }}
-            value={sidebarSearch}
-            onChange={(e) => setSidebarSearch(e.target.value)}
-          />
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #475569', background: '#111827', color: '#fff' }}
-          >
-            <option value="all">All classifications</option>
-            {CATEGORY_OPTIONS.map(({ value, label }) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-        </div>
-        <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
-          {categoryBreakdown.map(({ key, label, count }) => (
-            <div key={key} style={{ padding: '12px 16px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.2)', background: '#111827' }}>
-              <p style={{ margin: 0, fontSize: '12px', color: '#a5b4fc' }}>{label}</p>
-              <p style={{ margin: '6px 0 0', fontSize: '18px', fontWeight: 700 }}>{count}</p>
-            </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Main 3-Column Grid */}
-      <div className="admin-data-grid" style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '18px' }}>
-        <aside className="admin-data-sidebar" style={{ background: '#fff', borderRadius: '18px', boxShadow: '0 20px 64px rgba(15,23,42,0.08)', padding: '20px', maxHeight: '75vh', overflowY: 'auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <h4 style={{ margin: 0, fontSize: '16px' }}>Tables</h4>
-            <span style={{ fontSize: '11px', color: '#475569' }}>{filteredTableList.length}/{tableList.length}</span>
-          </div>
-          <div>
+        <div style={{ marginTop: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ position: 'relative' }}>
             <input
-              className="form-input"
-              placeholder="Search..."
-              style={{ width: '100%', padding: '8px 12px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '12px' }}
+              placeholder="Search tables..."
+              style={{ width: '260px', padding: '10px 16px 10px 40px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '14px' }}
               value={sidebarSearch}
               onChange={(e) => setSidebarSearch(e.target.value)}
             />
+            <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
           </div>
-          <div className="admin-sidebar-list">
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            style={{ padding: '10px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '14px' }}
+          >
+            <option value="all">All Classifications</option>
+            {CATEGORY_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '24px', flex: 1, minHeight: 0 }}>
+        {/* Modern Sidebar */}
+        <aside className="glass-sidebar" style={{ borderRadius: 'var(--radius-xl)', padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h4 style={{ margin: 0, fontSize: '15px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Directory</h4>
+            <button onClick={() => setShowCreateModal(true)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', padding: '4px 8px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}>+ New</button>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {filteredTableList.map((table) => {
+              const active = selectedTableId === table.id;
+              const category = categoryLabel[getEffectiveCategory(table.id)] ?? 'N/A';
               const stats = statsByTable[table.id];
-              const category = categoryLabel[getEffectiveCategory(table.id)] ?? 'Uncategorized';
               return (
                 <div
                   key={table.id}
-                  className={`sidebar-item sidebar-item-hover ${selectedTableId === table.id ? 'active' : ''}`}
+                  className={`table-item-card ${active ? 'active' : ''}`}
                   onClick={() => setSelectedTableId(table.id)}
-                  style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px', padding: '12px 14px', borderRadius: '12px', border: selectedTableId === table.id ? '1px solid #4f46e5' : '1px solid transparent' }}
+                  style={{ padding: '14px 16px', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '6px' }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span>{table.isDynamic ? '✨' : '🗄️'}</span>
-                      <strong>{table.displayName}</strong>
-                    </div>
-                    <span style={{ fontSize: '11px', color: '#94a3b8' }}>{category}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 700, color: active ? 'var(--primary)' : 'var(--ink)' }}>{table.displayName}</span>
+                    <span style={{ fontSize: '10px', padding: '2px 6px', background: active ? 'rgba(79, 70, 229, 0.1)' : '#f1f5f9', borderRadius: '6px', color: active ? 'var(--primary)' : '#64748b' }}>{category}</span>
                   </div>
-                  <div style={{ display: 'flex', gap: '14px', fontSize: '11px', color: '#475569' }}>
-                    <span>Records: {stats?.totalRecords ?? 0}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#94a3b8' }}>
+                    <span>{stats?.totalRecords ?? 0} rows</span>
                     <span>PK: {table.primaryKey}</span>
                   </div>
                 </div>
@@ -342,166 +332,111 @@ export function DataManagementAdmin() {
           </div>
         </aside>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px' }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '20px' }}>{selectedTable?.displayName ?? 'Select a table'}</h3>
-              <p style={{ margin: '4px 0 0', color: '#475569' }}>{selectedTable?.description ?? 'Choose a table to view schema, stats, and import controls.'}</p>
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="btn btn-xs" style={{ background: '#eef2ff', color: '#312e81' }} onClick={() => setShowTableModal(true)}>View details</button>
-              <button className="btn btn-xs" onClick={reloadStats}>Refresh</button>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+        {/* Content Area */}
+        <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Detailed Info Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
             {[
-              { label: 'Total fields', value: selectedTable?.fields.length ?? 0 },
-              { label: 'Classification', value: categoryLabel[getEffectiveCategory(selectedTableId)] ?? 'Uncategorized' },
-              { label: 'Last update', value: statsByTable[selectedTableId]?.lastUpdated ? new Date(statsByTable[selectedTableId]!.lastUpdated!).toLocaleString() : '—' },
-            ].map((card) => (
-              <div key={card.label} style={{ background: '#fff', borderRadius: '12px', padding: '14px 16px', border: '1px solid #e2e8f0' }}>
-                <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>{card.label}</p>
-                <p style={{ margin: '4px 0 0', fontSize: '20px', fontWeight: 600, color: '#0f172a' }}>{card.value}</p>
+              { label: 'Fields Count', value: selectedTable?.fields.length ?? 0, icon: '📊' },
+              { label: 'Classification', value: categoryLabel[getEffectiveCategory(selectedTableId)] ?? 'Unset', icon: '🏷️' },
+              { label: 'Sync Status', value: 'Live on PG', icon: '⚡' },
+              { label: 'Total Volume', value: statsByTable[selectedTableId]?.totalRecords ?? 0, icon: '📦' }
+            ].map(card => (
+              <div key={card.label} className="premium-card" style={{ padding: '20px', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#f8fafc', display: 'grid', placeItems: 'center', fontSize: '20px' }}>{card.icon}</div>
+                <div>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b', fontWeight: 500 }}>{card.label}</p>
+                  <p style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>{card.value}</p>
+                </div>
               </div>
             ))}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ background: '#fff', borderRadius: '18px', padding: '20px', border: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Step 1 · Database Classification</p>
-                  <h4 style={{ margin: '6px 0 4px', fontSize: '18px' }}>{selectedTable?.displayName ?? 'Select a table'}</h4>
+          {/* Steps Section */}
+          <div className="stepper-bg" style={{ borderRadius: 'var(--radius-xl)', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--line)', paddingBottom: '16px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 800 }}>Integration Workflow</h3>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {[1, 2, 3].map(s => <div key={s} style={{ width: '8px', height: '8px', borderRadius: '50%', background: s === 1 ? 'var(--primary)' : '#cbd5e1' }} />)}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              {/* Step 1: Classification */}
+              <div className="premium-card" style={{ padding: '20px', borderRadius: 'var(--radius-lg)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                  <span style={{ background: 'var(--primary)', color: '#fff', width: '24px', height: '24px', borderRadius: '12px', display: 'grid', placeItems: 'center', fontSize: '12px', fontWeight: 800 }}>1</span>
+                  <span style={{ fontWeight: 700, fontSize: '15px' }}>Data Classification</span>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{ fontSize: '12px', color: '#0f172a' }}>Last update: {statsByTable[selectedTableId]?.lastUpdated ? new Date(statsByTable[selectedTableId]!.lastUpdated!).toLocaleString() : '—'}</span>
-                  <div style={{ marginTop: '4px', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                    <button className="btn btn-xs" style={{ borderRadius: '10px', border: '1px solid #cbd5e1' }} onClick={() => setShowTableModal(true)}>Preview schema</button>
-                    <button className="btn btn-xs" style={{ borderRadius: '10px' }} onClick={() => setShowRecordsModal(true)} disabled={!selectedTableId}>View data</button>
-                  </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <select
+                    value={classificationDraft}
+                    onChange={(e) => setClassificationDraft(e.target.value)}
+                    style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '14px', border: '1px solid var(--line)' }}
+                  >
+                    {CATEGORY_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                  <button className="btn btn-primary" onClick={updateTableCategory} disabled={categorySaving || classificationDraft === getEffectiveCategory(selectedTableId)} style={{ padding: '0 20px', borderRadius: '10px' }}>
+                    {categorySaving ? '...' : 'Apply'}
+                  </button>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '14px', marginTop: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <select
-                  value={classificationDraft}
-                  onChange={(e) => setClassificationDraft(e.target.value)}
-                  style={{ flex: '1 1 240px', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '14px' }}
-                >
-                  {CATEGORY_OPTIONS.map(({ value, label }) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-                <button
-                  className="btn btn-primary"
-                  onClick={updateTableCategory}
-                  disabled={categorySaving || classificationDraft === getEffectiveCategory(selectedTableId)}
-                  style={{ borderRadius: '10px', padding: '10px 18px' }}
-                >
-                  {categorySaving ? 'Saving...' : 'Save'}
-                </button>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {['Schema integrity', 'Quality rules', 'Authorization'].map((tag) => (
-                    <span key={tag} style={{ background: '#eef2ff', color: '#312e81', padding: '6px 12px', borderRadius: '999px', fontSize: '12px' }}>{tag}</span>
-                  ))}
+
+              {/* Step 2: Upload */}
+              <div className="premium-card" style={{ padding: '20px', borderRadius: 'var(--radius-lg)', background: '#fcfdff' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                  <span style={{ background: '#0ea5e9', color: '#fff', width: '24px', height: '24px', borderRadius: '12px', display: 'grid', placeItems: 'center', fontSize: '12px', fontWeight: 800 }}>2</span>
+                  <span style={{ fontWeight: 700, fontSize: '15px' }}>Import & Sync</span>
+                </div>
+                <div style={{ border: '2px dashed #e2e8f0', borderRadius: '12px', padding: '10px', textAlign: 'center' }}>
+                  <CsvUpload
+                    selectedTableId={selectedTableId}
+                    onUploadComplete={(name) => { setUploadedFileName(name); reloadStats(); }}
+                    embedded={true}
+                  />
+                  {uploadedFileName && <p style={{ fontSize: '12px', color: '#10b981', margin: '8px 0 0', fontWeight: 600 }}>✓ {uploadedFileName}</p>}
                 </div>
               </div>
             </div>
-            <div style={{ background: '#fff', borderRadius: '18px', padding: '24px', border: '1px dashed #94a3b8', boxShadow: '0 8px 30px rgba(15,23,42,0.15)' }}>
+
+            {/* Step 3: Rules & Preview */}
+            <div className="premium-card" style={{ padding: '20px', borderRadius: 'var(--radius-lg)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Step 2 · Import & Validate</p>
-                  <h4 style={{ margin: '6px 0 0', fontSize: '20px' }}>Primary focal point</h4>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ background: '#7c3aed', color: '#fff', width: '24px', height: '24px', borderRadius: '12px', display: 'grid', placeItems: 'center', fontSize: '12px', fontWeight: 800 }}>3</span>
+                  <span style={{ fontWeight: 700, fontSize: '15px' }}>Validation & Mapping</span>
                 </div>
-                <span className="status-dot online" />
+                <span style={{ fontSize: '12px', color: '#64748b' }}>Last Run: {statsByTable[selectedTableId]?.lastUpdated ? new Date(statsByTable[selectedTableId]!.lastUpdated!).toLocaleTimeString() : 'Never'}</span>
               </div>
-              <div style={{ minHeight: '160px', borderRadius: '16px', border: '2px dashed #64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '10px', color: '#475569', fontSize: '15px', background: '#f8fafc' }}>
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="1.8">
-                  <path d="M12 4v12"></path>
-                  <path d="M6 10l6-6 6 6"></path>
-                  <path d="M5 18h14"></path>
-                </svg>
-                <strong style={{ fontSize: '16px', color: '#0f172a' }}>{uploadedFileName ? `File uploaded: ${uploadedFileName}` : 'Drag & Drop or Click to Upload Data File'}</strong>
-                <span style={{ fontSize: '12px', color: '#64748b' }}>Limit: 100MB · CSV / Excel / JSON</span>
-                <CsvUpload
-                  selectedTableId={selectedTableId}
-                  onUploadComplete={(name) => {
-                    setUploadedFileName(name);
-                    reloadStats();
-                  }}
-                  embedded={true}
-                />
-              </div>
-            </div>
-            <div style={{ background: '#fff', borderRadius: '18px', padding: '20px', border: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Step 3 · Validation Progress</p>
-                  <h4 style={{ margin: '6px 0 0', fontSize: '18px' }}>Validation rules & mapping</h4>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: '#475569' }}>
-                  {['Validate', 'Map Columns', 'Import'].map((step, idx) => (
-                    <span key={step} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <strong style={{ color: idx === 0 ? '#0ea5e9' : '#64748b' }}>●</strong>
-                      {step}
-                      {idx < 2 && <span style={{ margin: '0 6px' }}>→</span>}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setRulesOpen(!rulesOpen)}>
-                    <span style={{ fontWeight: 600 }}>Validation rules</span>
-                    <span>{rulesOpen ? '−' : '+'}</span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                {['Schema Rule: OK', 'FK Integrity: Active', 'Mapping: Auto'].map(badge => (
+                  <div key={badge} style={{ padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', fontWeight: 600, color: '#475569', textAlign: 'center' }}>
+                    {badge}
                   </div>
-                  {rulesOpen && (
-                    <ul style={{ marginTop: '10px', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
-                      {[
-                        { id: 1, label: 'Null check', status: 'Pending' },
-                        { id: 2, label: 'Duplicate check', status: 'Ready' },
-                      ].map((rule) => (
-                        <li key={rule.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span>{rule.id}. {rule.label}</span>
-                          <span style={{ fontSize: '11px', color: '#10b981' }}>{rule.status}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setMappingOpen(!mappingOpen)}>
-                    <span style={{ fontWeight: 600 }}>Mapping</span>
-                    <span>{mappingOpen ? '−' : '+'}</span>
-                  </div>
-                  {mappingOpen && (
-                    <ul style={{ marginTop: '10px', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
-                      {[
-                        { name: 'Product SKU', target: 'sku' },
-                        { name: 'Region', target: 'region_id' },
-                      ].map((map) => (
-                        <li key={map.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span>{map.name}</span>
-                          <span>{map.target}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+                ))}
               </div>
-              <div style={{ marginTop: '16px', display: 'flex', gap: '10px' }}>
-                <button className="btn btn-primary btn-xs">Validate and Prepare Import</button>
-                <button className="btn btn-xs">Clear Form</button>
+              <div style={{ marginTop: '16px', display: 'flex', gap: '12px' }}>
+                <button className="btn btn-primary btn-xs" style={{ background: 'var(--accent)', borderColor: 'var(--accent)', padding: '8px 16px' }}>Validate Now</button>
+                <button className="btn btn-xs" style={{ padding: '8px 16px' }} onClick={() => setShowRecordsModal(true)}>Manual Inspect</button>
               </div>
             </div>
           </div>
+
+          {/* Management View */}
           {selectedTable && (
-            <div style={{ background: '#fff', borderRadius: '18px', padding: '16px', border: '1px solid #e2e8f0' }}>
-              <TableManager table={selectedTable} embedded={true} onDataLoad={reloadStats} />
+            <div className="premium-card" style={{ borderRadius: 'var(--radius-xl)', overflow: 'hidden' }}>
+              <div style={{ padding: '16px 24px', background: '#f8fafc', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 style={{ fontWeight: 800, fontSize: '16px' }}>Current Dataset Preview</h4>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {[1, 2, 3].map(i => <div key={i} style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#e2e8f0' }} />)}
+                </div>
+              </div>
+              <div style={{ padding: '4px' }}>
+                <TableManager table={selectedTable} embedded={true} onDataLoad={reloadStats} />
+              </div>
             </div>
           )}
         </div>
-
       </div>
 
       {showCreateModal && (
