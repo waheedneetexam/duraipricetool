@@ -51,6 +51,51 @@ function TableDetailsModal({ table, classification, onClose }: TableDetailsModal
   );
 }
 
+type ImportValidateModalProps = {
+  tableId: string;
+  onClose: () => void;
+  onUploadComplete: () => void;
+};
+
+function ImportValidateModal({ tableId, onClose, onUploadComplete }: ImportValidateModalProps) {
+  return (
+    <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
+      <div style={{ background: "#fff", borderRadius: "18px", width: "640px", maxWidth: "95vw", padding: "32px", boxShadow: "0 30px 80px rgba(15,23,42,0.2)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <p style={{ margin: 0, fontSize: "12px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.2em" }}>Import & Validate</p>
+            <h3 style={{ margin: "4px 0 0", fontSize: "22px" }}>CSV Upload</h3>
+          </div>
+          <button onClick={onClose} style={{ border: "none", background: "transparent", fontSize: "20px", cursor: "pointer", color: "#64748b" }} aria-label="Close import modal">
+            ×
+          </button>
+        </div>
+        <p style={{ marginTop: "12px", color: "#475569", fontSize: "14px" }}>Drop a CSV file to map your fields and trigger validation rules before importing data into the selected table.</p>
+        <div style={{ marginTop: "20px" }}>
+          <CsvUpload selectedTableId={tableId} onUploadComplete={onUploadComplete} embedded={false} />
+        </div>
+        <div style={{ marginTop: "24px", background: "#f8fafc", borderRadius: "12px", padding: "16px", border: "1px solid #e2e8f0" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <p style={{ margin: 0, fontSize: "12px", color: "#64748b" }}>Validation rules</p>
+              <strong style={{ fontSize: "16px", color: "#0f172a" }}>Schema integrity</strong>
+            </div>
+            <span className="status-dot online" />
+          </div>
+          <p style={{ marginTop: "8px", fontSize: "13px", color: "#475569" }}>Null checks, duplicate checks, and schema validation will run automatically. Configure rules if you need custom logic.</p>
+          <div style={{ marginTop: "12px", display: "flex", gap: "10px" }}>
+            <button className="btn btn-xs" style={{ flex: 1 }}>Configure rules</button>
+            <button className="btn btn-xs" style={{ flex: 1 }}>Column mapping</button>
+          </div>
+        </div>
+        <div style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end" }}>
+          <button onClick={onClose} className="btn btn-xs" style={{ background: "#e2e8f0", color: "#0f172a", borderRadius: "10px", padding: "8px 18px" }}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function DataManagementAdmin() {
   const [schemas, setSchemas] = useState<Record<string, DataTableDefinition>>({});
   const [selectedTableId, setSelectedTableId] = useState('products');
@@ -63,6 +108,7 @@ export function DataManagementAdmin() {
   const [categorySaving, setCategorySaving] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showTableModal, setShowTableModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const reloadStats = () => {
     if (selectedTableId) {
@@ -280,7 +326,7 @@ export function DataManagementAdmin() {
       </div>
 
       {/* Main 3-Column Grid */}
-      <div className="admin-data-grid" style={{ display: 'grid', gridTemplateColumns: '280px 1fr 320px', gap: '18px' }}>
+      <div className="admin-data-grid" style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '18px' }}>
         <aside className="admin-data-sidebar" style={{ background: '#fff', borderRadius: '18px', boxShadow: '0 20px 64px rgba(15,23,42,0.08)', padding: '20px', maxHeight: '75vh', overflowY: 'auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <h4 style={{ margin: 0, fontSize: '16px' }}>Tables</h4>
@@ -381,6 +427,14 @@ export function DataManagementAdmin() {
               >
                 Preview schema
               </button>
+              <button
+                className="btn btn-primary btn-xs"
+                onClick={() => setShowImportModal(true)}
+                style={{ borderRadius: '10px', padding: '10px 18px', background: '#10b981', borderColor: '#10b981', color: '#fff' }}
+                disabled={!selectedTableId}
+              >
+                Import & Validate
+              </button>
             </div>
           </div>
 
@@ -393,24 +447,6 @@ export function DataManagementAdmin() {
           )}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <CsvUpload
-            selectedTableId={selectedTableId}
-            onUploadComplete={reloadStats}
-            embedded={true}
-          />
-          <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #e2e8f0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>Validation rules</p>
-                <strong style={{ fontSize: '16px', color: '#0f172a' }}>Schema integrity</strong>
-              </div>
-              <span className="status-dot online" />
-            </div>
-            <p style={{ marginTop: '12px', fontSize: '13px', color: '#475569' }}>Null, duplicates, and upload validation run automatically whenever you import CSV content.</p>
-            <button className="btn btn-xs" style={{ marginTop: '12px' }}>Configure rules</button>
-          </div>
-        </div>
       </div>
 
       {showCreateModal && (
@@ -451,6 +487,13 @@ export function DataManagementAdmin() {
           table={selectedTable}
           classification={categoryLabel[getEffectiveCategory(selectedTableId)] ?? 'Uncategorized'}
           onClose={() => setShowTableModal(false)}
+        />
+      )}
+      {showImportModal && selectedTableId && (
+        <ImportValidateModal
+          tableId={selectedTableId}
+          onClose={() => setShowImportModal(false)}
+          onUploadComplete={reloadStats}
         />
       )}
     </div>
